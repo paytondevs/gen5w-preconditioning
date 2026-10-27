@@ -38,6 +38,7 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** APK-contained touch and TUNE launcher; the external hold service is unchanged. */
@@ -47,6 +48,8 @@ public final class MainActivity extends Activity {
     private static final int KEY_TUNE_UP = keyCode("KEYCODE_TUNE_UP", 223);
     private static final int KEY_TUNE_DOWN = keyCode("KEYCODE_TUNE_DOWN", 224);
     private static final int KEY_TUNE_ENTER = keyCode("KEYCODE_TUNE_ENTER", 243);
+    private static final String[] TAB_TITLES = {"Preconditioning", "Home", "Advanced"};
+    private static final int STOP_RED = 0xffe5484d;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Target> targets = new ArrayList<>();
     private final List<Target> headerTargets = new ArrayList<>();
@@ -59,19 +62,28 @@ public final class MainActivity extends Activity {
     private GridView grid;
     private TextView empty, statusText, networkText, ipText, adbText;
     private View statusDot, copyButton;
-    private TextView preconditionStatus, preconditionDetail, preconditionIndicator, preconditionElapsed, preconditionButton;
-    private TextView preconditionFailure;
+    private TextView preconditionStatus, preconditionDetail, preconditionElapsed, preconditionButton;
     private TextView preconditionTemperature;
+    private TextView lowestValue, lowestCelsius, highestValue, temperatureAge;
+    private View highestColumn, failureRow;
+    private TemperatureGauge gauge;
+    private TemperatureChart chart;
+    private final CheckMark[] checkMarks = new CheckMark[6];
+    private final TextView[] checkValues = new TextView[6];
+    private final TextView[] defaultChips = new TextView[ScreenFlow.TABS.length];
     private ScrollView advancedScroll;
     private PreconditioningService.LocalBinder vehicleService;
     private PreconditioningSnapshot preconditioning = PreconditioningSnapshot.checking();
     private BatteryTemperatureReading batteryTemperature = BatteryTemperatureReading.checking();
+    private TemperatureHistory.Trace history = TemperatureHistory.Trace.EMPTY;
     private boolean vehicleBound;
     private ConnectionSnapshot connection = ConnectionSnapshot.unknown();
-    private ScreenFlow.Page page = ScreenFlow.Page.HOME;
-    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch;
+    private ScreenFlow.Page page = ScreenFlow.Page.PRECONDITIONING, defaultPage = ScreenFlow.Page.PRECONDITIONING;
+    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch, toggleColor;
     private long resumedAt, enterAt;
     private boolean resumed, started, enterDown, enterLong, preview, receiverRegistered, connectionReading;
+    /** The toggle keeps the knob while it is briefly disabled, until TUNE is turned away. */
+    private boolean knobOnToggle;
 
     private static final class Target {
         final View view;
@@ -105,6 +117,7 @@ public final class MainActivity extends Activity {
         @Override public void onServiceDisconnected(ComponentName name) {
             vehicleService = null; preconditioning = PreconditioningSnapshot.checking();
             batteryTemperature = BatteryTemperatureReading.checking().update(null, SystemClock.elapsedRealtime());
+            history = TemperatureHistory.Trace.EMPTY;
             updatePreconditioningViews();
         }
     };
@@ -114,6 +127,7 @@ public final class MainActivity extends Activity {
             if (vehicleService != null) {
                 preconditioning = vehicleService.snapshot();
                 batteryTemperature = vehicleService.temperature();
+                history = vehicleService.history();
             }
             updatePreconditioningViews(); main.postDelayed(this, 1000);
         }
@@ -129,7 +143,8 @@ public final class MainActivity extends Activity {
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
         preview = PreviewData.enabled(getIntent());
-        showPage(ScreenFlow.Page.HOME);
+        defaultPage = ScreenFlow.fromPreference(prefs.getString("default_page", null));
+        showPage(defaultPage);
         final Context app = getApplicationContext();
         new Thread(new Runnable() {
             @Override public void run() {
@@ -178,7 +193,7 @@ public final class MainActivity extends Activity {
             && SystemClock.uptimeMillis() - resumedAt > 700) finish();
     }
     @Override public void onBackPressed() {
-        ScreenFlow.Page previous = ScreenFlow.back(page);
+        ScreenFlow.Page previous = ScreenFlow.back(page, defaultPage);
         if (previous == null) finish(); else showPage(previous);
     }
 
@@ -187,17 +202,22 @@ public final class MainActivity extends Activity {
         targets.clear(); headerTargets.clear(); grid = null;
         advancedScroll = null;
         preconditionStatus = null; preconditionDetail = null; preconditionButton = null;
-        preconditionIndicator = null; preconditionElapsed = null; preconditionFailure = null;
-        preconditionTemperature = null;
+        preconditionElapsed = null; preconditionTemperature = null;
+        lowestValue = null; lowestCelsius = null; highestValue = null; temperatureAge = null;
+        highestColumn = null; failureRow = null; gauge = null; chart = null; toggleColor = 0;
+        Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null);
+        Arrays.fill(defaultChips, null);
         content.removeAllViews(); toolbar.removeAllViews();
         LinearLayout.LayoutParams contentParams = (LinearLayout.LayoutParams) content.getLayoutParams();
         contentParams.topMargin = ui.dp(page == ScreenFlow.Page.ADVANCED ? 28 : 16);
         content.setLayoutParams(contentParams);
         buildToolbar();
-        if (page == ScreenFlow.Page.HOME) buildHome();
+        if (page == ScreenFlow.Page.PRECONDITIONING) buildPreconditioning();
+        else if (page == ScreenFlow.Page.HOME) buildHome();
         else if (page == ScreenFlow.Page.ADVANCED) buildAdvanced();
         else buildBrowser();
         if (page != ScreenFlow.Page.BROWSER) targets.addAll(headerTargets);
+        knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING;
         knobIndex = KnobFocus.next(-1, 1, enabledTargets()); applyKnob();
         restartConnectionTick();
         updatePreconditioningViews();
@@ -208,14 +228,11 @@ public final class MainActivity extends Activity {
         toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout segmented = ui.row(); segmented.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
         ui.background(segmented, ui.rounded(FocusUi.SURFACE, 28, 0));
-        String[] labels = {"Home", "Advanced"};
-        for (int i = 0; i < 2; i++) {
-            final ScreenFlow.Page destination = i == 0 ? ScreenFlow.Page.HOME : ScreenFlow.Page.ADVANCED;
-            boolean selected = i == 0 ? page == ScreenFlow.Page.HOME : page != ScreenFlow.Page.HOME;
-            TextView chip = ui.text(labels[i], 17, selected ? Color.WHITE : FocusUi.INK, false);
-            chip.setGravity(Gravity.CENTER);
-            ui.background(chip, ui.control(selected ? FocusUi.BLUE : FocusUi.SURFACE, 24));
-            segmented.addView(chip, new LinearLayout.LayoutParams(ui.dp(128), ui.dp(40)));
+        ScreenFlow.Page current = page == ScreenFlow.Page.BROWSER ? ScreenFlow.Page.ADVANCED : page;
+        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
+            final ScreenFlow.Page destination = ScreenFlow.TABS[i];
+            TextView chip = chip(TAB_TITLES[i], destination == current, FocusUi.SURFACE);
+            segmented.addView(chip, new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
             Runnable action = new Runnable() { @Override public void run() { showPage(destination); } };
             clickable(chip, action); headerTargets.add(new Target(chip, -1, action));
         }
@@ -279,6 +296,9 @@ public final class MainActivity extends Activity {
         preconditionTemperature.setSingleLine(true);
         preconditionTemperature.setEllipsize(TextUtils.TruncateAt.END);
         ((LinearLayout) preconditionStatus.getParent()).addView(preconditionTemperature);
+        // The row opens the tab; add it before the button so the button's knob state wins.
+        precondition.setContentDescription("Preconditioning. Open the preconditioning tab");
+        addTarget(precondition, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.PRECONDITIONING); } });
         preconditionButton = preconditioningButton();
         precondition.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(82), ui.dp(44)));
         actions.addView(precondition, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -335,24 +355,23 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
         cardParams.topMargin = ui.dp(12); body.addView(card, cardParams);
         LinearLayout details = ui.column();
-        details.addView(ui.text("Battery preconditioning", 24, FocusUi.INK, true));
-        preconditionStatus = ui.text("Checking", 18, FocusUi.BLUE, true);
-        preconditionDetail = ui.text("Checking vehicle services", 16, FocusUi.MUTED, false);
-        preconditionIndicator = ui.text("Car indicator: Unknown", 15, FocusUi.MUTED, false);
-        preconditionElapsed = ui.text("Elapsed: —", 15, FocusUi.MUTED, false);
-        preconditionFailure = ui.text("Failure reason: Unknown", 15, FocusUi.MUTED, false);
-        details.addView(preconditionStatus); details.addView(preconditionDetail);
-        preconditionTemperature = ui.text("Lowest Battery Pack Temperature: checking…", 16, FocusUi.MUTED, false);
-        details.addView(preconditionTemperature);
-        LinearLayout facts = ui.row();
-        facts.addView(preconditionIndicator, new LinearLayout.LayoutParams(0, -2, 1));
-        facts.addView(preconditionElapsed, new LinearLayout.LayoutParams(0, -2, 1));
-        facts.addView(preconditionFailure, new LinearLayout.LayoutParams(0, -2, 1));
-        details.addView(facts);
+        details.addView(ui.text("Default tab", 24, FocusUi.INK, true));
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-2, -2); hintParams.topMargin = ui.dp(7);
+        details.addView(ui.text("Launchpad opens on this tab", 16, FocusUi.MUTED, false), hintParams);
         card.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        preconditionButton = preconditioningButton();
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(ui.dp(100), ui.dp(48));
-        actionParams.leftMargin = ui.dp(20); card.addView(preconditionButton, actionParams);
+        LinearLayout choices = ui.row(); choices.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
+        ui.background(choices, ui.rounded(Color.WHITE, 28, 0));
+        card.addView(choices);
+        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
+            final int index = i;
+            defaultChips[i] = chip(TAB_TITLES[i], ScreenFlow.TABS[i] == defaultPage, Color.WHITE);
+            choices.addView(defaultChips[i], new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
+            addTarget(defaultChips[i], new Runnable() { @Override public void run() {
+                defaultPage = ScreenFlow.TABS[index];
+                prefs.edit().putString("default_page", defaultPage.name()).apply();
+                for (int j = 0; j < defaultChips.length; j++) styleChip(defaultChips[j], j == index, Color.WHITE);
+            } });
+        }
 
         TextView tools = ui.text("TOOLS", 12, FocusUi.MUTED, false);
         LinearLayout.LayoutParams toolsParams = new LinearLayout.LayoutParams(-1, -2);
@@ -379,45 +398,154 @@ public final class MainActivity extends Activity {
         updateConnectionViews();
     }
 
+    private TextView chip(String label, boolean selected, int idle) {
+        TextView chip = ui.text(label, 17, FocusUi.INK, false); chip.setGravity(Gravity.CENTER);
+        styleChip(chip, selected, idle); return chip;
+    }
+    private void styleChip(TextView chip, boolean selected, int idle) {
+        chip.setTextColor(selected ? Color.WHITE : FocusUi.INK);
+        ui.background(chip, ui.control(selected ? FocusUi.BLUE : idle, 24));
+    }
     private TextView preconditioningButton() {
         TextView button = ui.text("Start", 18, Color.WHITE, true);
         button.setGravity(Gravity.CENTER);
         ui.background(button, ui.control(FocusUi.BLUE, 22));
-        addTarget(button, new Runnable() { @Override public void run() {
-            if (preconditioning.canStop || preconditioning.canStart) {
-                String action = preconditioning.canStop ? PreconditioningService.STOP
-                    : preconditioning.state == PreconditioningSnapshot.State.WARM
-                        ? PreconditioningService.START_ANYWAY : PreconditioningService.START;
-                startService(new Intent(MainActivity.this, PreconditioningService.class).setAction(action));
-                // Serialize presses until the service publishes the result.
-                if (preconditionButton != null) preconditionButton.setEnabled(false);
-            }
-        } });
+        addTarget(button, new Runnable() { @Override public void run() { preconditioningAction(); } });
         button.setEnabled(false); return button;
     }
+    private void preconditioningAction() {
+        if (!preconditioning.canStop && !preconditioning.canStart) return;
+        String action = preconditioning.canStop ? PreconditioningService.STOP
+            : preconditioning.state == PreconditioningSnapshot.State.WARM
+                ? PreconditioningService.START_ANYWAY : PreconditioningService.START;
+        startService(new Intent(this, PreconditioningService.class).setAction(action));
+        // Serialize presses until the service publishes the result.
+        if (preconditionButton != null) preconditionButton.setEnabled(false);
+    }
+
+    private void buildPreconditioning() {
+        LinearLayout body = ui.row();
+        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout control = panel(body, 0.34f, 0);
+        control.addView(caption("BATTERY PRECONDITIONING"));
+        preconditionStatus = ui.text("Checking", 34, FocusUi.INK, true); preconditionStatus.setMaxLines(2);
+        control.addView(preconditionStatus, below(10));
+        preconditionElapsed = ui.text("Elapsed: —", 18, FocusUi.INK, false);
+        control.addView(preconditionElapsed, below(10));
+        preconditionDetail = ui.text("Checking vehicle services", 16, FocusUi.MUTED, false);
+        preconditionDetail.setLineSpacing(0, 1.15f); preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
+        preconditionDetail.setMaxLines(6);
+        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, 0, 1); detailParams.topMargin = ui.dp(14);
+        control.addView(preconditionDetail, detailParams);
+        preconditionButton = ui.text("Start", 26, Color.WHITE, true); preconditionButton.setGravity(Gravity.CENTER);
+        addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
+        preconditionButton.setEnabled(false);
+        control.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(260), ui.dp(72)));
+
+        LinearLayout temperature = panel(body, 0.40f, 16);
+        LinearLayout readings = ui.row();
+        LinearLayout lowest = ui.column(); lowest.addView(caption("LOWEST PACK"));
+        LinearLayout values = ui.row(); values.setGravity(Gravity.BOTTOM);
+        lowestValue = ui.text("—", 48, FocusUi.INK, true); values.addView(lowestValue);
+        lowestCelsius = ui.text("", 20, FocusUi.MUTED, false);
+        LinearLayout.LayoutParams celsiusParams = new LinearLayout.LayoutParams(-2, -2);
+        celsiusParams.leftMargin = ui.dp(10); celsiusParams.bottomMargin = ui.dp(5); values.addView(lowestCelsius, celsiusParams);
+        lowest.addView(values, below(6));
+        readings.addView(lowest, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout highest = ui.column(); highest.setGravity(Gravity.RIGHT);
+        highest.addView(caption("HIGHEST PACK"));
+        highestValue = ui.text("—", 28, FocusUi.INK, true); highest.addView(highestValue, below(6));
+        highestColumn = highest; highest.setVisibility(View.GONE); readings.addView(highest);
+        temperature.addView(readings);
+        temperatureAge = ui.text("Checking…", 14, FocusUi.MUTED, false); temperatureAge.setSingleLine(true);
+        temperature.addView(temperatureAge, below(6));
+        gauge = new TemperatureGauge(this);
+        LinearLayout.LayoutParams gaugeParams = new LinearLayout.LayoutParams(-1, ui.dp(58)); gaugeParams.topMargin = ui.dp(8);
+        temperature.addView(gauge, gaugeParams);
+        chart = new TemperatureChart(this);
+        LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(-1, 0, 1); chartParams.topMargin = ui.dp(6);
+        temperature.addView(chart, chartParams);
+
+        LinearLayout checks = panel(body, 0.26f, 16);
+        checks.addView(caption("VEHICLE CHECKS"));
+        String[] labels = {"EV READY", "Battery conditioning", "Car indicator", "Firmware profile", "Temperature source", "Failure code"};
+        for (int i = 0; i < labels.length; i++) {
+            LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
+            checkMarks[i] = new CheckMark(this);
+            row.addView(checkMarks[i], new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26)));
+            LinearLayout text = ui.column();
+            TextView label = ui.text(labels[i], 17, FocusUi.INK, true); label.setSingleLine(true);
+            text.addView(label);
+            checkValues[i] = ui.text("Unknown", 14, FocusUi.MUTED, false); checkValues[i].setSingleLine(true);
+            checkValues[i].setEllipsize(TextUtils.TruncateAt.END); text.addView(checkValues[i], below(4));
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1); textParams.leftMargin = ui.dp(12);
+            row.addView(text, textParams);
+            checks.addView(row, new LinearLayout.LayoutParams(-1, 0, 1));
+            if (i == labels.length - 1) { failureRow = row; row.setVisibility(View.GONE); }
+        }
+    }
+    private LinearLayout panel(LinearLayout parent, float weight, int gap) {
+        LinearLayout panel = ui.column(); panel.setPadding(ui.dp(20), ui.dp(18), ui.dp(20), ui.dp(18));
+        ui.background(panel, ui.rounded(FocusUi.SURFACE, 20, 0));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, weight); params.leftMargin = ui.dp(gap);
+        parent.addView(panel, params); return panel;
+    }
+    private TextView caption(String value) { return ui.text(value, 12, FocusUi.MUTED, true); }
+    private LinearLayout.LayoutParams below(int margin) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2); params.topMargin = ui.dp(margin); return params;
+    }
+
     private void updatePreconditioningViews() {
         if (preconditionStatus == null) return;
+        long now = SystemClock.elapsedRealtime();
         String status = preconditioning.title();
         if (page == ScreenFlow.Page.HOME && preconditioning.requested) status += " · " + preconditioning.elapsed();
         preconditionStatus.setText(status);
-        if (preconditionTemperature != null) preconditionTemperature.setText(
-            batteryTemperature.label(SystemClock.elapsedRealtime(), page == ScreenFlow.Page.HOME));
+        if (preconditionTemperature != null) preconditionTemperature.setText(batteryTemperature.label(now, true));
         if (preconditionDetail != null) preconditionDetail.setText(preconditioning.detail);
-        if (preconditionIndicator != null) preconditionIndicator.setText(preconditioning.indicatorLabel());
         if (preconditionElapsed != null) preconditionElapsed.setText("Elapsed: " +
             (preconditioning.requested || preconditioning.state == PreconditioningSnapshot.State.ENDED
                 || preconditioning.state == PreconditioningSnapshot.State.TIMED_OUT ? preconditioning.elapsed() : "—"));
-        if (preconditionFailure != null) preconditionFailure.setText("Failure reason: Unknown" +
-            (preconditioning.failureRaw >= 0 ? " (raw " + preconditioning.failureRaw + ")" : ""));
+        if (lowestValue != null) updateTemperatureViews(now);
         if (preconditionButton != null) {
             boolean warm = preconditioning.state == PreconditioningSnapshot.State.WARM;
-            preconditionButton.setText(warm ? "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
-            preconditionButton.setTextSize(warm ? 14 : 18);
+            boolean toggle = page == ScreenFlow.Page.PRECONDITIONING;
+            preconditionButton.setText(warm ? toggle ? "Start anyway" : "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
+            preconditionButton.setTextSize(toggle ? warm ? 22 : 26 : warm ? 14 : 18);
             preconditionButton.setContentDescription(warm ? "Start preconditioning anyway" : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
+            int color = preconditioning.requested ? STOP_RED : warm ? TemperatureGauge.WARM : FocusUi.BLUE;
+            if (toggle && color != toggleColor) { toggleColor = color; ui.background(preconditionButton, ui.pill(color, 36)); }
             boolean enabled = preconditioning.canStart || preconditioning.canStop;
             preconditionButton.setEnabled(enabled); preconditionButton.setAlpha(enabled ? 1f : 0.4f);
             if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
+            // The toggle is the first target on its tab.
+            if (toggle && enabled && knobOnToggle && knobIndex != 0) { knobIndex = 0; applyKnob(); }
         }
+    }
+    private void updateTemperatureViews(long now) {
+        Integer minimum = batteryTemperature.minimumC;
+        boolean stale = batteryTemperature.stale(now);
+        lowestValue.setText(minimum == null ? "—" : BatteryTemperatureReading.fahrenheit(minimum) + "°F");
+        lowestValue.setTextColor(stale ? FocusUi.MUTED : FocusUi.INK);
+        lowestCelsius.setText(minimum == null ? "" : minimum + "°C");
+        temperatureAge.setText(batteryTemperature.age(now));
+        TemperatureHistory.Sample latest = history.latest();
+        Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
+        highestColumn.setVisibility(maximum == null ? View.GONE : View.VISIBLE);
+        if (maximum != null) highestValue.setText(BatteryTemperatureReading.fahrenheit(maximum) + "°F · " + maximum + "°C");
+        gauge.setValue(minimum); chart.setTrace(history, now);
+        setCheck(0, preconditioning.readyCheck(), preconditioning.readyValue());
+        setCheck(1, preconditioning.enabledCheck(), preconditioning.enabledValue());
+        setCheck(2, preconditioning.indicatorCheck(), preconditioning.indicatorValue());
+        setCheck(3, preconditioning.supported, preconditioning.supportedValue());
+        setCheck(4, minimum != null ? PreconditioningSnapshot.PASS : batteryTemperature.attempted
+            ? PreconditioningSnapshot.FAIL : PreconditioningSnapshot.UNKNOWN,
+            minimum != null ? "Native" : batteryTemperature.attempted ? "Not available on this firmware" : "Checking");
+        failureRow.setVisibility(preconditioning.failureRaw >= 0 ? View.VISIBLE : View.GONE);
+        setCheck(5, PreconditioningSnapshot.UNKNOWN, "Raw " + preconditioning.failureRaw + " · meaning unknown");
+    }
+    private void setCheck(int index, int state, String value) {
+        checkMarks[index].setState(state); checkValues[index].setText(value);
     }
 
     private LinearLayout detailColumn(String title, boolean compact) {
@@ -614,7 +742,10 @@ public final class MainActivity extends Activity {
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode(); boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         if (code == KEY_TUNE_UP || code == KEY_TUNE_DOWN || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_LEFT) {
-            if (down) moveKnob(code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+            if (down) {
+                moveKnob(code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+                knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING && knobIndex == 0;
+            }
             return true;
         }
         if (code == KEY_TUNE_ENTER || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {

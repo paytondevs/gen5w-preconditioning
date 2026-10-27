@@ -57,7 +57,7 @@ final class PreconditioningController {
                 endedAt = now;
                 state = activationTimedOut ? PreconditioningSnapshot.State.TIMED_OUT : PreconditioningSnapshot.State.ENDED;
                 detail = activationTimedOut
-                    ? "No activation confirmed within 5 minutes. Cancellation confirmed; the car reports Off."
+                    ? "No activation confirmed within " + timeoutText() + ". Cancellation confirmed; the car reports Off."
                     : "Cancel sent; the car reports conditioning Off.";
             } else if (released) {
                 state = PreconditioningSnapshot.State.STOPPING;
@@ -83,7 +83,7 @@ final class PreconditioningController {
                 detail = "The car reports battery conditioning active.";
             } else {
                 state = PreconditioningSnapshot.State.WAITING;
-                detail = "Request sent; conditioning is not active. Vehicle conditions may prevent activation. Cancels after 5 minutes without confirmed activation.";
+                detail = waitingDetail();
             }
             // Refresh the OEM request metadata. Never resend the Start pulse.
             long interval = vehicle.maintenanceIntervalMs();
@@ -150,12 +150,20 @@ final class PreconditioningController {
             vehicle.beginManual();
             nextMaintenance = now + vehicle.maintenanceIntervalMs();
             state = PreconditioningSnapshot.State.WAITING;
-            detail = "Request sent; conditioning is not active. Vehicle conditions may prevent activation. Cancels after 5 minutes without confirmed activation.";
+            detail = waitingDetail();
             return true;
         } catch (Exception e) { fail("Start could not be confirmed. Stop remains available. ", e); return false; }
     }
+    private String waitingDetail() {
+        return "Request sent; conditioning is not active. Vehicle conditions may prevent activation. Cancels after "
+            + timeoutText() + " without confirmed activation.";
+    }
+    private String timeoutText() {
+        long minutes = vehicle.activationTimeoutMs() / 60000;
+        return minutes + (minutes == 1 ? " minute" : " minutes");
+    }
     private boolean cancelExpiredRequest(long now) {
-        if (requested && !stopping && !activeSeen && now - startedAt >= ACTIVATION_TIMEOUT_MS) {
+        if (requested && !stopping && !activeSeen && now - startedAt >= vehicle.activationTimeoutMs()) {
             activationTimedOut = true;
             stop(now);
             return true;
@@ -167,7 +175,7 @@ final class PreconditioningController {
         stopping = true;
         state = PreconditioningSnapshot.State.STOPPING;
         detail = activationTimedOut
-            ? "No activation confirmed within 5 minutes. Cancelling; waiting for the car’s Off indicator."
+            ? "No activation confirmed within " + timeoutText() + ". Cancelling; waiting for the car’s Off indicator."
             : "Releasing the manual request; waiting for the car’s Off indicator.";
         try { vehicle.stopAndRelease(); released = true; }
         catch (Exception e) { fail("Cancellation is unconfirmed. Stop can be tried again. ", e); }
@@ -183,11 +191,17 @@ final class PreconditioningController {
             ? "Battery minimum " + warmTemperatureC + "°C is at or above the expected heating threshold (20°C / 68°F). No request sent. Button resets in "
                 + resetSeconds + " seconds. Start anyway sends a manual request; the car decides whether to heat."
             : detail;
+        // A successful read passed the firmware gate; read errors only name firmware when it failed.
+        int supported = !vehicle.unavailableReason().isEmpty() ? PreconditioningSnapshot.FAIL
+            : reading != null ? PreconditioningSnapshot.PASS
+            : state == PreconditioningSnapshot.State.UNKNOWN && detail.contains("firmware") ? PreconditioningSnapshot.FAIL
+            : PreconditioningSnapshot.UNKNOWN;
         return new PreconditioningSnapshot(state, requested, canStart,
             requested && !(stopping && released), indicator,
             reading == null ? -1 : reading.failureRaw,
             requested ? Math.max(0, now - startedAt) : endedAt > 0 ? Math.max(0, endedAt - startedAt) : 0,
-            displayDetail, resetSeconds);
+            displayDetail, resetSeconds, reading == null ? -1 : reading.ready,
+            reading == null ? -1 : reading.enabled, supported);
     }
     private void fail(String prefix, Exception e) {
         commandFailed = true;

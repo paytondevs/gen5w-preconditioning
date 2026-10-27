@@ -35,8 +35,9 @@ BMS cutoff. See [the detailed evidence](TEMPERATURE-AND-TIMEOUT.md).
   with matching hardware and exact firmware are possible candidates, untested.
 - Driving activation, native-navigation coexistence, active-session process or
   power loss, and failed native-read recovery are not claimed verified.
-- The native temperature reader/advisory is EV6-only. The pending timeout and
-  Request sent label also affect the shared Ioniq 5 controller.
+- The native temperature reader/advisory runs on the exact EV6 and Ioniq 5
+  profiles; Ioniq 5 reads are not yet field-tested. The pending timeout is
+  five minutes on the EV6 and two minutes on the Ioniq 5.
 
 ## Maintainer decisions before publishing
 

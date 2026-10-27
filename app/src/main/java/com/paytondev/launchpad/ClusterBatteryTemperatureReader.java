@@ -8,8 +8,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
-/** One-shot read using the separately validated EV6 cluster callback contract. */
-final class Ev6BatteryTemperatureReader {
+/** One-shot read of the cluster battery-info callback, identical on the EV6 and IONIQ 5 profiles. */
+final class ClusterBatteryTemperatureReader {
     private static final String SERVICE = "com.hkmc.cluster.IClusterService";
     private static final String LISTENER = "com.hkmc.cluster.INavigationClusterListener";
     private static FutureTask<Integer> pending;
@@ -20,7 +20,7 @@ final class Ev6BatteryTemperatureReader {
     static Integer read() {
         final FutureTask<Integer> task;
         final long deadline;
-        synchronized (Ev6BatteryTemperatureReader.class) {
+        synchronized (ClusterBatteryTemperatureReader.class) {
             if (pending == null || pending.isDone()) {
                 pending = new FutureTask<Integer>(() -> collect());
                 deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(1800);

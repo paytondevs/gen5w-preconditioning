@@ -9,9 +9,9 @@ It has no new signed release or public version bump. The
 
 | Behavior | EV6 exact profile | Original Ioniq 5 profile |
 | --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Unavailable; no guessed native transactions |
-| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Not activated without a supported temperature reader |
-| Five-minute cancellation of an unconfirmed request | Enabled | Enabled through the shared controller |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) |
+| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Enabled for a valid warm reading |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (activation normally follows in about 60–70 seconds) |
 | Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
@@ -21,12 +21,24 @@ added.
 
 ## Native read contract and bounds
 
-Only the guarded EV6 client reaches `Ev6BatteryTemperatureReader`. Its contract
-is service `com.hkmc.micom.cluster`, descriptor `com.hkmc.cluster.IClusterService`,
-registration 37, request 109 without arguments, and removal 38. The listener
-descriptor is `com.hkmc.cluster.INavigationClusterListener`; callback 16 carries
-an eight-integer array. Index 1 is interpreted as minimum temperature in whole
+Only the hash-validated EV6 and Ioniq 5 clients reach
+`ClusterBatteryTemperatureReader` (`PreconditioningProfile.readsClusterBatteryTemperature`).
+Its contract is service `com.hkmc.micom.cluster`, descriptor
+`com.hkmc.cluster.IClusterService`, registration 37, request 109 without
+arguments, and removal 38. The listener descriptor is
+`com.hkmc.cluster.INavigationClusterListener`; callback 16 carries an
+eight-integer array. Index 1 is interpreted as minimum temperature in whole
 degrees Celsius. Other array fields are not exposed as calibrated readings.
+
+The Ioniq 5 NEEV23 US 260507 framework (`automotive.odex` / `automotive-service.odex`
+matching the profile hashes, collected read-only from a vehicle over USB) names
+these codes `addNavigationClusterListener`, `requestBatteryInfoReq()`,
+`removeNavigationClusterListener` and `onHandleBatteryInfoResp(int[])`. Its
+`Navigation.BATTERY_INFO_RX` constants index the array as 0 `XEV_SOCDIS`,
+1 `XEV_MIN_BATT_TEMP`, 2 `EV_AVLBL_ENRG`, 3 `VCRM_SW_VER`, 4 `DATC_OUT_TEMP_SNSR`,
+5 `VCU_BATT_COND_IND_STA`, 6 `VCU_DTE_BASE`, 7 `VCU_DTE_ADD`, and the service
+logs index 1 as the minimum battery temperature. No maximum pack temperature is
+exposed by either framework. The EV6 contract and decoder are unchanged.
 
 The decoder rejects the wrong length, implausible temperature (-40 to 60°C is
 the accepted envelope), or a first field outside 0 to 200. These are plausibility
@@ -80,10 +92,11 @@ preserves a manual request path; vehicle constraints still apply.
 
 ## Pending-request timeout
 
-At the first status refresh at or after five minutes, a request with no observed
+At the first status refresh at or after the profile deadline (five minutes on the
+EV6, two on the Ioniq 5), a request with no observed
 Active indication sends the existing cancel sequence. A fresh Active indication
 at the deadline wins. Sessions that have already been observed Active have no
-five-minute cutoff. Unknown/missing feedback cannot indefinitely extend a pending
+pending cutoff. Unknown/missing feedback cannot indefinitely extend a pending
 request. No repeated Start pulses or automatic retry loop are introduced.
 
 Cancellation is not completion: ownership stays recorded until cancellation has
@@ -146,7 +159,8 @@ These limits do not negate the owner's successful manual conditioning/display
 tests; they keep separate behaviors from being marked tested by inference.
 
 Native reads remain unverified on other firmware, trims, model years or markets.
-Shared timeout changes need review for the original Ioniq 5 profile as well.
+The deadline is per profile (`PreconditioningProfile.activationTimeoutMs`): five minutes on the
+EV6 and two minutes on the Ioniq 5, where the owner reports activation in about 60–70 seconds.
 No proprietary firmware/disassembly, raw vehicle logs, APKs, private updater,
 signing key, or password is included in this contribution.
 

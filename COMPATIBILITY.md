@@ -58,8 +58,10 @@ been installed as a new vehicle build.
 
 No EV6 command/enum remapping was needed. Start/Stop command arguments, package
 IDs, release version, and original Ioniq TUNE default remain unchanged. The
-controller now adds a five-minute pending timeout for both profiles; native
-temperature reads and the warm advisory are restricted to the exact EV6 profile.
+controller adds a pending timeout: five minutes for the EV6 profile and two minutes
+for the Ioniq 5, whose activation normally follows in about 60–70 seconds. Native
+temperature reads and the warm advisory run only on the exact EV6 and Ioniq 5
+profiles, which share one cluster contract (see TEMPERATURE-AND-TIMEOUT.md).
 No raw vehicle logs, firmware, disassembly, APKs, or signing material
 are included. This is evidence for the listed profile, not blanket EV6 support.
 

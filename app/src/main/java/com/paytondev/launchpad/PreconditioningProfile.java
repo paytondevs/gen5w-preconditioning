@@ -13,6 +13,18 @@ final class PreconditioningProfile {
     static boolean supportsDevice(int sdk, String device) {
         return sdk == 19 && (DEVICE.equals(device) || EV6_DEVICE.equals(device));
     }
+    // Both inspected frameworks define IClusterService 37/109/38 as add listener /
+    // requestBatteryInfoReq() / remove listener, callback 16 as onHandleBatteryInfoResp(int[]),
+    // and Navigation.BATTERY_INFO_RX index 1 as XEV_MIN_BATT_TEMP. Valid only after matchesFirmware.
+    static boolean readsClusterBatteryTemperature(String device) {
+        return DEVICE.equals(device) || EV6_DEVICE.equals(device);
+    }
+    // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
+    // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
+    static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
+    static long activationTimeoutMs(String device) {
+        return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
+    }
     static boolean matchesFirmware(int sdk, String device, String software,
                                    String frameworkHash, String serviceHash) {
         if (!supportsDevice(sdk, device)) return false;

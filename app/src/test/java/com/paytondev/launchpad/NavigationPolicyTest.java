@@ -4,10 +4,27 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class NavigationPolicyTest {
-    @Test public void backReturnsThroughTheExistingActivity() {
-        assertEquals(ScreenFlow.Page.ADVANCED, ScreenFlow.back(ScreenFlow.Page.BROWSER));
-        assertEquals(ScreenFlow.Page.HOME, ScreenFlow.back(ScreenFlow.Page.ADVANCED));
-        assertNull(ScreenFlow.back(ScreenFlow.Page.HOME));
+    @Test public void backReturnsThroughTheExistingActivityToTheDefaultTab() {
+        ScreenFlow.Page precondition = ScreenFlow.Page.PRECONDITIONING, home = ScreenFlow.Page.HOME;
+        ScreenFlow.Page advanced = ScreenFlow.Page.ADVANCED, browser = ScreenFlow.Page.BROWSER;
+        for (ScreenFlow.Page defaultPage : ScreenFlow.TABS) {
+            assertEquals(advanced, ScreenFlow.back(browser, defaultPage));
+            assertNull(ScreenFlow.back(defaultPage, defaultPage));
+            for (ScreenFlow.Page tab : ScreenFlow.TABS)
+                if (tab != defaultPage) assertEquals(defaultPage, ScreenFlow.back(tab, defaultPage));
+        }
+        assertEquals(precondition, ScreenFlow.back(home, precondition));
+        assertEquals(home, ScreenFlow.back(advanced, home));
+        assertNull(ScreenFlow.back(advanced, advanced));
+    }
+    @Test public void defaultTabPreferenceFallsBackToPreconditioning() {
+        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference(null));
+        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference(""));
+        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference("home"));
+        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference("BROWSER"));
+        assertEquals(ScreenFlow.Page.HOME, ScreenFlow.fromPreference("HOME"));
+        assertEquals(ScreenFlow.Page.ADVANCED, ScreenFlow.fromPreference("ADVANCED"));
+        for (ScreenFlow.Page tab : ScreenFlow.TABS) assertEquals(tab, ScreenFlow.fromPreference(tab.name()));
     }
     @Test public void knobWrapsAndSkipsUnavailableControls() {
         boolean[] enabled = {true, false, true, false};

@@ -54,16 +54,23 @@ final class FocusUi {
     Drawable control(int fill, int radius) {
         StateListDrawable states = new StateListDrawable();
         states.addState(new int[]{android.R.attr.state_pressed}, rounded(0xffe7f0ff, radius, BLUE));
-        Drawable focus = rounded(fill, radius, BLUE);
-        if (fill == BLUE) {
-            LayerDrawable ring = new LayerDrawable(new Drawable[]{rounded(Color.WHITE, radius, BLUE),
-                rounded(fill, radius - 4, 0)});
-            ring.setLayerInset(1, dp(4), dp(4), dp(4), dp(4));
-            focus = ring;
-        }
-        states.addState(new int[]{android.R.attr.state_activated}, focus);
+        states.addState(new int[]{android.R.attr.state_activated}, fill == BLUE ? ring(fill, radius) : rounded(fill, radius, BLUE));
         states.addState(new int[]{}, rounded(fill, radius, 0));
         return states;
+    }
+    /** Solid fills of any color; the knob draws a blue ring outside the fill. */
+    Drawable pill(int fill, int radius) {
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_pressed}, ring(fill & 0xccffffff, radius));
+        states.addState(new int[]{android.R.attr.state_activated}, ring(fill, radius));
+        states.addState(new int[]{}, rounded(fill, radius, 0));
+        return states;
+    }
+    private Drawable ring(int fill, int radius) {
+        LayerDrawable ring = new LayerDrawable(new Drawable[]{rounded(Color.WHITE, radius, BLUE),
+            rounded(fill, radius - 4, 0)});
+        ring.setLayerInset(1, dp(4), dp(4), dp(4), dp(4));
+        return ring;
     }
     @SuppressWarnings("deprecation")
     void background(View view, Drawable drawable) { view.setBackgroundDrawable(drawable); }

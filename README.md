@@ -19,8 +19,8 @@ The EV6 changes are source contributions pending a maintainer release. Existing 
 **EV6 owners:** start with the [EV6 installation and everyday-use guide](EV6-QUICK-START.md).
 
 This follow-up contribution adds a battery-temperature display and warm-battery
-advisory for the exact EV6 profile, plus a five-minute unconfirmed-request timeout
-for both supported profiles. See [behavior and validation](TEMPERATURE-AND-TIMEOUT.md).
+advisory for the exact EV6 and Ioniq 5 profiles, plus an unconfirmed-request timeout
+(five minutes on the EV6, two minutes on the Ioniq 5). See [behavior and validation](TEMPERATURE-AND-TIMEOUT.md).
 These source changes are pending review and are not a new downloadable release.
 
 **what you'll need:**
@@ -107,7 +107,7 @@ you only need the USB drive again to update.
 2. press **Start**. On the supported EV6, a warm reading may show a ten-second advisory with **Start anyway**. Otherwise Launchpad shows **Request sent** until the car confirms activation. A request without confirmed activation is cancelled after five minutes; Start returns only after the car reports Off.
 3. the battery management system can still say no, because of temperature, charge, or other conditions it controls.
 
-**a request does not mean the battery heater is on.** Launchpad shows **Active** only when the car itself reports that conditioning is active. The five-minute pending timeout does not cut short an active session. Temperature display and the warm advisory are EV6-only; the shared timeout also applies to the Ioniq 5 profile.
+**a request does not mean the battery heater is on.** Launchpad shows **Active** only when the car itself reports that conditioning is active. The pending timeout (five minutes on the EV6, two on the Ioniq 5) does not cut short an active session. Temperature display and the warm advisory use the same native reading on both supported profiles (EV6 field-tested; Ioniq 5 confirmed from its firmware, not yet field-tested).
 
 press **Stop** to cancel, including while it's still waiting. closing Launchpad does **not** stop a request that's already running.
 
@@ -135,7 +135,7 @@ this removes Launchpad, its TUNE-hold service and `/system/app/Launchpad.apk`. i
 | "not enough space on /system" in the log | nothing was changed. message me with the log. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your firmware doesn't match the checked profile, so Launchpad won't send commands. see [COMPATIBILITY.md](COMPATIBILITY.md). |
-| it stays **Request sent** | activation is unconfirmed. press **Stop**, or allow the five-minute pending timeout to request cancellation. The app waits for Off before offering Start again. |
+| it stays **Request sent** | activation is unconfirmed. press **Stop**, or allow the pending timeout (five minutes on the EV6, two on the Ioniq 5) to request cancellation. The app waits for Off before offering Start again. |
 
 ## what this changes on your car
 
