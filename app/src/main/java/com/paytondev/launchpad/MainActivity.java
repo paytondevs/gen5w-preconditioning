@@ -15,6 +15,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.graphics.drawable.ColorDrawable;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
@@ -24,6 +25,7 @@ import android.os.IBinder;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -77,7 +79,8 @@ public final class MainActivity extends Activity {
     private ScrollView advancedScroll;
     private Palette palette = Palette.LIGHT;
     private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
-    private boolean carNight, signalsReading;
+    private boolean carNight, signalsReading, compact, splitObserved;
+    private int rightPadding;
     private TextView signalsText;
     private SignalLog signals;
     private PreconditioningService.LocalBinder vehicleService;
@@ -120,6 +123,9 @@ public final class MainActivity extends Activity {
             }
         }
     };
+    private final ContentObserver splitChanges = new ContentObserver(main) {
+        @Override public void onChange(boolean selfChange) { applySplitScreen(); }
+    };
     private final BroadcastReceiver wifiChanges = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (resumed && page == ScreenFlow.Page.ADVANCED) refreshConnection();
@@ -161,6 +167,8 @@ public final class MainActivity extends Activity {
         carNight = DisplaySignals.night(this, getResources().getConfiguration());
         palette = Palette.of(appearance.dark(carNight));
         ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
+        rightPadding = findViewById(R.id.focus_root).getPaddingRight();
+        compact = splitScreenOn(); applySplitPadding();
         preview = PreviewData.enabled(getIntent());
         defaultPage = ScreenFlow.fromPreference(prefs.getString("default_page", null));
         showPage(defaultPage);
@@ -190,6 +198,11 @@ public final class MainActivity extends Activity {
         super.onResume(); resumed = true; resumedAt = SystemClock.uptimeMillis();
         // A day/night switch while Launchpad was hidden may not have reached onConfigurationChanged.
         carNight = DisplaySignals.night(this, getResources().getConfiguration()); applyAppearance();
+        try {
+            getContentResolver().registerContentObserver(Settings.System.getUriFor(SplitScreen.SETTING), false, splitChanges);
+            splitObserved = true;
+        } catch (SecurityException e) { splitObserved = false; }
+        applySplitScreen();
         IntentFilter filter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         try { registerReceiver(wifiChanges, filter); receiverRegistered = true; }
@@ -201,6 +214,7 @@ public final class MainActivity extends Activity {
         resumed = false; connectionEpoch++; main.removeCallbacks(connectionTick); main.removeCallbacks(signalsTick);
         main.removeCallbacks(preconditioningTick);
         if (receiverRegistered) { unregisterReceiver(wifiChanges); receiverRegistered = false; }
+        if (splitObserved) { getContentResolver().unregisterContentObserver(splitChanges); splitObserved = false; }
         super.onPause();
     }
     @Override protected void onDestroy() {
@@ -216,8 +230,26 @@ public final class MainActivity extends Activity {
         Palette next = Palette.of(appearance.dark(carNight));
         if (next == palette) return;
         palette = next; ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
+        rebuildPage();
+    }
+    private void rebuildPage() {
         int knob = knobIndex; showPage(page);
         if (knob >= 0 && knob < targets.size() && targets.get(knob).enabled()) { knobIndex = knob; applyKnob(); }
+    }
+    private boolean splitScreenOn() {
+        try { return SplitScreen.on(Settings.System.getInt(getContentResolver(), SplitScreen.SETTING, 0)); }
+        catch (SecurityException e) { return false; }
+    }
+    /** The map panel covers the right of this window; pad past it and use the compact layout. */
+    private void applySplitScreen() {
+        boolean next = splitScreenOn();
+        if (next == compact) return;
+        compact = next; applySplitPadding(); rebuildPage();
+    }
+    private void applySplitPadding() {
+        View root = findViewById(R.id.focus_root);
+        int right = compact ? SplitScreen.insetPx(getResources().getDisplayMetrics().widthPixels) : rightPadding;
+        root.setPadding(root.getPaddingLeft(), root.getPaddingTop(), right, root.getPaddingBottom());
     }
     private void applyWindowColors() {
         findViewById(R.id.focus_root).setBackgroundColor(palette.background);
@@ -280,7 +312,7 @@ public final class MainActivity extends Activity {
         toolbar.addView(segmented);
         LinearLayout carHome = ui.button("Car home", R.drawable.ic_car, false, 154);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(154), ui.dp(48));
-        params.leftMargin = ui.dp(28); toolbar.addView(carHome, params);
+        params.leftMargin = ui.dp(compact ? 16 : 28); toolbar.addView(carHome, params);
         Runnable homeAction = shortcutAction(ShortcutSpec.CAR_HOME);
         clickable(carHome, homeAction); ui.available(carHome, available(ShortcutSpec.CAR_HOME), "");
         headerTargets.add(new Target(carHome, -1, homeAction));
@@ -299,7 +331,7 @@ public final class MainActivity extends Activity {
         navigationIcon.setRotation(90);
         navigation.addView(navigationIcon, glyph);
         LinearLayout labels = ui.column();
-        labels.addView(ui.text("Navigation", 64, palette.ink, true));
+        labels.addView(ui.text("Navigation", compact ? 52 : 64, palette.ink, true));
         TextView subtitle = ui.text(ShortcutSpec.NAVIGATION.subtitle, 26, palette.muted, false);
         subtitle.setTag("subtitle");
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-2, -2);
@@ -438,10 +470,7 @@ public final class MainActivity extends Activity {
                 appearance = mode; prefs.edit().putString("appearance", mode.name()).apply();
                 Palette before = palette; applyAppearance();
                 // Same palette: the page wasn't rebuilt, so restyle the chips here.
-                if (before == palette) {
-                    int knob = knobIndex; showPage(page);
-                    if (knob >= 0 && knob < targets.size()) { knobIndex = knob; applyKnob(); }
-                }
+                if (before == palette) rebuildPage();
             } });
         }
 
@@ -523,7 +552,7 @@ public final class MainActivity extends Activity {
         preconditionButton = ui.text("Start", 26, palette.onAccent, true); preconditionButton.setGravity(Gravity.CENTER);
         addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
         preconditionButton.setEnabled(false);
-        control.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(260), ui.dp(72)));
+        control.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(compact ? 220 : 260), ui.dp(72)));
 
         LinearLayout temperature = panel(body, 0.40f, 16);
         LinearLayout readings = ui.row();
@@ -655,7 +684,7 @@ public final class MainActivity extends Activity {
             TextView button = ui.text(names[i], 18, tab == i ? palette.onAccent : palette.ink, false);
             button.setGravity(Gravity.CENTER);
             ui.background(button, ui.control(tab == i ? palette.accent : palette.surface, 22));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(156), ui.dp(44));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(compact ? 136 : 156), ui.dp(44));
             params.leftMargin = ui.dp(12); browserToolbar.addView(button, params);
             addTarget(button, new Runnable() { @Override public void run() {
                 tab = selection; prefs.edit().putInt("tab", tab).apply(); showPage(ScreenFlow.Page.BROWSER);
