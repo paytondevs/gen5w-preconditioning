@@ -119,6 +119,9 @@ before editing, and mirror their naming and comment style.
 4. **Battery temperature needs no code.** Every profile reads the cluster minimum
    (`ClusterBatteryTemperatureReader`) once it passes the firmware check. Don't add a
    per-car switch, and don't skip the car's temperature in the docs or the in-car test.
+   The battery warm notice (with **Start anyway**) comes with it: allow it on any car
+   whose report shows `contract unchanged`. Don't hold it back waiting for an OBD
+   comparison.
 5. **Tests.**
    - Add `app/src/test/java/com/paytondev/launchpad/<Name>CompatibilityTest.java`,
      modelled on `Ioniq5NeevUsCompatibilityTest.java`: the exact identity matches; a
@@ -195,8 +198,9 @@ Don't describe the car as supported until that test is done.
   1 Active, anything else Unknown. The failure field stays raw.
 - **Battery temperature comes with every profile.** Once a new profile passes the
   firmware check, it reads the cluster minimum (`ClusterBatteryTemperatureReader`);
-  there's no per-car switch. That's why moved cluster codes make a port case D. Don't
-  claim the reading is accurate in COMPATIBILITY.md until the owner has compared it
-  with an OBD reader.
+  there's no per-car switch. That's why moved cluster codes make a port case D. The
+  battery warm notice is allowed on every car whose report shows `contract unchanged`.
+  Don't claim the reading is accurate in COMPATIBILITY.md until the owner has compared
+  it with an OBD reader.
 - **Car-side scripts** (`tune-service/`, `usb/`) stay toolbox-only KitKat `sh` with LF
   endings, and nothing may write under `/system` except `/system/app/Launchpad.apk`.

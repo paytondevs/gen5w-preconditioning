@@ -101,10 +101,10 @@ you only need the USB drive again to update.
 ## using it
 
 1. hold TUNE to open Launchpad and go to preconditioning.
-2. press **Start**. Launchpad shows **Request sent** while it waits for the car to say yes. on the EV6, if the battery is already warm, it asks you first and offers **Start anyway**.
+2. press **Start**. Launchpad shows **Request sent** while it waits for the car to say yes. if the battery is already warm, it asks you first and offers **Start anyway**.
 3. when the car confirms, it shows **Active**. that's the only sign the battery is actually being conditioned. the car can still say no, for example if the battery is warm enough or the charge is too low.
 
-if the car hasn't confirmed after five minutes, Launchpad cancels the request for you. an **Active** session is never cut short.
+if the car hasn't confirmed after five minutes on the EV6 (two on the IONIQ 5), Launchpad cancels the request for you. an **Active** session is never cut short.
 
 press **Stop** to cancel, even while it's still waiting. closing Launchpad does **not** stop a request that's already running.
 
@@ -132,7 +132,7 @@ this removes Launchpad and its TUNE shortcut. if you installed an older version 
 | "not enough space on /system" in the log | nothing was changed. message me with the log. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your car or its software version isn't supported yet, so Launchpad won't send anything to the car. check the [compatibility chart](COMPATIBILITY.md#compatibility-chart). if your car isn't listed, run the [vehicle porting kit](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit). |
-| it stays **Request sent** | the car hasn't confirmed yet. press **Stop**, or wait: Launchpad cancels it after five minutes. **Start** comes back once the car reports Off. |
+| it stays **Request sent** | the car hasn't confirmed yet. press **Stop**, or wait: Launchpad cancels it after five minutes on the EV6 (two on the IONIQ 5). **Start** comes back once the car reports Off. |
 
 ## what this changes on your car
 
