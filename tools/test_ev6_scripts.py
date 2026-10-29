@@ -49,6 +49,7 @@ class Ev6ScriptsTest(unittest.TestCase):
     def test_tune_selection_keeps_key_duration_and_target(self):
         ev6, ioniq5_neev_us, ioniq5_neev23_us = ("daudio_wp_daudioplus_cvev_us", "daudio_wp_daudioplus_neev_us",
                                "daudio_wp_daudioplus_neev23_us")
+        ioniq6_ceev_us = "daudio_wp_daudioplus_ceev_us"
         cases = [
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "19", ev6),
             ("wp_daudioplus_neev23_us", "original", "19", ioniq5_neev23_us),
@@ -60,6 +61,12 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_neev_us", "other", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "NEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "NEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_ceev_us", "CEEV.USA.0000.V015.012.260507", "19", ioniq6_ceev_us),
+            ("wp_daudioplus_ceev_us", "CEEV.USA.S5W_M.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_ceev_us", "other", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_ceev_us", "CEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_ceev_us", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
             ("", "", "", ioniq5_neev23_us),
         ]
         with tempfile.TemporaryDirectory(prefix="launchpad-tune-") as tmp:
