@@ -21,9 +21,10 @@ added.
 
 ## Native read contract and bounds
 
-Only the hash-validated EV6 and Ioniq 5 clients reach
-`ClusterBatteryTemperatureReader` (`PreconditioningProfile.supportsBatteryTemperature`).
-Its contract is service `com.hkmc.micom.cluster`, descriptor
+Every supported profile reaches `ClusterBatteryTemperatureReader`, but only
+after its firmware hashes have been validated; there is no per-car switch.
+The reader returns no reading unless the service's descriptor matches. Its
+contract is service `com.hkmc.micom.cluster`, descriptor
 `com.hkmc.cluster.IClusterService`, registration 37, request 109 without
 arguments, and removal 38. The listener descriptor is
 `com.hkmc.cluster.INavigationClusterListener`; callback 16 carries an

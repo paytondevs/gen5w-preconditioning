@@ -39,9 +39,9 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
     }
     @Override public String unavailableReason() { return ""; }
     @Override public Integer readMinimumBatteryTemperatureC() {
-        // read() must have passed exact firmware hashes first; only profiles with a
-        // checked cluster contract may read.
-        if (!firmwareChecked || !PreconditioningProfile.supportsBatteryTemperature(Build.DEVICE)) return null;
+        // Every supported profile reads the cluster minimum, but only after read()
+        // has passed the exact firmware hashes.
+        if (!firmwareChecked) return null;
         return ClusterBatteryTemperatureReader.read();
     }
     @Override public Reading read() throws Exception {

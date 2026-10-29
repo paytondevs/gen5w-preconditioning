@@ -116,9 +116,8 @@ define the array layout, so the EV6 decoding (eight values, index 1 as minimum
 pack temperature) was checked in the car: on 2026-10-28 the owner confirmed
 the Launchpad reading appeared and agreed with an OBD reader's temperature.
 Exact values were not recorded. On the same day, with the battery already
-warm, tapping Start showed the Battery warm notice. NEEV23 US shares these
-framework files and reads the same contract; its in-car temperature check is
-still pending.
+warm, tapping Start showed the Battery warm notice. NEEV23 US remains without
+temperature reads.
 
 **Other model years:** other US-market Ioniq 5 vehicles reporting this exact
 device, software version, and both firmware fingerprints may also be
@@ -169,10 +168,9 @@ been installed as a new vehicle build.
 
 No EV6 command/enum remapping was needed. Start/Stop command arguments, package
 IDs, release version, and original Ioniq TUNE default remain unchanged. The
-controller adds a pending timeout: five minutes for the EV6 profile and two minutes
-for the Ioniq 5 profiles (NEEV23 US activation normally follows in about 60–70 seconds).
-Native temperature reads and the warm advisory run only on the exact EV6 and Ioniq 5
-profiles, which share one cluster contract (see TEMPERATURE-AND-TIMEOUT.md).
+controller now adds a five-minute pending timeout for both profiles; native
+temperature reads and the warm advisory are restricted to the exact EV6 and
+Ioniq 5 NEEV US profiles.
 No raw vehicle logs, firmware, disassembly, APKs, or signing material
 are included. This is evidence for the listed profile, not blanket EV6 support.
 

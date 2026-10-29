@@ -177,7 +177,9 @@ Don't describe the car as supported until that test is done.
   vehicle logs.** Summarize what they showed in COMPATIBILITY.md instead.
 - **Don't invent meanings for enum values or failure codes.** The indicator is 0 Off,
   1 Active, anything else Unknown. The failure field stays raw.
-- **Keep the EV6 battery-temperature reader EV6-only.** Don't extend it to a new
-  profile, even if the cluster service exists; it was validated only on that firmware.
+- **Battery temperature comes with every profile.** Once a new profile passes the
+  firmware check, it reads the cluster minimum (`ClusterBatteryTemperatureReader`);
+  there's no per-car switch. Don't claim the reading is accurate in COMPATIBILITY.md
+  until the reporter has compared it with an OBD reader.
 - **Car-side scripts** (`tune-service/`, `usb/`) stay toolbox-only KitKat `sh` with LF
   endings, and nothing may write under `/system` except `/system/app/Launchpad.apk`.

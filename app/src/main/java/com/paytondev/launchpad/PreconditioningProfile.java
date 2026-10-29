@@ -37,16 +37,6 @@ final class PreconditioningProfile {
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);
     }
-    // Native cluster battery read. Every inspected framework defines IClusterService
-    // 37/109/38 as add listener / requestBatteryInfoReq() / remove listener, callback 16
-    // as onHandleBatteryInfoResp(int[]), and Navigation.BATTERY_INFO_RX index 1 as
-    // XEV_MIN_BATT_TEMP. Ioniq 5 NEEV US 260507: on 2026-10-28 the displayed reading
-    // agreed with an OBD reader. NEEV23 US shares its framework hashes; its in-car
-    // temperature check is still pending. Valid only after matchesFirmware.
-    static boolean supportsBatteryTemperature(String device) {
-        return EV6_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device)
-            || IONIQ5_NEEV23_US_DEVICE.equals(device);
-    }
     static final long REFRESH_MS = 5000;
     interface Commands {
         void write(int transaction, int... values) throws Exception;
