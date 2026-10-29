@@ -70,11 +70,13 @@ public class PreconditioningControllerTest {
         assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+        assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ6_CEEV_US_DEVICE));
     }
     @Test public void eachProfileHasItsOwnWarmThreshold() {
         assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.EV6_DEVICE));
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+        assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ6_CEEV_US_DEVICE));
         assertEquals(70, BatteryTemperatureReading.fahrenheit(PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C));
     }
     @Test public void timeoutCancelsOnceAndRestoresStartOnlyAfterFreshOff() {
