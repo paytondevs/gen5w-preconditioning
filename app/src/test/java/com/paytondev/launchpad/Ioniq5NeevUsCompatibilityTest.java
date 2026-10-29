@@ -33,11 +33,4 @@ public class Ioniq5NeevUsCompatibilityTest {
         assertTrue(ioniq5Neev(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "Ioniq 5 NEEV23 US software not constrained",
             PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
     }
-    @Test public void batteryTemperatureIsReadOnlyOnProfilesWithACheckedClusterContract() {
-        assertTrue(PreconditioningProfile.supportsBatteryTemperature(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
-        assertTrue(PreconditioningProfile.supportsBatteryTemperature(PreconditioningProfile.EV6_DEVICE));
-        assertFalse(PreconditioningProfile.supportsBatteryTemperature(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
-        assertFalse(PreconditioningProfile.supportsBatteryTemperature("wp_daudioplus_neev_us_can"));
-        assertFalse(PreconditioningProfile.supportsBatteryTemperature(null));
-    }
 }

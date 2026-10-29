@@ -39,10 +39,10 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
     }
     @Override public String unavailableReason() { return ""; }
     @Override public Integer readMinimumBatteryTemperatureC() {
-        // read() must have passed exact firmware hashes first; only profiles with a
-        // checked cluster contract may read.
-        if (!firmwareChecked || !PreconditioningProfile.supportsBatteryTemperature(Build.DEVICE)) return null;
-        return Ev6BatteryTemperatureReader.read();
+        // Every supported profile reads the cluster minimum, but only after read()
+        // has passed the exact firmware hashes.
+        if (!firmwareChecked) return null;
+        return ClusterBatteryTemperatureReader.read();
     }
     @Override public Reading read() throws Exception {
         connect(true);
@@ -66,6 +66,8 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
     @Override public void maintainManual() throws Exception { connect(true); PreconditioningProfile.maintain(this); }
     @Override public void stopAndRelease() throws Exception { connect(false); PreconditioningProfile.cancel(this); }
     @Override public long maintenanceIntervalMs() { return PreconditioningProfile.REFRESH_MS; }
+    @Override public long activationTimeoutMs() { return PreconditioningProfile.activationTimeoutMs(Build.DEVICE); }
+    @Override public int warmThresholdC() { return PreconditioningProfile.warmThresholdC(Build.DEVICE); }
     @Override public void pause(long milliseconds) { SystemClock.sleep(milliseconds); }
     @Override public void write(int transaction, int... values) throws Exception {
         if (!((transaction == 62 && values.length == 2) ||

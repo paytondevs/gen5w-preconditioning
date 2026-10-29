@@ -9,7 +9,10 @@ public class PreconditioningControllerTest {
         String unavailable = "";
         int starts, stops, maintenance;
         boolean readFails, startFails, stopFails;
-        long interval;
+        long interval, timeout = PreconditioningController.ACTIVATION_TIMEOUT_MS;
+        int warmThreshold = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
+        @Override public long activationTimeoutMs() { return timeout; }
+        @Override public int warmThresholdC() { return warmThreshold; }
         @Override public String unavailableReason() { return unavailable; }
         @Override public Reading read() throws Exception {
             if (readFails) throw new Exception("Disconnected");
@@ -38,6 +41,41 @@ public class PreconditioningControllerTest {
         }
         assertEquals(1, car.starts); assertEquals(0, car.maintenance);
         assertTrue(c.snapshot(300999).detail.contains("Cancels after 5 minutes"));
+    }
+    @Test public void ioniqTwoMinuteTimeoutCancelsAtItsOwnDeadline() {
+        FakeVehicle car = new FakeVehicle(); car.interval = 5000;
+        car.timeout = PreconditioningProfile.IONIQ5_ACTIVATION_TIMEOUT_MS; Journal journal = new Journal();
+        PreconditioningController c = ready(car, journal); assertTrue(c.start(1000));
+        c.refresh(120999);
+        assertEquals(PreconditioningSnapshot.State.WAITING, c.snapshot(120999).state);
+        assertEquals(0, car.stops);
+        assertTrue(c.snapshot(120999).detail.contains("Cancels after 2 minutes"));
+        c.refresh(121000);
+        assertEquals(1, car.stops); assertTrue(journal.pending);
+        assertTrue(c.snapshot(121000).detail.contains("within 2 minutes"));
+        c.refresh(122000);
+        assertEquals(PreconditioningSnapshot.State.TIMED_OUT, c.snapshot(122000).state);
+        assertFalse(journal.pending);
+    }
+    @Test public void ioniqActivationBeforeTwoMinutesIsNotCancelled() {
+        FakeVehicle car = new FakeVehicle(); car.interval = 5000;
+        car.timeout = PreconditioningProfile.IONIQ5_ACTIVATION_TIMEOUT_MS; Journal journal = new Journal();
+        PreconditioningController c = ready(car, journal); assertTrue(c.start(1000));
+        c.refresh(66000); car.reading = new VehiclePort.Reading(2, 1, 1, -1); c.refresh(71000);
+        c.refresh(600000);
+        assertEquals(PreconditioningSnapshot.State.ACTIVE, c.snapshot(600000).state);
+        assertEquals(0, car.stops);
+    }
+    @Test public void eachProfileHasItsOwnActivationTimeout() {
+        assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_DEVICE));
+        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
+        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+    }
+    @Test public void eachProfileHasItsOwnWarmThreshold() {
+        assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.EV6_DEVICE));
+        assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
+        assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+        assertEquals(70, BatteryTemperatureReading.fahrenheit(PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C));
     }
     @Test public void timeoutCancelsOnceAndRestoresStartOnlyAfterFreshOff() {
         FakeVehicle car = new FakeVehicle(); car.interval = 5000; Journal journal = new Journal();

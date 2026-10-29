@@ -78,25 +78,25 @@ public class TemperatureBinderTest {
   int passed=0;
   for(int mode=0;mode<8;mode++){
    Remote remote=new Remote(mode);ServiceManager.current=remote;
-   Integer value=Ev6BatteryTemperatureReader.read();
+   Integer value=ClusterBatteryTemperatureReader.read();
    check(mode==0?Integer.valueOf(20).equals(value):value==null);
    if(mode>=6)check(remote.calls.isEmpty());
    else check(remote.calls.equals(mode==3?Arrays.asList(37,38):Arrays.asList(37,109,38)));
    passed++;
   }
   Remote slow=new Remote(8);ServiceManager.current=slow;
-  long before=System.nanoTime();check(Ev6BatteryTemperatureReader.read()==null);
+  long before=System.nanoTime();check(ClusterBatteryTemperatureReader.read()==null);
   long ms=(System.nanoTime()-before)/1000000;check(ms<2600);
-  check(Ev6BatteryTemperatureReader.read()==null); // No second hung helper.
+  check(ClusterBatteryTemperatureReader.read()==null); // No second hung helper.
   check(slow.calls.equals(Arrays.asList(37,109)));
   slow.release.countDown();slow.finished.await();Thread.sleep(50);
   Remote next=new Remote(1);ServiceManager.current=next;
-  check(Ev6BatteryTemperatureReader.read()==null); // Never reuse late20C from old request.
+  check(ClusterBatteryTemperatureReader.read()==null); // Never reuse late20C from old request.
   check(next.calls.equals(Arrays.asList(37,109,38)));passed++;
   Remote shared=new Remote(8);ServiceManager.current=shared;
   Integer[] values=new Integer[2];
-  Thread first=new Thread(()->values[0]=Ev6BatteryTemperatureReader.read());
-  Thread second=new Thread(()->values[1]=Ev6BatteryTemperatureReader.read());
+  Thread first=new Thread(()->values[0]=ClusterBatteryTemperatureReader.read());
+  Thread second=new Thread(()->values[1]=ClusterBatteryTemperatureReader.read());
   first.start();shared.entered.await();second.start();
   long deadline=System.nanoTime()+500000000L;
   while(second.getState()!=Thread.State.TIMED_WAITING && System.nanoTime()<deadline)Thread.sleep(1);
@@ -109,7 +109,7 @@ public class TemperatureBinderTest {
  }
 }''')
 production = ROOT/'app/src/main/java/com/paytondev/launchpad'
-sources = [str(p) for p in work.rglob('*.java')]+[str(production/n) for n in ('BatteryTemperature.java','Ev6BatteryTemperatureReader.java')]
+sources = [str(p) for p in work.rglob('*.java')]+[str(production/n) for n in ('BatteryTemperature.java','ClusterBatteryTemperatureReader.java')]
 classes=work/'classes';classes.mkdir(exist_ok=True)
 subprocess.run([JAVAC,'-d',str(classes),*sources],check=True,timeout=60)
 result=subprocess.run([JAVA,'-cp',str(classes),'com.paytondev.launchpad.TemperatureBinderTest'],check=True,capture_output=True,text=True,timeout=15)

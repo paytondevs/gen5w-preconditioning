@@ -13,8 +13,14 @@ interface VehiclePort {
     Reading read() throws Exception;
     /** Optional one-shot precheck. Unknown never prevents a manual request. */
     default Integer readMinimumBatteryTemperatureC() { return null; }
+    /** Display-only; never used for the warm advisory. */
+    default Integer readMaximumBatteryTemperatureC() { return null; }
     void beginManual() throws Exception;
     void maintainManual() throws Exception;
     void stopAndRelease() throws Exception;
     long maintenanceIntervalMs();
+    /** Cancel a request the car has not reported Active within this time. */
+    default long activationTimeoutMs() { return PreconditioningController.ACTIVATION_TIMEOUT_MS; }
+    /** Lowest minimum-temperature reading that shows the warm notice. */
+    default int warmThresholdC() { return BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C; }
 }

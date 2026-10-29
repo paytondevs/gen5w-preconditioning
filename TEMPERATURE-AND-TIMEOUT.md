@@ -9,9 +9,9 @@ It has no new signed release or public version bump. The
 
 | Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile |
 | --- | --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Unavailable; no guessed native transactions |
-| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Enabled for a valid warm reading | Not activated without a supported temperature reader |
-| Five-minute cancellation of an unconfirmed request | Enabled | Enabled through the shared controller | Enabled through the shared controller |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) |
+| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) |
 | Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
@@ -21,13 +21,25 @@ added.
 
 ## Native read contract and bounds
 
-Only the guarded EV6 and Ioniq 5 NEEV US clients reach
-`Ev6BatteryTemperatureReader` (`PreconditioningProfile.supportsBatteryTemperature`). Its contract
-is service `com.hkmc.micom.cluster`, descriptor `com.hkmc.cluster.IClusterService`,
-registration 37, request 109 without arguments, and removal 38. The listener
-descriptor is `com.hkmc.cluster.INavigationClusterListener`; callback 16 carries
-an eight-integer array. Index 1 is interpreted as minimum temperature in whole
+Every supported profile reaches `ClusterBatteryTemperatureReader`, but only
+after its firmware hashes have been validated; there is no per-car switch.
+The reader returns no reading unless the service's descriptor matches. Its
+contract is service `com.hkmc.micom.cluster`, descriptor
+`com.hkmc.cluster.IClusterService`, registration 37, request 109 without
+arguments, and removal 38. The listener descriptor is
+`com.hkmc.cluster.INavigationClusterListener`; callback 16 carries an
+eight-integer array. Index 1 is interpreted as minimum temperature in whole
 degrees Celsius. Other array fields are not exposed as calibrated readings.
+
+The Ioniq 5 NEEV23 US 260507 framework (`automotive.odex` / `automotive-service.odex`
+matching the profile hashes, collected read-only from a vehicle over USB) names
+these codes `addNavigationClusterListener`, `requestBatteryInfoReq()`,
+`removeNavigationClusterListener` and `onHandleBatteryInfoResp(int[])`. Its
+`Navigation.BATTERY_INFO_RX` constants index the array as 0 `XEV_SOCDIS`,
+1 `XEV_MIN_BATT_TEMP`, 2 `EV_AVLBL_ENRG`, 3 `VCRM_SW_VER`, 4 `DATC_OUT_TEMP_SNSR`,
+5 `VCU_BATT_COND_IND_STA`, 6 `VCU_DTE_BASE`, 7 `VCU_DTE_ADD`, and the service
+logs index 1 as the minimum battery temperature. No maximum pack temperature is
+exposed by either framework. The EV6 contract and decoder are unchanged.
 
 The decoder rejects the wrong length, implausible temperature (-40 to 60°C is
 the accepted envelope), or a first field outside 0 to 200. These are plausibility
@@ -63,7 +75,9 @@ Whole-degree Celsius readings yield stepped Fahrenheit values (16°C -> 61°F,
 ## Warm advisory
 
 A normal Start requests temperature and then rechecks READY/Off before sending
-control commands. A plausible value at or above 20°C shows a ten-second notice
+control commands. A plausible value at or above the profile's threshold
+(`PreconditioningProfile.warmThresholdC`: 20°C on the EV6, 21°C on both Ioniq 5
+profiles) shows a ten-second notice
 without journaling ownership or sending Start, maintain, or cancel. Start returns
 when the notice expires if vehicle conditions still permit it. A duplicate normal
 Start cannot accept the warning; the user must choose the separate Start anyway
@@ -79,12 +93,18 @@ explicitly refused heating because of temperature, that the pack has reached a
 charging target, or that a certain charging speed is guaranteed. Start anyway
 preserves a manual request path; vehicle constraints still apply.
 
+On the Ioniq 5 NEEV23 US and NEEV US profiles the owner reports that the car
+stops heating at 70°F. Readings are whole degrees Celsius, so the threshold is
+21°C (69.8°F, shown as 70°F). The EV6 keeps 20°C / 68°F until its cutoff is
+confirmed.
+
 ## Pending-request timeout
 
-At the first status refresh at or after five minutes, a request with no observed
+At the first status refresh at or after the profile deadline (five minutes on the
+EV6, two on the Ioniq 5), a request with no observed
 Active indication sends the existing cancel sequence. A fresh Active indication
 at the deadline wins. Sessions that have already been observed Active have no
-five-minute cutoff. Unknown/missing feedback cannot indefinitely extend a pending
+pending cutoff. Unknown/missing feedback cannot indefinitely extend a pending
 request. No repeated Start pulses or automatic retry loop are introduced.
 
 Cancellation is not completion: ownership stays recorded until cancellation has
@@ -185,7 +205,9 @@ which is now fixed. The Battery warm notice was later shown on that car (see the
 evidence list); the pending timeout has not been exercised there.
 
 Native reads remain unverified on other firmware, trims, model years or markets.
-Shared timeout changes need review for the original Ioniq 5 profile as well.
+The deadline is per profile (`PreconditioningProfile.activationTimeoutMs`): five minutes on the
+EV6 and two minutes on both Ioniq 5 profiles, where the NEEV23 US owner reports activation in
+about 60–70 seconds.
 No proprietary firmware/disassembly, raw vehicle logs, APKs, private updater,
 signing key, or password is included in this contribution.
 

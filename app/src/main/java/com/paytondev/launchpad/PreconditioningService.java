@@ -25,6 +25,8 @@ public final class PreconditioningService extends Service {
     private volatile boolean temperatureVisible, destroyed;
     private volatile int temperatureGeneration;
     private volatile BatteryTemperatureReading temperature = BatteryTemperatureReading.checking();
+    private volatile int warmThresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
+    private final TemperatureHistory history = new TemperatureHistory();
     private PreconditioningController controller;
     private VehiclePort vehicle;
     private SharedPreferences journal;
@@ -33,18 +35,31 @@ public final class PreconditioningService extends Service {
     final class LocalBinder extends Binder {
         PreconditioningSnapshot snapshot() { return snapshot; }
         BatteryTemperatureReading temperature() { return temperature; }
+        int warmThresholdC() { return warmThresholdC; }
+        TemperatureHistory.Trace history() { return history.copy(SystemClock.elapsedRealtime()); }
     }
     private final Runnable temperaturePoll = new Runnable() {
         @Override public void run() {
             if (!temperatureVisible || destroyed) return;
             final int generation = temperatureGeneration;
             final Integer value = vehicle.readMinimumBatteryTemperatureC();
+            final Integer maximum = value == null ? null : vehicle.readMaximumBatteryTemperatureC();
             final long receivedAt = SystemClock.elapsedRealtime();
             worker.post(new Runnable() { @Override public void run() {
                 if (!bound || destroyed || generation != temperatureGeneration) return;
                 temperature = temperature.update(value, receivedAt);
+                if (!temperature.failed) history.add(receivedAt, temperature.minimumC,
+                    maximum == null || maximum < -40 || maximum > 60 ? null : maximum);
                 temperatureWorker.postDelayed(temperaturePoll, BatteryTemperatureReading.REFRESH_MS);
             } });
+        }
+    };
+    private final Runnable attach = new Runnable() {
+        @Override public void run() {
+            bound = true; worker.removeCallbacks(tick); tick.run();
+            temperatureVisible = true; temperatureGeneration++;
+            temperatureWorker.removeCallbacks(temperaturePoll);
+            temperatureWorker.post(temperaturePoll);
         }
     };
     private final Runnable tick = new Runnable() {
@@ -64,6 +79,7 @@ public final class PreconditioningService extends Service {
         temperatureWorker = new Handler(temperatureThread.getLooper());
         worker.post(new Runnable() { @Override public void run() {
             vehicle = VehicleClientFactory.create();
+            warmThresholdC = vehicle.warmThresholdC();
             controller = new PreconditioningController(vehicle,
                 new PreconditioningController.Journal() {
                     @Override public void requested(boolean value) {
@@ -77,18 +93,12 @@ public final class PreconditioningService extends Service {
             publish();
         } });
     }
-    @Override public IBinder onBind(Intent intent) { attach(); return binder; }
-    // A session keeps the service alive after the activity unbinds. Android reuses
-    // the cached binder on return and calls only onRebind, so both paths attach.
-    @Override public void onRebind(Intent intent) { attach(); }
-    private void attach() {
-        worker.post(new Runnable() { @Override public void run() {
-            bound = true; worker.removeCallbacks(tick); tick.run();
-            temperatureVisible = true; temperatureGeneration++;
-            temperatureWorker.removeCallbacks(temperaturePoll);
-            temperatureWorker.post(temperaturePoll);
-        } });
+    @Override public IBinder onBind(Intent intent) {
+        worker.post(attach);
+        return binder;
     }
+    // A service kept alive by a session skips onBind on the next bind; resume polling here.
+    @Override public void onRebind(Intent intent) { worker.post(attach); }
     @Override public boolean onUnbind(Intent intent) {
         worker.post(new Runnable() { @Override public void run() {
             bound = false;
@@ -109,14 +119,16 @@ public final class PreconditioningService extends Service {
                     Integer minimum = vehicle.readMinimumBatteryTemperatureC();
                     // Recheck READY/Off after the optional bounded telemetry read.
                     controller.refresh(SystemClock.elapsedRealtime());
-                    controller.start(SystemClock.elapsedRealtime(), minimum);
+                    long now = SystemClock.elapsedRealtime();
+                    if (controller.start(now, minimum)) history.markSessionStart(now);
                 }
             }
             else if (START_ANYWAY.equals(intent.getAction())) {
                 controller.refresh(SystemClock.elapsedRealtime());
                 if (controller.snapshot(SystemClock.elapsedRealtime()).state == PreconditioningSnapshot.State.WARM) {
                     promote("Sending manual request");
-                    controller.startAnyway(SystemClock.elapsedRealtime());
+                    long now = SystemClock.elapsedRealtime();
+                    if (controller.startAnyway(now)) history.markSessionStart(now);
                 }
             }
             else if (STOP.equals(intent.getAction())) controller.stop(SystemClock.elapsedRealtime());

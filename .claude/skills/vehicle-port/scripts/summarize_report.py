@@ -6,7 +6,8 @@ Usage: python3 .claude/skills/vehicle-port/scripts/summarize_report.py REPORT [-
 Reads launchpad-port-report.txt and app/src/main/java/com/paytondev/launchpad/
 PreconditioningProfile.java. Prints the car's identity, which existing profile
 (if any) its firmware hashes match, whether the Binder transactions Launchpad
-uses still have the same codes, and the TUNE capture. Read-only; never edits.
+uses (including the cluster battery-temperature read) still have the same codes,
+and the TUNE capture. Read-only; never edits.
 """
 import argparse
 import re
@@ -26,6 +27,14 @@ EXPECTED = {
 }
 SERVICES = {"com.hkmc.micom.hev": "com.hkmc.hev.IHEVService",
             "com.hkmc.micom.bcm": "com.hkmc.bcm.IBCMService"}
+# ClusterBatteryTemperatureReader runs on every profile; there is no per-car switch.
+# An absent service or other descriptor just means no reading. Moved codes don't.
+CLUSTER_SERVICE, CLUSTER = "com.hkmc.micom.cluster", "com.hkmc.cluster.IClusterService"
+CLUSTER_EXPECTED = {
+    "addNavigationClusterListener": 37,
+    "requestBatteryInfoReq": 109,
+    "removeNavigationClusterListener": 38,
+}
 FRAMEWORK, SERVICE = "/system/framework/automotive.odex", "/system/framework/automotive-service.odex"
 
 
@@ -142,6 +151,26 @@ def main():
             moved += status != "same"
             print(f"  {code:>3} {method}: {status}")
     print("transactions Launchpad uses:", "all unchanged" if moved == 0 else f"{moved} need attention")
+
+    print("\n== battery temperature")
+    found = descriptors.get(CLUSTER_SERVICE)
+    if found != CLUSTER:
+        print(f"{CLUSTER_SERVICE}:", f"MISMATCH ({found})" if found else "absent")
+        print("battery temperature: no reading on this car")
+    else:
+        print(f"{CLUSTER_SERVICE}: ok")
+        table = tables.get(CLUSTER)
+        moved = 0
+        if not table or not table["stub"] or table["stub"] == "not found":
+            print(f"{CLUSTER}: stub not found - transaction codes unknown")
+            moved += 1
+        else:
+            for method, code in CLUSTER_EXPECTED.items():
+                actual = table["transactions"].get(method)
+                status = "same" if actual == code else f"CHANGED (now {actual})" if actual else "MISSING"
+                moved += status != "same"
+                print(f"  {code:>3} {method}: {status}")
+        print("battery temperature:", "contract unchanged" if moved == 0 else f"{moved} need attention")
 
     print("\n== TUNE capture")
     for line in s.get("key_capture", []):

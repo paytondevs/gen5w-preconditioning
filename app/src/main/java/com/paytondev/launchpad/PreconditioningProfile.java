@@ -18,6 +18,19 @@ final class PreconditioningProfile {
     static boolean supportsDevice(int sdk, String device) {
         return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device));
     }
+    // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
+    // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
+    static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
+    static long activationTimeoutMs(String device) {
+        return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
+    }
+    // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
+    // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.
+    // EV6: unconfirmed, so it keeps 20°C / 68°F.
+    static final int IONIQ5_WARM_THRESHOLD_C = 21;
+    static int warmThresholdC(String device) {
+        return EV6_DEVICE.equals(device) ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : IONIQ5_WARM_THRESHOLD_C;
+    }
     static boolean matchesFirmware(int sdk, String device, String software,
                                    String frameworkHash, String serviceHash) {
         if (!supportsDevice(sdk, device)) return false;
@@ -30,13 +43,6 @@ final class PreconditioningProfile {
         }
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);
-    }
-    // Native cluster battery read (37/109/38, callback 16). Ioniq 5 NEEV US 260507:
-    // automotive.odex captured on 2026-10-28 declares the same transaction numbers
-    // and signatures; on 2026-10-28 the displayed reading agreed with an OBD reader.
-    // NEEV23 US is excluded until its own read is checked in a car.
-    static boolean supportsBatteryTemperature(String device) {
-        return EV6_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device);
     }
     static final long REFRESH_MS = 5000;
     interface Commands {

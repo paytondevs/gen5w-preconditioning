@@ -14,7 +14,9 @@ import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.graphics.Color;
+import android.content.res.Configuration;
+import android.database.ContentObserver;
+import android.graphics.drawable.ColorDrawable;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -23,6 +25,7 @@ import android.os.IBinder;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -38,7 +41,9 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** APK-contained touch and TUNE launcher; the external hold service is unchanged. */
 public final class MainActivity extends Activity {
@@ -47,6 +52,8 @@ public final class MainActivity extends Activity {
     private static final int KEY_TUNE_UP = keyCode("KEYCODE_TUNE_UP", 223);
     private static final int KEY_TUNE_DOWN = keyCode("KEYCODE_TUNE_DOWN", 224);
     private static final int KEY_TUNE_ENTER = keyCode("KEYCODE_TUNE_ENTER", 243);
+    private static final String[] TAB_TITLES = {"Preconditioning", "Home", "Advanced"};
+    private static final int STOP_RED = 0xffe5484d;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Target> targets = new ArrayList<>();
     private final List<Target> headerTargets = new ArrayList<>();
@@ -59,19 +66,35 @@ public final class MainActivity extends Activity {
     private GridView grid;
     private TextView empty, statusText, networkText, ipText, adbText;
     private View statusDot, copyButton;
-    private TextView preconditionStatus, preconditionDetail, preconditionIndicator, preconditionElapsed, preconditionButton;
-    private TextView preconditionFailure;
+    private TextView preconditionStatus, preconditionDetail, preconditionElapsed, preconditionButton;
     private TextView preconditionTemperature;
+    private TextView lowestValue, lowestCelsius, highestValue, temperatureAge;
+    private View highestColumn, failureRow;
+    private TemperatureGauge gauge;
+    private TemperatureChart chart;
+    private final CheckMark[] checkMarks = new CheckMark[6];
+    private final TextView[] checkValues = new TextView[6];
+    private final TextView[] defaultChips = new TextView[ScreenFlow.TABS.length];
+    private final TextView[] appearanceChips = new TextView[AppearanceMode.values().length];
     private ScrollView advancedScroll;
+    private Palette palette = Palette.LIGHT;
+    private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
+    private boolean carNight, signalsReading, compact, splitObserved;
+    private int rightPadding;
+    private TextView signalsText;
+    private SignalLog signals;
     private PreconditioningService.LocalBinder vehicleService;
     private PreconditioningSnapshot preconditioning = PreconditioningSnapshot.checking();
     private BatteryTemperatureReading batteryTemperature = BatteryTemperatureReading.checking();
+    private TemperatureHistory.Trace history = TemperatureHistory.Trace.EMPTY;
     private boolean vehicleBound;
     private ConnectionSnapshot connection = ConnectionSnapshot.unknown();
-    private ScreenFlow.Page page = ScreenFlow.Page.HOME;
-    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch;
+    private ScreenFlow.Page page = ScreenFlow.Page.PRECONDITIONING, defaultPage = ScreenFlow.Page.PRECONDITIONING;
+    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch, toggleColor;
     private long resumedAt, enterAt;
     private boolean resumed, started, enterDown, enterLong, preview, receiverRegistered, connectionReading;
+    /** The toggle keeps the knob while it is briefly disabled, until TUNE is turned away. */
+    private boolean knobOnToggle;
 
     private static final class Target {
         final View view;
@@ -92,6 +115,17 @@ public final class MainActivity extends Activity {
             }
         }
     };
+    private final Runnable signalsTick = new Runnable() {
+        @Override public void run() {
+            if (resumed && page == ScreenFlow.Page.ADVANCED) {
+                refreshSignals();
+                main.postDelayed(this, 2000);
+            }
+        }
+    };
+    private final ContentObserver splitChanges = new ContentObserver(main) {
+        @Override public void onChange(boolean selfChange) { applySplitScreen(); }
+    };
     private final BroadcastReceiver wifiChanges = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (resumed && page == ScreenFlow.Page.ADVANCED) refreshConnection();
@@ -105,6 +139,7 @@ public final class MainActivity extends Activity {
         @Override public void onServiceDisconnected(ComponentName name) {
             vehicleService = null; preconditioning = PreconditioningSnapshot.checking();
             batteryTemperature = BatteryTemperatureReading.checking().update(null, SystemClock.elapsedRealtime());
+            history = TemperatureHistory.Trace.EMPTY;
             updatePreconditioningViews();
         }
     };
@@ -114,6 +149,7 @@ public final class MainActivity extends Activity {
             if (vehicleService != null) {
                 preconditioning = vehicleService.snapshot();
                 batteryTemperature = vehicleService.temperature();
+                history = vehicleService.history();
             }
             updatePreconditioningViews(); main.postDelayed(this, 1000);
         }
@@ -122,14 +158,20 @@ public final class MainActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_focus);
-        ui = new FocusUi(this);
         toolbar = (LinearLayout) findViewById(R.id.focus_toolbar);
         content = (FrameLayout) findViewById(R.id.focus_content);
         prefs = getSharedPreferences("launchpad", MODE_PRIVATE);
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
+        appearance = AppearanceMode.fromPreference(prefs.getString("appearance", null));
+        carNight = DisplaySignals.night(this, getResources().getConfiguration());
+        palette = Palette.of(appearance.dark(carNight));
+        ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
+        rightPadding = findViewById(R.id.focus_root).getPaddingRight();
+        compact = splitScreenOn(); applySplitPadding();
         preview = PreviewData.enabled(getIntent());
-        showPage(ScreenFlow.Page.HOME);
+        defaultPage = ScreenFlow.fromPreference(prefs.getString("default_page", null));
+        showPage(defaultPage);
         final Context app = getApplicationContext();
         new Thread(new Runnable() {
             @Override public void run() {
@@ -154,6 +196,13 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); resumed = true; resumedAt = SystemClock.uptimeMillis();
+        // A day/night switch while Launchpad was hidden may not have reached onConfigurationChanged.
+        carNight = DisplaySignals.night(this, getResources().getConfiguration()); applyAppearance();
+        try {
+            getContentResolver().registerContentObserver(Settings.System.getUriFor(SplitScreen.SETTING), false, splitChanges);
+            splitObserved = true;
+        } catch (SecurityException e) { splitObserved = false; }
+        applySplitScreen();
         IntentFilter filter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         try { registerReceiver(wifiChanges, filter); receiverRegistered = true; }
@@ -162,13 +211,49 @@ public final class MainActivity extends Activity {
         main.removeCallbacks(preconditioningTick); preconditioningTick.run();
     }
     @Override protected void onPause() {
-        resumed = false; connectionEpoch++; main.removeCallbacks(connectionTick);
+        resumed = false; connectionEpoch++; main.removeCallbacks(connectionTick); main.removeCallbacks(signalsTick);
         main.removeCallbacks(preconditioningTick);
         if (receiverRegistered) { unregisterReceiver(wifiChanges); receiverRegistered = false; }
+        if (splitObserved) { getContentResolver().unregisterContentObserver(splitChanges); splitObserved = false; }
         super.onPause();
     }
     @Override protected void onDestroy() {
         main.removeCallbacksAndMessages(null); super.onDestroy();
+    }
+    // uiMode is in configChanges, so a day/night switch arrives here instead of recreating.
+    @Override public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        carNight = DisplaySignals.night(this, configuration); applyAppearance();
+    }
+    /** Rebuilds the current page in the resolved palette, keeping the TUNE selection. */
+    private void applyAppearance() {
+        Palette next = Palette.of(appearance.dark(carNight));
+        if (next == palette) return;
+        palette = next; ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
+        rebuildPage();
+    }
+    private void rebuildPage() {
+        int knob = knobIndex; showPage(page);
+        if (knob >= 0 && knob < targets.size() && targets.get(knob).enabled()) { knobIndex = knob; applyKnob(); }
+    }
+    private boolean splitScreenOn() {
+        try { return SplitScreen.on(Settings.System.getInt(getContentResolver(), SplitScreen.SETTING, 0)); }
+        catch (SecurityException e) { return false; }
+    }
+    /** The map panel covers the right of this window; pad past it and use the compact layout. */
+    private void applySplitScreen() {
+        boolean next = splitScreenOn();
+        if (next == compact) return;
+        compact = next; applySplitPadding(); rebuildPage();
+    }
+    private void applySplitPadding() {
+        View root = findViewById(R.id.focus_root);
+        int right = compact ? SplitScreen.insetPx(getResources().getDisplayMetrics().widthPixels) : rightPadding;
+        root.setPadding(root.getPaddingLeft(), root.getPaddingTop(), right, root.getPaddingBottom());
+    }
+    private void applyWindowColors() {
+        findViewById(R.id.focus_root).setBackgroundColor(palette.background);
+        getWindow().setBackgroundDrawable(new ColorDrawable(palette.background));
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
@@ -178,51 +263,56 @@ public final class MainActivity extends Activity {
             && SystemClock.uptimeMillis() - resumedAt > 700) finish();
     }
     @Override public void onBackPressed() {
-        ScreenFlow.Page previous = ScreenFlow.back(page);
+        ScreenFlow.Page previous = ScreenFlow.back(page, defaultPage);
         if (previous == null) finish(); else showPage(previous);
     }
 
     private void showPage(ScreenFlow.Page next) {
+        // A day/night rebuild of Advanced keeps the log: that switch is what it records.
+        if (next != page || next != ScreenFlow.Page.ADVANCED) signals = null;
         page = next; connectionEpoch++;
         targets.clear(); headerTargets.clear(); grid = null;
         advancedScroll = null;
         preconditionStatus = null; preconditionDetail = null; preconditionButton = null;
-        preconditionIndicator = null; preconditionElapsed = null; preconditionFailure = null;
-        preconditionTemperature = null;
+        preconditionElapsed = null; preconditionTemperature = null;
+        lowestValue = null; lowestCelsius = null; highestValue = null; temperatureAge = null;
+        highestColumn = null; failureRow = null; gauge = null; chart = null; toggleColor = 0;
+        Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null);
+        Arrays.fill(defaultChips, null); Arrays.fill(appearanceChips, null);
+        signalsText = null;
         content.removeAllViews(); toolbar.removeAllViews();
         LinearLayout.LayoutParams contentParams = (LinearLayout.LayoutParams) content.getLayoutParams();
         contentParams.topMargin = ui.dp(page == ScreenFlow.Page.ADVANCED ? 28 : 16);
         content.setLayoutParams(contentParams);
         buildToolbar();
-        if (page == ScreenFlow.Page.HOME) buildHome();
+        if (page == ScreenFlow.Page.PRECONDITIONING) buildPreconditioning();
+        else if (page == ScreenFlow.Page.HOME) buildHome();
         else if (page == ScreenFlow.Page.ADVANCED) buildAdvanced();
         else buildBrowser();
         if (page != ScreenFlow.Page.BROWSER) targets.addAll(headerTargets);
+        knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING;
         knobIndex = KnobFocus.next(-1, 1, enabledTargets()); applyKnob();
         restartConnectionTick();
         updatePreconditioningViews();
     }
 
     private void buildToolbar() {
-        TextView title = ui.text("Launchpad", 36, FocusUi.INK, true);
+        TextView title = ui.text("Launchpad", 36, palette.ink, true);
         toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout segmented = ui.row(); segmented.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
-        ui.background(segmented, ui.rounded(FocusUi.SURFACE, 28, 0));
-        String[] labels = {"Home", "Advanced"};
-        for (int i = 0; i < 2; i++) {
-            final ScreenFlow.Page destination = i == 0 ? ScreenFlow.Page.HOME : ScreenFlow.Page.ADVANCED;
-            boolean selected = i == 0 ? page == ScreenFlow.Page.HOME : page != ScreenFlow.Page.HOME;
-            TextView chip = ui.text(labels[i], 17, selected ? Color.WHITE : FocusUi.INK, false);
-            chip.setGravity(Gravity.CENTER);
-            ui.background(chip, ui.control(selected ? FocusUi.BLUE : FocusUi.SURFACE, 24));
-            segmented.addView(chip, new LinearLayout.LayoutParams(ui.dp(128), ui.dp(40)));
+        ui.background(segmented, ui.rounded(palette.surface, 28, 0));
+        ScreenFlow.Page current = page == ScreenFlow.Page.BROWSER ? ScreenFlow.Page.ADVANCED : page;
+        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
+            final ScreenFlow.Page destination = ScreenFlow.TABS[i];
+            TextView chip = chip(TAB_TITLES[i], destination == current, palette.surface);
+            segmented.addView(chip, new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
             Runnable action = new Runnable() { @Override public void run() { showPage(destination); } };
             clickable(chip, action); headerTargets.add(new Target(chip, -1, action));
         }
         toolbar.addView(segmented);
         LinearLayout carHome = ui.button("Car home", R.drawable.ic_car, false, 154);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(154), ui.dp(48));
-        params.leftMargin = ui.dp(28); toolbar.addView(carHome, params);
+        params.leftMargin = ui.dp(compact ? 16 : 28); toolbar.addView(carHome, params);
         Runnable homeAction = shortcutAction(ShortcutSpec.CAR_HOME);
         clickable(carHome, homeAction); ui.available(carHome, available(ShortcutSpec.CAR_HOME), "");
         headerTargets.add(new Target(carHome, -1, homeAction));
@@ -232,7 +322,7 @@ public final class MainActivity extends Activity {
         LinearLayout body = ui.row();
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
         FrameLayout navigation = new FrameLayout(this);
-        ui.background(navigation, ui.control(0xffe8f2ff, 20));
+        ui.background(navigation, ui.control(palette.hero, 20));
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(0, -1, 0.57f);
         body.addView(navigation, heroParams);
         FrameLayout.LayoutParams glyph = new FrameLayout.LayoutParams(ui.dp(128), ui.dp(128), Gravity.TOP | Gravity.LEFT);
@@ -241,8 +331,8 @@ public final class MainActivity extends Activity {
         navigationIcon.setRotation(90);
         navigation.addView(navigationIcon, glyph);
         LinearLayout labels = ui.column();
-        labels.addView(ui.text("Navigation", 64, FocusUi.INK, true));
-        TextView subtitle = ui.text(ShortcutSpec.NAVIGATION.subtitle, 26, FocusUi.MUTED, false);
+        labels.addView(ui.text("Navigation", compact ? 52 : 64, palette.ink, true));
+        TextView subtitle = ui.text(ShortcutSpec.NAVIGATION.subtitle, 26, palette.muted, false);
         subtitle.setTag("subtitle");
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-2, -2);
         subtitleParams.topMargin = ui.dp(9); labels.addView(subtitle, subtitleParams);
@@ -250,8 +340,8 @@ public final class MainActivity extends Activity {
         labelsParams.leftMargin = ui.dp(36); labelsParams.bottomMargin = ui.dp(30);
         labelsParams.rightMargin = ui.dp(112);
         navigation.addView(labels, labelsParams);
-        FrameLayout go = ui.appIcon(R.drawable.ic_arrow, FocusUi.BLUE, 68, 36);
-        ui.background(go, ui.rounded(FocusUi.BLUE, 34, 0));
+        FrameLayout go = ui.appIcon(R.drawable.ic_arrow, palette.accent, 68, 36);
+        ui.background(go, ui.rounded(palette.accent, 34, 0));
         FrameLayout.LayoutParams goParams = new FrameLayout.LayoutParams(ui.dp(68), ui.dp(68), Gravity.BOTTOM | Gravity.RIGHT);
         goParams.rightMargin = ui.dp(28); goParams.bottomMargin = ui.dp(28);
         navigation.addView(go, goParams);
@@ -275,10 +365,13 @@ public final class MainActivity extends Activity {
         // Give the action its own focus target, independent of the read-only labels.
         precondition.removeViewAt(precondition.getChildCount() - 1);
         preconditionStatus = (TextView) precondition.findViewWithTag("subtitle");
-        preconditionTemperature = ui.text("Battery temp: checking…", 14, FocusUi.MUTED, false);
+        preconditionTemperature = ui.text("Battery temp: checking…", 14, palette.muted, false);
         preconditionTemperature.setSingleLine(true);
         preconditionTemperature.setEllipsize(TextUtils.TruncateAt.END);
         ((LinearLayout) preconditionStatus.getParent()).addView(preconditionTemperature);
+        // The row opens the tab; add it before the button so the button's knob state wins.
+        precondition.setContentDescription("Preconditioning. Open the preconditioning tab");
+        addTarget(precondition, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.PRECONDITIONING); } });
         preconditionButton = preconditioningButton();
         precondition.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(82), ui.dp(44)));
         actions.addView(precondition, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -291,14 +384,14 @@ public final class MainActivity extends Activity {
         advancedScroll.addView(body, new ScrollView.LayoutParams(-1, -2));
         LinearLayout group = ui.row(); group.setGravity(Gravity.CENTER_VERTICAL);
         group.setPadding(ui.dp(24), ui.dp(16), ui.dp(18), ui.dp(16));
-        ui.background(group, ui.rounded(FocusUi.SURFACE, 20, 0));
+        ui.background(group, ui.rounded(palette.surface, 20, 0));
         body.addView(group, new LinearLayout.LayoutParams(-1, ui.dp(100)));
         LinearLayout network = ui.row(); network.setGravity(Gravity.CENTER_VERTICAL);
-        statusDot = new View(this); ui.background(statusDot, ui.rounded(0xffa0a7b2, 6, 0));
+        statusDot = new View(this); ui.background(statusDot, ui.rounded(palette.idle, 6, 0));
         network.addView(statusDot, new LinearLayout.LayoutParams(ui.dp(16), ui.dp(16)));
         LinearLayout networkLabels = ui.column();
-        statusText = ui.text("Checking Wi-Fi", 24, FocusUi.INK, true);
-        networkText = ui.text("Network / Unavailable", 16, FocusUi.MUTED, false);
+        statusText = ui.text("Checking Wi-Fi", 24, palette.ink, true);
+        networkText = ui.text("Network / Unavailable", 16, palette.muted, false);
         networkText.setSingleLine(true); networkText.setEllipsize(TextUtils.TruncateAt.END);
         networkLabels.addView(statusText);
         LinearLayout.LayoutParams sub = new LinearLayout.LayoutParams(-1, -2); sub.topMargin = ui.dp(7);
@@ -314,8 +407,8 @@ public final class MainActivity extends Activity {
         LinearLayout adbColumn = detailColumn("ADB address", true);
         adbText = (TextView) adbColumn.findViewWithTag("value");
         adbGroup.addView(adbColumn, new LinearLayout.LayoutParams(0, -1, 1));
-        FrameLayout copy = ui.appIcon(R.drawable.ic_copy, 0xfff8f9fb, 40, 23);
-        ui.background(copy, ui.control(0xfff8f9fb, 12));
+        FrameLayout copy = ui.appIcon(R.drawable.ic_copy, palette.quiet, 40, 23);
+        ui.background(copy, ui.control(palette.quiet, 12));
         copyButton = copy; copyButton.setContentDescription("Copy ADB address"); copyButton.setEnabled(false);
         adbGroup.addView(copy, new LinearLayout.LayoutParams(ui.dp(40), ui.dp(40)));
         LinearLayout.LayoutParams adbParams = new LinearLayout.LayoutParams(0, -1, 0.36f);
@@ -331,39 +424,66 @@ public final class MainActivity extends Activity {
 
         LinearLayout card = ui.row(); card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
-        ui.background(card, ui.rounded(FocusUi.SURFACE, 20, 0));
+        ui.background(card, ui.rounded(palette.surface, 20, 0));
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
         cardParams.topMargin = ui.dp(12); body.addView(card, cardParams);
         LinearLayout details = ui.column();
-        details.addView(ui.text("Battery preconditioning", 24, FocusUi.INK, true));
-        preconditionStatus = ui.text("Checking", 18, FocusUi.BLUE, true);
-        preconditionDetail = ui.text("Checking vehicle services", 16, FocusUi.MUTED, false);
-        preconditionIndicator = ui.text("Car indicator: Unknown", 15, FocusUi.MUTED, false);
-        preconditionElapsed = ui.text("Elapsed: —", 15, FocusUi.MUTED, false);
-        preconditionFailure = ui.text("Failure reason: Unknown", 15, FocusUi.MUTED, false);
-        details.addView(preconditionStatus); details.addView(preconditionDetail);
-        preconditionTemperature = ui.text("Lowest Battery Pack Temperature: checking…", 16, FocusUi.MUTED, false);
-        details.addView(preconditionTemperature);
-        LinearLayout facts = ui.row();
-        facts.addView(preconditionIndicator, new LinearLayout.LayoutParams(0, -2, 1));
-        facts.addView(preconditionElapsed, new LinearLayout.LayoutParams(0, -2, 1));
-        facts.addView(preconditionFailure, new LinearLayout.LayoutParams(0, -2, 1));
-        details.addView(facts);
+        details.addView(ui.text("Default tab", 24, palette.ink, true));
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-2, -2); hintParams.topMargin = ui.dp(7);
+        details.addView(ui.text("Launchpad opens on this tab", 16, palette.muted, false), hintParams);
         card.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        preconditionButton = preconditioningButton();
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(ui.dp(100), ui.dp(48));
-        actionParams.leftMargin = ui.dp(20); card.addView(preconditionButton, actionParams);
+        LinearLayout choices = ui.row(); choices.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
+        ui.background(choices, ui.rounded(palette.card, 28, 0));
+        card.addView(choices);
+        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
+            final int index = i;
+            defaultChips[i] = chip(TAB_TITLES[i], ScreenFlow.TABS[i] == defaultPage, palette.card);
+            choices.addView(defaultChips[i], new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
+            addTarget(defaultChips[i], new Runnable() { @Override public void run() {
+                defaultPage = ScreenFlow.TABS[index];
+                prefs.edit().putString("default_page", defaultPage.name()).apply();
+                for (int j = 0; j < defaultChips.length; j++) styleChip(defaultChips[j], j == index, palette.card);
+            } });
+        }
 
-        TextView tools = ui.text("TOOLS", 12, FocusUi.MUTED, false);
+        LinearLayout look = ui.row(); look.setGravity(Gravity.CENTER_VERTICAL);
+        look.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
+        ui.background(look, ui.rounded(palette.surface, 20, 0));
+        LinearLayout.LayoutParams lookParams = new LinearLayout.LayoutParams(-1, -2);
+        lookParams.topMargin = ui.dp(12); body.addView(look, lookParams);
+        LinearLayout lookDetails = ui.column();
+        lookDetails.addView(ui.text("Appearance", 24, palette.ink, true));
+        LinearLayout.LayoutParams lookHint = new LinearLayout.LayoutParams(-2, -2); lookHint.topMargin = ui.dp(7);
+        lookDetails.addView(ui.text(appearance == AppearanceMode.FOLLOW_CAR ? "Follows the car's day/night display"
+            : "Always " + appearance.title.toLowerCase(java.util.Locale.US), 16, palette.muted, false), lookHint);
+        look.addView(lookDetails, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout modes = ui.row(); modes.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
+        ui.background(modes, ui.rounded(palette.card, 28, 0));
+        look.addView(modes);
+        final AppearanceMode[] modeValues = AppearanceMode.values();
+        for (int i = 0; i < modeValues.length; i++) {
+            final AppearanceMode mode = modeValues[i];
+            appearanceChips[i] = chip(mode.title, mode == appearance, palette.card);
+            modes.addView(appearanceChips[i], new LinearLayout.LayoutParams(ui.dp(i == 0 ? 150 : 110), ui.dp(40)));
+            addTarget(appearanceChips[i], new Runnable() { @Override public void run() {
+                if (mode == appearance) return;
+                appearance = mode; prefs.edit().putString("appearance", mode.name()).apply();
+                Palette before = palette; applyAppearance();
+                // Same palette: the page wasn't rebuilt, so restyle the chips here.
+                if (before == palette) rebuildPage();
+            } });
+        }
+
+        TextView tools = ui.text("TOOLS", 12, palette.muted, false);
         LinearLayout.LayoutParams toolsParams = new LinearLayout.LayoutParams(-1, -2);
         toolsParams.topMargin = ui.dp(12); toolsParams.bottomMargin = ui.dp(8); toolsParams.leftMargin = ui.dp(4);
         body.addView(tools, toolsParams);
         LinearLayout list = ui.column();
-        ui.background(list, ui.rounded(Color.WHITE, 17, FocusUi.LINE));
+        ui.background(list, ui.rounded(palette.card, 17, palette.line));
         list.setPadding(ui.dp(2), ui.dp(2), ui.dp(2), ui.dp(2));
         body.addView(list, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout screens = ui.actionRow("All screens", "Browse every available screen",
-            R.drawable.ic_screens, 0xffd5f0ff, false);
+            R.drawable.ic_screens, palette.screensIcon, false);
         list.addView(screens, new LinearLayout.LayoutParams(-1, ui.dp(80)));
         addTarget(screens, new Runnable() { @Override public void run() {
             tab = TAB_ALL; showPage(ScreenFlow.Page.BROWSER);
@@ -376,55 +496,176 @@ public final class MainActivity extends Activity {
             R.drawable.ic_nemesis, 0xff9861ff, false);
         list.addView(nemesis, new LinearLayout.LayoutParams(-1, ui.dp(80)));
         addShortcutTarget(nemesis, ShortcutSpec.NEMESIS);
+
+        LinearLayout probe = ui.column(); probe.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
+        ui.background(probe, ui.rounded(palette.surface, 20, 0));
+        LinearLayout.LayoutParams probeParams = new LinearLayout.LayoutParams(-1, -2);
+        probeParams.topMargin = ui.dp(12); body.addView(probe, probeParams);
+        probe.addView(ui.text("Appearance signals", 24, palette.ink, true));
+        probe.addView(ui.text("Read-only. Switch the Hyundai display between Day and Night (and Auto with the "
+            + "headlights on and off), then report which lines changed.", 16, palette.muted, false), below(7));
+        signalsText = ui.text("Reading…", 14, palette.ink, false);
+        signalsText.setTypeface(android.graphics.Typeface.MONOSPACE); signalsText.setLineSpacing(0, 1.15f);
+        probe.addView(signalsText, below(12));
         updateConnectionViews();
     }
 
+    private TextView chip(String label, boolean selected, int idle) {
+        TextView chip = ui.text(label, 17, palette.ink, false); chip.setGravity(Gravity.CENTER);
+        styleChip(chip, selected, idle); return chip;
+    }
+    private void styleChip(TextView chip, boolean selected, int idle) {
+        chip.setTextColor(selected ? palette.onAccent : palette.ink);
+        ui.background(chip, ui.control(selected ? palette.accent : idle, 24));
+    }
     private TextView preconditioningButton() {
-        TextView button = ui.text("Start", 18, Color.WHITE, true);
+        TextView button = ui.text("Start", 18, palette.onAccent, true);
         button.setGravity(Gravity.CENTER);
-        ui.background(button, ui.control(FocusUi.BLUE, 22));
-        addTarget(button, new Runnable() { @Override public void run() {
-            if (preconditioning.canStop || preconditioning.canStart) {
-                String action = preconditioning.canStop ? PreconditioningService.STOP
-                    : preconditioning.state == PreconditioningSnapshot.State.WARM
-                        ? PreconditioningService.START_ANYWAY : PreconditioningService.START;
-                startService(new Intent(MainActivity.this, PreconditioningService.class).setAction(action));
-                // Serialize presses until the service publishes the result.
-                if (preconditionButton != null) preconditionButton.setEnabled(false);
-            }
-        } });
+        ui.background(button, ui.control(palette.accent, 22));
+        addTarget(button, new Runnable() { @Override public void run() { preconditioningAction(); } });
         button.setEnabled(false); return button;
     }
+    private void preconditioningAction() {
+        if (!preconditioning.canStop && !preconditioning.canStart) return;
+        String action = preconditioning.canStop ? PreconditioningService.STOP
+            : preconditioning.state == PreconditioningSnapshot.State.WARM
+                ? PreconditioningService.START_ANYWAY : PreconditioningService.START;
+        startService(new Intent(this, PreconditioningService.class).setAction(action));
+        // Serialize presses until the service publishes the result.
+        if (preconditionButton != null) preconditionButton.setEnabled(false);
+    }
+
+    private void buildPreconditioning() {
+        LinearLayout body = ui.row();
+        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout control = panel(body, 0.34f, 0);
+        control.addView(caption("BATTERY PRECONDITIONING"));
+        preconditionStatus = ui.text("Checking", 34, palette.ink, true); preconditionStatus.setMaxLines(2);
+        control.addView(preconditionStatus, below(10));
+        preconditionElapsed = ui.text("Elapsed: —", 18, palette.ink, false);
+        control.addView(preconditionElapsed, below(10));
+        preconditionDetail = ui.text("Checking vehicle services", 16, palette.muted, false);
+        preconditionDetail.setLineSpacing(0, 1.15f); preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
+        preconditionDetail.setMaxLines(6);
+        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, 0, 1); detailParams.topMargin = ui.dp(14);
+        control.addView(preconditionDetail, detailParams);
+        preconditionButton = ui.text("Start", 26, palette.onAccent, true); preconditionButton.setGravity(Gravity.CENTER);
+        addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
+        preconditionButton.setEnabled(false);
+        control.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(compact ? 220 : 260), ui.dp(72)));
+
+        LinearLayout temperature = panel(body, 0.40f, 16);
+        LinearLayout readings = ui.row();
+        LinearLayout lowest = ui.column(); lowest.addView(caption("LOWEST PACK"));
+        LinearLayout values = ui.row(); values.setGravity(Gravity.BOTTOM);
+        lowestValue = ui.text("—", 48, palette.ink, true); values.addView(lowestValue);
+        lowestCelsius = ui.text("", 20, palette.muted, false);
+        LinearLayout.LayoutParams celsiusParams = new LinearLayout.LayoutParams(-2, -2);
+        celsiusParams.leftMargin = ui.dp(10); celsiusParams.bottomMargin = ui.dp(5); values.addView(lowestCelsius, celsiusParams);
+        lowest.addView(values, below(6));
+        readings.addView(lowest, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout highest = ui.column(); highest.setGravity(Gravity.RIGHT);
+        highest.addView(caption("HIGHEST PACK"));
+        highestValue = ui.text("—", 28, palette.ink, true); highest.addView(highestValue, below(6));
+        highestColumn = highest; highest.setVisibility(View.GONE); readings.addView(highest);
+        temperature.addView(readings);
+        temperatureAge = ui.text("Checking…", 14, palette.muted, false); temperatureAge.setSingleLine(true);
+        temperature.addView(temperatureAge, below(6));
+        gauge = new TemperatureGauge(this); gauge.setPalette(palette);
+        LinearLayout.LayoutParams gaugeParams = new LinearLayout.LayoutParams(-1, ui.dp(58)); gaugeParams.topMargin = ui.dp(8);
+        temperature.addView(gauge, gaugeParams);
+        chart = new TemperatureChart(this); chart.setPalette(palette);
+        LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(-1, 0, 1); chartParams.topMargin = ui.dp(6);
+        temperature.addView(chart, chartParams);
+
+        LinearLayout checks = panel(body, 0.26f, 16);
+        checks.addView(caption("VEHICLE CHECKS"));
+        String[] labels = {"EV READY", "Battery conditioning", "Car indicator", "Firmware profile", "Temperature source", "Failure code"};
+        for (int i = 0; i < labels.length; i++) {
+            LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
+            checkMarks[i] = new CheckMark(this);
+            row.addView(checkMarks[i], new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26)));
+            LinearLayout text = ui.column();
+            TextView label = ui.text(labels[i], 17, palette.ink, true); label.setSingleLine(true);
+            text.addView(label);
+            checkValues[i] = ui.text("Unknown", 14, palette.muted, false); checkValues[i].setSingleLine(true);
+            checkValues[i].setEllipsize(TextUtils.TruncateAt.END); text.addView(checkValues[i], below(4));
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1); textParams.leftMargin = ui.dp(12);
+            row.addView(text, textParams);
+            checks.addView(row, new LinearLayout.LayoutParams(-1, 0, 1));
+            if (i == labels.length - 1) { failureRow = row; row.setVisibility(View.GONE); }
+        }
+    }
+    private LinearLayout panel(LinearLayout parent, float weight, int gap) {
+        LinearLayout panel = ui.column(); panel.setPadding(ui.dp(20), ui.dp(18), ui.dp(20), ui.dp(18));
+        ui.background(panel, ui.rounded(palette.surface, 20, 0));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, weight); params.leftMargin = ui.dp(gap);
+        parent.addView(panel, params); return panel;
+    }
+    private TextView caption(String value) { return ui.text(value, 12, palette.muted, true); }
+    private LinearLayout.LayoutParams below(int margin) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2); params.topMargin = ui.dp(margin); return params;
+    }
+
     private void updatePreconditioningViews() {
         if (preconditionStatus == null) return;
+        long now = SystemClock.elapsedRealtime();
         String status = preconditioning.title();
         if (page == ScreenFlow.Page.HOME && preconditioning.requested) status += " · " + preconditioning.elapsed();
         preconditionStatus.setText(status);
-        if (preconditionTemperature != null) preconditionTemperature.setText(
-            batteryTemperature.label(SystemClock.elapsedRealtime(), page == ScreenFlow.Page.HOME));
+        if (preconditionTemperature != null) preconditionTemperature.setText(batteryTemperature.label(now, true));
         if (preconditionDetail != null) preconditionDetail.setText(preconditioning.detail);
-        if (preconditionIndicator != null) preconditionIndicator.setText(preconditioning.indicatorLabel());
         if (preconditionElapsed != null) preconditionElapsed.setText("Elapsed: " +
             (preconditioning.requested || preconditioning.state == PreconditioningSnapshot.State.ENDED
                 || preconditioning.state == PreconditioningSnapshot.State.TIMED_OUT ? preconditioning.elapsed() : "—"));
-        if (preconditionFailure != null) preconditionFailure.setText("Failure reason: Unknown" +
-            (preconditioning.failureRaw >= 0 ? " (raw " + preconditioning.failureRaw + ")" : ""));
+        if (lowestValue != null) updateTemperatureViews(now);
         if (preconditionButton != null) {
             boolean warm = preconditioning.state == PreconditioningSnapshot.State.WARM;
-            preconditionButton.setText(warm ? "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
-            preconditionButton.setTextSize(warm ? 14 : 18);
+            boolean toggle = page == ScreenFlow.Page.PRECONDITIONING;
+            preconditionButton.setText(warm ? toggle ? "Start anyway" : "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
+            preconditionButton.setTextSize(toggle ? warm ? 22 : 26 : warm ? 14 : 18);
             preconditionButton.setContentDescription(warm ? "Start preconditioning anyway" : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
+            int color = preconditioning.requested ? STOP_RED : warm ? TemperatureGauge.WARM : palette.accent;
+            if (toggle && color != toggleColor) { toggleColor = color; ui.background(preconditionButton, ui.pill(color, 36)); }
             boolean enabled = preconditioning.canStart || preconditioning.canStop;
             preconditionButton.setEnabled(enabled); preconditionButton.setAlpha(enabled ? 1f : 0.4f);
             if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
+            // The toggle is the first target on its tab.
+            if (toggle && enabled && knobOnToggle && knobIndex != 0) { knobIndex = 0; applyKnob(); }
         }
+    }
+    private void updateTemperatureViews(long now) {
+        Integer minimum = batteryTemperature.minimumC;
+        boolean stale = batteryTemperature.stale(now);
+        lowestValue.setText(minimum == null ? "—" : BatteryTemperatureReading.fahrenheit(minimum) + "°F");
+        lowestValue.setTextColor(stale ? palette.muted : palette.ink);
+        lowestCelsius.setText(minimum == null ? "" : minimum + "°C");
+        temperatureAge.setText(batteryTemperature.age(now));
+        TemperatureHistory.Sample latest = history.latest();
+        Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
+        highestColumn.setVisibility(maximum == null ? View.GONE : View.VISIBLE);
+        if (maximum != null) highestValue.setText(BatteryTemperatureReading.fahrenheit(maximum) + "°F · " + maximum + "°C");
+        int threshold = vehicleService == null ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : vehicleService.warmThresholdC();
+        gauge.setValue(minimum, threshold); chart.setTrace(history, now, threshold);
+        setCheck(0, preconditioning.readyCheck(), preconditioning.readyValue());
+        setCheck(1, preconditioning.enabledCheck(), preconditioning.enabledValue());
+        setCheck(2, preconditioning.indicatorCheck(), preconditioning.indicatorValue());
+        setCheck(3, preconditioning.supported, preconditioning.supportedValue());
+        setCheck(4, minimum != null ? PreconditioningSnapshot.PASS : batteryTemperature.attempted
+            ? PreconditioningSnapshot.FAIL : PreconditioningSnapshot.UNKNOWN,
+            minimum != null ? "Native" : batteryTemperature.attempted ? "Not available on this firmware" : "Checking");
+        failureRow.setVisibility(preconditioning.failureRaw >= 0 ? View.VISIBLE : View.GONE);
+        setCheck(5, PreconditioningSnapshot.UNKNOWN, "Raw " + preconditioning.failureRaw + " · meaning unknown");
+    }
+    private void setCheck(int index, int state, String value) {
+        checkMarks[index].setState(state); checkValues[index].setText(value);
     }
 
     private LinearLayout detailColumn(String title, boolean compact) {
         LinearLayout column = ui.column(); column.setGravity(Gravity.CENTER_VERTICAL);
         column.setPadding(ui.dp(compact ? 24 : 32), 0, ui.dp(12), 0);
-        column.addView(ui.text(title, 14, FocusUi.MUTED, false));
-        TextView value = ui.text("—", 20, FocusUi.INK, true); value.setTag("value"); value.setSingleLine(true);
+        column.addView(ui.text(title, 14, palette.muted, false));
+        TextView value = ui.text("—", 20, palette.ink, true); value.setTag("value"); value.setSingleLine(true);
         value.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2); params.topMargin = ui.dp(8);
         column.addView(value, params); return column;
@@ -440,16 +681,16 @@ public final class MainActivity extends Activity {
         String[] names = {"Favorites", "Apps", "All screens"};
         for (int i = 0; i < names.length; i++) {
             final int selection = i;
-            TextView button = ui.text(names[i], 18, tab == i ? Color.WHITE : FocusUi.INK, false);
+            TextView button = ui.text(names[i], 18, tab == i ? palette.onAccent : palette.ink, false);
             button.setGravity(Gravity.CENTER);
-            ui.background(button, ui.control(tab == i ? FocusUi.BLUE : FocusUi.SURFACE, 22));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(156), ui.dp(44));
+            ui.background(button, ui.control(tab == i ? palette.accent : palette.surface, 22));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(compact ? 136 : 156), ui.dp(44));
             params.leftMargin = ui.dp(12); browserToolbar.addView(button, params);
             addTarget(button, new Runnable() { @Override public void run() {
                 tab = selection; prefs.edit().putInt("tab", tab).apply(); showPage(ScreenFlow.Page.BROWSER);
             } });
         }
-        TextView hint = ui.text("Hold an app to favorite", 14, FocusUi.MUTED, false);
+        TextView hint = ui.text("Hold an app to favorite", 14, palette.muted, false);
         hint.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         browserToolbar.addView(hint, new LinearLayout.LayoutParams(0, -1, 1));
         FrameLayout list = new FrameLayout(this);
@@ -460,7 +701,7 @@ public final class MainActivity extends Activity {
         grid.setHorizontalSpacing(ui.dp(12)); grid.setVerticalSpacing(ui.dp(12));
         grid.setSelector(android.R.color.transparent); grid.setClipToPadding(false); grid.setAdapter(adapter);
         list.addView(grid, new FrameLayout.LayoutParams(-1, -1));
-        empty = ui.text("Loading screens…", 20, FocusUi.MUTED, false);
+        empty = ui.text("Loading screens…", 20, palette.muted, false);
         empty.setGravity(Gravity.CENTER); list.addView(empty, new FrameLayout.LayoutParams(-1, -1));
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -552,8 +793,26 @@ public final class MainActivity extends Activity {
     }
 
     private void restartConnectionTick() {
-        main.removeCallbacks(connectionTick);
-        if (resumed && page == ScreenFlow.Page.ADVANCED) main.post(connectionTick);
+        main.removeCallbacks(connectionTick); main.removeCallbacks(signalsTick);
+        if (resumed && page == ScreenFlow.Page.ADVANCED) { main.post(connectionTick); main.post(signalsTick); }
+    }
+    private void refreshSignals() {
+        if (signalsReading) return;
+        signalsReading = true;
+        final int epoch = connectionEpoch;
+        final Context app = getApplicationContext();
+        new Thread(new Runnable() {
+            @Override public void run() {
+                final Map<String, String> values = DisplaySignals.read(app);
+                main.post(new Runnable() { @Override public void run() {
+                    signalsReading = false;
+                    if (isFinishing() || !resumed || page != ScreenFlow.Page.ADVANCED || epoch != connectionEpoch
+                        || signalsText == null) return;
+                    if (signals == null) signals = new SignalLog(values); else signals.update(values);
+                    signalsText.setText(TextUtils.join("\n", signals.lines()));
+                } });
+            }
+        }, "launchpad-display-signals").start();
     }
     private void refreshConnection() {
         if (connectionReading) return;
@@ -601,7 +860,7 @@ public final class MainActivity extends Activity {
             : connection.state == ConnectionSnapshot.State.DISCONNECTED ? "Disconnected" : "Unavailable";
         statusText.setText(status); networkText.setText("Network / " + connection.network);
         ipText.setText(connection.ip); adbText.setText(connection.adb);
-        ui.background(statusDot, ui.rounded(connection.state == ConnectionSnapshot.State.CONNECTED ? 0xff1acb59 : 0xffa0a7b2, 7, 0));
+        ui.background(statusDot, ui.rounded(connection.state == ConnectionSnapshot.State.CONNECTED ? 0xff1acb59 : palette.idle, 7, 0));
         copyButton.setEnabled(connection.canCopy); copyButton.setAlpha(connection.canCopy ? 1f : 0.4f);
         if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
     }
@@ -614,7 +873,10 @@ public final class MainActivity extends Activity {
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode(); boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         if (code == KEY_TUNE_UP || code == KEY_TUNE_DOWN || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_LEFT) {
-            if (down) moveKnob(code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+            if (down) {
+                moveKnob(code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+                knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING && knobIndex == 0;
+            }
             return true;
         }
         if (code == KEY_TUNE_ENTER || code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {

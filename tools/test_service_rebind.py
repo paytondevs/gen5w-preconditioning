@@ -117,7 +117,7 @@ public class ServiceRebindTest {
 }''')
 production = ROOT/'app/src/main/java/com/paytondev/launchpad'
 names = ('PreconditioningService', 'PreconditioningController', 'PreconditioningSnapshot', 'VehiclePort',
-         'BatteryTemperature', 'BatteryTemperatureReading')
+         'BatteryTemperature', 'BatteryTemperatureReading', 'TemperatureHistory')
 sources = [str(p) for p in (work/'src').rglob('*.java')] + [str(production/f'{n}.java') for n in names]
 classes = work/'classes'; classes.mkdir()
 subprocess.run([JAVAC, '-d', str(classes), *sources], check=True, timeout=60)

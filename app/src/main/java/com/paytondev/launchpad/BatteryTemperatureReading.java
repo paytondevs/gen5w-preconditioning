@@ -24,6 +24,12 @@ final class BatteryTemperatureReading {
     boolean stale(long now) {
         return minimumC != null && (failed || now < receivedAt || now - receivedAt >= STALE_MS);
     }
+    static int fahrenheit(float celsius) { return Math.round(celsius * 9f / 5f + 32f); }
+    String age(long now) {
+        if (minimumC == null) return attempted ? "Unavailable" : "Checking…";
+        long seconds = Math.max(0, now - receivedAt) / 1000;
+        return (stale(now) ? "Stale · last received " : "Received ") + seconds + "s ago";
+    }
     String label(long now, boolean compact) {
         String prefix = compact ? "Battery temp: " : "Lowest Battery Pack Temperature: ";
         if (minimumC == null) return prefix + (attempted ? "unavailable" : "checking…");
