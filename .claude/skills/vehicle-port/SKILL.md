@@ -136,8 +136,13 @@ before editing, and mirror their naming and comment style.
    - If you changed `knob.conf`, add the new identity and its near-misses to
      `test_tune_selection_keeps_key_duration_and_target` in `tools/test_ev6_scripts.py`.
 6. **`COMPATIBILITY.md`.**
-   - Add a chart row (vehicle, model years, market, head unit with its device code,
-     software version, preconditioning, battery temperature, status). Battery
+   - The chart has one table per software version, headed `### <six digits>`: the
+     last six digits of the full version string (`260507` in
+     `CEEV.USA.0000.V015.012.260507`), newest first. Add the car to its version's
+     table, or start a new table for a new version. A row is vehicle, model years,
+     market, head unit with its device code, preconditioning, battery temperature,
+     status. If the same vehicle is already in that table, widen its model years or
+     add the head unit to its row instead of adding a second row. Battery
      temperature is ✅ unless the summarizer said `no reading on this car`; then it's ❌.
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
