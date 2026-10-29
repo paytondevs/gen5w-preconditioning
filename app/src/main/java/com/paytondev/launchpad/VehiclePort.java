@@ -21,4 +21,6 @@ interface VehiclePort {
     long maintenanceIntervalMs();
     /** Cancel a request the car has not reported Active within this time. */
     default long activationTimeoutMs() { return PreconditioningController.ACTIVATION_TIMEOUT_MS; }
+    /** Lowest minimum-temperature reading that shows the warm notice. */
+    default int warmThresholdC() { return BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C; }
 }

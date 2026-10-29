@@ -24,6 +24,13 @@ final class PreconditioningProfile {
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
     }
+    // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
+    // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.
+    // EV6: unconfirmed, so it keeps 20°C / 68°F.
+    static final int IONIQ5_WARM_THRESHOLD_C = 21;
+    static int warmThresholdC(String device) {
+        return EV6_DEVICE.equals(device) ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : IONIQ5_WARM_THRESHOLD_C;
+    }
     static boolean matchesFirmware(int sdk, String device, String software,
                                    String frameworkHash, String serviceHash) {
         if (!supportsDevice(sdk, device)) return false;

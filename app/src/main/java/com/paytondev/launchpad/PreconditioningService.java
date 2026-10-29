@@ -25,6 +25,7 @@ public final class PreconditioningService extends Service {
     private volatile boolean temperatureVisible, destroyed;
     private volatile int temperatureGeneration;
     private volatile BatteryTemperatureReading temperature = BatteryTemperatureReading.checking();
+    private volatile int warmThresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
     private final TemperatureHistory history = new TemperatureHistory();
     private PreconditioningController controller;
     private VehiclePort vehicle;
@@ -34,6 +35,7 @@ public final class PreconditioningService extends Service {
     final class LocalBinder extends Binder {
         PreconditioningSnapshot snapshot() { return snapshot; }
         BatteryTemperatureReading temperature() { return temperature; }
+        int warmThresholdC() { return warmThresholdC; }
         TemperatureHistory.Trace history() { return history.copy(SystemClock.elapsedRealtime()); }
     }
     private final Runnable temperaturePoll = new Runnable() {
@@ -77,6 +79,7 @@ public final class PreconditioningService extends Service {
         temperatureWorker = new Handler(temperatureThread.getLooper());
         worker.post(new Runnable() { @Override public void run() {
             vehicle = VehicleClientFactory.create();
+            warmThresholdC = vehicle.warmThresholdC();
             controller = new PreconditioningController(vehicle,
                 new PreconditioningController.Journal() {
                     @Override public void requested(boolean value) {

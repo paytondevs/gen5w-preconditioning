@@ -10,7 +10,7 @@ It has no new signed release or public version bump. The
 | Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile |
 | --- | --- | --- | --- |
 | Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) |
-| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Enabled for a valid warm reading | Enabled for a valid warm reading |
+| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F |
 | Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) |
 | Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved |
 
@@ -75,7 +75,9 @@ Whole-degree Celsius readings yield stepped Fahrenheit values (16°C -> 61°F,
 ## Warm advisory
 
 A normal Start requests temperature and then rechecks READY/Off before sending
-control commands. A plausible value at or above 20°C shows a ten-second notice
+control commands. A plausible value at or above the profile's threshold
+(`PreconditioningProfile.warmThresholdC`: 20°C on the EV6, 21°C on both Ioniq 5
+profiles) shows a ten-second notice
 without journaling ownership or sending Start, maintain, or cancel. Start returns
 when the notice expires if vehicle conditions still permit it. A duplicate normal
 Start cannot accept the warning; the user must choose the separate Start anyway
@@ -90,6 +92,11 @@ temperature aggregation the BMS uses. The app does not claim that the BMS
 explicitly refused heating because of temperature, that the pack has reached a
 charging target, or that a certain charging speed is guaranteed. Start anyway
 preserves a manual request path; vehicle constraints still apply.
+
+On the Ioniq 5 NEEV23 US and NEEV US profiles the owner reports that the car
+stops heating at 70°F. Readings are whole degrees Celsius, so the threshold is
+21°C (69.8°F, shown as 70°F). The EV6 keeps 20°C / 68°F until its cutoff is
+confirmed.
 
 ## Pending-request timeout
 

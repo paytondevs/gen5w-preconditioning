@@ -20,6 +20,7 @@ final class TemperatureChart extends View {
     private final float dp;
     private TemperatureHistory.Trace trace = TemperatureHistory.Trace.EMPTY;
     private long now;
+    private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
 
     TemperatureChart(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
@@ -29,7 +30,9 @@ final class TemperatureChart extends View {
         label.setTextSize(13 * dp); label.setColor(FocusUi.MUTED);
         setContentDescription("Battery temperature this session");
     }
-    void setTrace(TemperatureHistory.Trace trace, long now) { this.trace = trace; this.now = now; invalidate(); }
+    void setTrace(TemperatureHistory.Trace trace, long now, int thresholdC) {
+        this.trace = trace; this.now = now; this.thresholdC = thresholdC; invalidate();
+    }
 
     /** Visible time span: at least five minutes, at most the history window. */
     static long start(List<TemperatureHistory.Sample> samples, long now) {
@@ -37,8 +40,8 @@ final class TemperatureChart extends View {
         return now - Math.max(MIN_SPAN_MS, Math.min(TemperatureHistory.WINDOW_MS, span));
     }
     /** °C bounds that always include the threshold, padded, spanning at least 10°C. */
-    static float[] range(List<TemperatureHistory.Sample> samples) {
-        float lo = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C, hi = lo;
+    static float[] range(List<TemperatureHistory.Sample> samples, int thresholdC) {
+        float lo = thresholdC, hi = lo;
         for (TemperatureHistory.Sample s : samples) {
             lo = Math.min(lo, s.minimumC); hi = Math.max(hi, s.maximumC == null ? s.minimumC : s.maximumC);
         }
@@ -64,7 +67,7 @@ final class TemperatureChart extends View {
             label.setTextSize(13 * dp); return;
         }
         float left = 48 * dp, top = 14 * dp, width = getWidth() - left - 14 * dp, height = getHeight() - top - 28 * dp;
-        float[] range = range(samples);
+        float[] range = range(samples, thresholdC);
         long start = start(samples, now);
         label.setTextAlign(Paint.Align.RIGHT);
         line.setStrokeWidth(dp); line.setColor(FocusUi.LINE);
@@ -73,11 +76,11 @@ final class TemperatureChart extends View {
             canvas.drawLine(left, yy, left + width, yy, line);
             canvas.drawText(BatteryTemperatureReading.fahrenheit(c) + "°F", left - 8 * dp, yy + 5 * dp, label);
         }
-        float threshold = y(BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C, range[0], range[1], top, height);
+        float threshold = y(thresholdC, range[0], range[1], top, height);
         path.reset(); path.moveTo(left, threshold); path.lineTo(left + width, threshold);
         canvas.drawPath(path, dashed);
         label.setColor(TemperatureGauge.WARM); label.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("68°F", left + width, threshold - 6 * dp, label);
+        canvas.drawText(BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
         label.setColor(FocusUi.MUTED);
         // The session marker's label sits in the time axis row, replacing an end label it would hit.
         float axis = top + height + 20 * dp, sx = -1;

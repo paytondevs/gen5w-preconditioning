@@ -67,6 +67,7 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
     @Override public void stopAndRelease() throws Exception { connect(false); PreconditioningProfile.cancel(this); }
     @Override public long maintenanceIntervalMs() { return PreconditioningProfile.REFRESH_MS; }
     @Override public long activationTimeoutMs() { return PreconditioningProfile.activationTimeoutMs(Build.DEVICE); }
+    @Override public int warmThresholdC() { return PreconditioningProfile.warmThresholdC(Build.DEVICE); }
     @Override public void pause(long milliseconds) { SystemClock.sleep(milliseconds); }
     @Override public void write(int transaction, int... values) throws Exception {
         if (!((transaction == 62 && values.length == 2) ||

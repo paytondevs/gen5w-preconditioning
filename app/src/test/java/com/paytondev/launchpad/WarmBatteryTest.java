@@ -67,6 +67,19 @@ public class WarmBatteryTest {
         assertEquals(10, c.snapshot(12000).resetSeconds);
         assertEquals(0, car.starts);
     }
+    @Test public void ioniq5ThresholdStartsAt21AndNamesSeventyFahrenheit() {
+        PreconditioningControllerTest.FakeVehicle car = new PreconditioningControllerTest.FakeVehicle();
+        car.warmThreshold = PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C;
+        PreconditioningController c = ready(car, new PreconditioningControllerTest.Journal());
+        assertTrue(c.start(1000, 20));
+        PreconditioningControllerTest.FakeVehicle warm = new PreconditioningControllerTest.FakeVehicle();
+        warm.warmThreshold = PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C;
+        PreconditioningController d = ready(warm, new PreconditioningControllerTest.Journal());
+        assertFalse(d.start(1000, 21));
+        assertEquals(PreconditioningSnapshot.State.WARM, d.snapshot(1000).state);
+        assertTrue(d.snapshot(1000).detail.contains("(21°C / 70°F)"));
+        assertEquals(0, warm.starts);
+    }
     @Test public void coolingAfterNoticeAllowsNormalStart() {
         PreconditioningControllerTest.FakeVehicle car = new PreconditioningControllerTest.FakeVehicle();
         PreconditioningController c = ready(car, new PreconditioningControllerTest.Journal());

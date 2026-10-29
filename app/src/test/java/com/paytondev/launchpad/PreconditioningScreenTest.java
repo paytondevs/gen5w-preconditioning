@@ -19,17 +19,19 @@ public class PreconditioningScreenTest {
         assertEquals(30f / 45f, TemperatureGauge.fraction(20), 1e-6f);
         assertEquals(1f, TemperatureGauge.fraction(35), 0f);
         assertEquals(1f, TemperatureGauge.fraction(60), 0f);
-        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(19));
-        assertEquals(TemperatureGauge.WARM, TemperatureGauge.color(20));
-        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(null));
+        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(19, 20));
+        assertEquals(TemperatureGauge.WARM, TemperatureGauge.color(20, 20));
+        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(20, 21));
+        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(null, 20));
     }
     @Test public void chartRangeAlwaysIncludesTheThresholdAndTenDegrees() {
-        assertArrayEquals(new float[]{15, 25}, TemperatureChart.range(Collections.<TemperatureHistory.Sample>emptyList()), 0f);
+        assertArrayEquals(new float[]{15, 25}, TemperatureChart.range(Collections.<TemperatureHistory.Sample>emptyList(), 20), 0f);
+        assertArrayEquals(new float[]{16, 26}, TemperatureChart.range(Collections.<TemperatureHistory.Sample>emptyList(), 21), 0f);
         assertArrayEquals(new float[]{-7, 22}, TemperatureChart.range(Arrays.asList(
-            new TemperatureHistory.Sample(1, -5, null), new TemperatureHistory.Sample(2, 3, 6))), 0f);
+            new TemperatureHistory.Sample(1, -5, null), new TemperatureHistory.Sample(2, 3, 6)), 20), 0f);
         assertArrayEquals(new float[]{18, 33}, TemperatureChart.range(Arrays.asList(
-            new TemperatureHistory.Sample(1, 22, 31))), 0f);
-        float[] narrow = TemperatureChart.range(Arrays.asList(new TemperatureHistory.Sample(1, 19, 21)));
+            new TemperatureHistory.Sample(1, 22, 31)), 20), 0f);
+        float[] narrow = TemperatureChart.range(Arrays.asList(new TemperatureHistory.Sample(1, 19, 21)), 20);
         assertEquals(10f, narrow[1] - narrow[0], 0f); assertTrue(narrow[0] <= 19 && narrow[1] >= 21);
     }
     @Test public void chartSpanIsBetweenFiveAndThirtyMinutes() {

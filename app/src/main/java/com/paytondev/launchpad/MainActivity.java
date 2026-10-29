@@ -533,7 +533,8 @@ public final class MainActivity extends Activity {
         Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
         highestColumn.setVisibility(maximum == null ? View.GONE : View.VISIBLE);
         if (maximum != null) highestValue.setText(BatteryTemperatureReading.fahrenheit(maximum) + "°F · " + maximum + "°C");
-        gauge.setValue(minimum); chart.setTrace(history, now);
+        int threshold = vehicleService == null ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : vehicleService.warmThresholdC();
+        gauge.setValue(minimum, threshold); chart.setTrace(history, now, threshold);
         setCheck(0, preconditioning.readyCheck(), preconditioning.readyValue());
         setCheck(1, preconditioning.enabledCheck(), preconditioning.enabledValue());
         setCheck(2, preconditioning.indicatorCheck(), preconditioning.indicatorValue());

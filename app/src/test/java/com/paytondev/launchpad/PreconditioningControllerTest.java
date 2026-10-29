@@ -10,7 +10,9 @@ public class PreconditioningControllerTest {
         int starts, stops, maintenance;
         boolean readFails, startFails, stopFails;
         long interval, timeout = PreconditioningController.ACTIVATION_TIMEOUT_MS;
+        int warmThreshold = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
         @Override public long activationTimeoutMs() { return timeout; }
+        @Override public int warmThresholdC() { return warmThreshold; }
         @Override public String unavailableReason() { return unavailable; }
         @Override public Reading read() throws Exception {
             if (readFails) throw new Exception("Disconnected");
@@ -68,6 +70,12 @@ public class PreconditioningControllerTest {
         assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+    }
+    @Test public void eachProfileHasItsOwnWarmThreshold() {
+        assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.EV6_DEVICE));
+        assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
+        assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
+        assertEquals(70, BatteryTemperatureReading.fahrenheit(PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C));
     }
     @Test public void timeoutCancelsOnceAndRestoresStartOnlyAfterFreshOff() {
         FakeVehicle car = new FakeVehicle(); car.interval = 5000; Journal journal = new Journal();
