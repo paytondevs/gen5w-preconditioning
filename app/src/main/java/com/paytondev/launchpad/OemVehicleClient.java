@@ -20,7 +20,8 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
         if (!firmwareChecked) {
             // Build.PRODUCT is ro.product.name, not the collected ro.build.product.
             String software = "";
-            if (PreconditioningProfile.EV6_DEVICE.equals(Build.DEVICE)) {
+            if (PreconditioningProfile.EV6_DEVICE.equals(Build.DEVICE)
+                || PreconditioningProfile.IONIQ5_NEEV_US_DEVICE.equals(Build.DEVICE)) {
                 Method property = Class.forName("android.os.SystemProperties").getMethod("get", String.class);
                 software = (String) property.invoke(null, "ro.build.product");
             }
@@ -38,8 +39,9 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
     }
     @Override public String unavailableReason() { return ""; }
     @Override public Integer readMinimumBatteryTemperatureC() {
-        // read() must have passed exact firmware hashes first.
-        if (!firmwareChecked || !PreconditioningProfile.readsClusterBatteryTemperature(Build.DEVICE)) return null;
+        // read() must have passed exact firmware hashes first; only profiles with a
+        // checked cluster contract may read.
+        if (!firmwareChecked || !PreconditioningProfile.supportsBatteryTemperature(Build.DEVICE)) return null;
         return ClusterBatteryTemperatureReader.read();
     }
     @Override public Reading read() throws Exception {
@@ -79,7 +81,7 @@ final class OemVehicleClient implements VehiclePort, PreconditioningProfile.Comm
             if (reply.dataAvail() != 0) throw new IllegalStateException("Unexpected vehicle command reply");
         } finally { data.recycle(); reply.recycle(); }
     }
-    private static String hash(String path) throws Exception {
+    static String hash(String path) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try (FileInputStream in = new FileInputStream(path)) {
             byte[] bytes = new byte[16384]; int count;

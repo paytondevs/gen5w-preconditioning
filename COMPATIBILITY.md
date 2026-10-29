@@ -1,7 +1,63 @@
-# V1 compatibility and verification
+# compatibility
 
-The original Ioniq 5 preconditioning profile targets `wp_daudioplus_neev23_us` on
-Android 4.4/API 19. It validates these firmware files before enabling Start:
+## compatibility chart
+
+Launchpad only works on the exact cars and head-unit software versions below. Your head unit's **software version** is what decides it, not the model year.
+
+| vehicle | model years | market | head unit | software version | status |
+| --- | --- | --- | --- | --- | --- |
+| Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ supported |
+| Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ supported |
+| Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ supported |
+
+- **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version on this head unit; it checks the head unit's firmware files instead.
+- **Other model years with the same head unit and software** will probably work, but haven't been tested.
+- **Older and newer software versions aren't supported yet.** Support for the newest software is being worked on.
+- **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
+- **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md).
+
+## car not listed? run the vehicle porting kit
+
+The vehicle porting kit is a USB drive that reads the details needed to add your car and saves them to a text file on the drive. **It's read-only:** it doesn't install anything, doesn't change any files on the car, and doesn't start preconditioning. It also works on cars that are already supported.
+
+You need [NEMESIS](README.md#1-install-nemesis) installed first, same as for Launchpad.
+
+1. Download **`Launchpad-port-kit-usb.zip`** from the [releases page](../../releases).
+2. Extract it so its **contents** sit at the **root** of an empty FAT32 or exFAT USB drive. It should look like this:
+   ```text
+   USB drive/
+   ├── README.txt
+   ├── NEMESIS.data
+   └── launchpad-port/
+   ```
+   Move any other `NEMESIS.data` or Launchpad installer files off the drive first.
+3. Park, turn the car on, and wait for the screen to finish starting. Plug the drive into the USB **data** port and tap **Yes** when NEMESIS asks.
+4. **Optional, but it helps:** right after tapping **Yes**, hold the right-hand knob that changes radio stations (TUNE) for about 2 seconds, let go, and repeat until the result appears. This shows which button can open Launchpad on your car. Skip it if your car has no such knob.
+5. Wait for the result, about 30 seconds. No reboot is needed.
+
+The drive now has **`launchpad-port-report.txt`**. It's plain text, so you can open it and see everything in it. It contains no VIN, serial number or location.
+
+### send it in
+
+Open a **[Vehicle port request](../../issues/new?template=vehicle-port.yml)** issue on GitHub and include:
+
+- **your vehicle:** model, model year, trim and market, e.g. *US 2024 IONIQ 5 Limited AWD*
+- **your head unit's software version**, as shown in the car's settings
+- **the report:** drag `launchpad-port-report.txt` into the issue. If the kit said it failed, attach `launchpad-collect.log` from the drive too.
+
+A report doesn't guarantee your car can be supported, but it's everything needed to find out. Developers adding a car from a report: see [CONTRIBUTING.md](CONTRIBUTING.md#vehicle-ports).
+
+## technical details
+
+This part is for developers. It covers how each supported head unit is identified, the checks Launchpad makes before it enables **Start**, and what was tested in which car.
+
+Two Ioniq 5 head units are supported, identified by their device codes:
+`wp_daudioplus_neev23_us` (NEEV23 US) and `wp_daudioplus_neev_us` (NEEV US,
+below). The NEEV23 US model year is unconfirmed; the NEEV US profile was
+verified on a US 2022 Ioniq 5 SE AWD.
+
+The NEEV23 US profile, the first one in this project, targets
+`wp_daudioplus_neev23_us` on Android 4.4/API 19. It validates these firmware files before enabling Start:
 
 | File | SHA-256 |
 | --- | --- |
@@ -14,7 +70,62 @@ It checks HEV service `com.hkmc.micom.hev` / descriptor
 feature unavailable. Do not remove these checks to support another firmware;
 establish its command and feedback profile first.
 
-## EV6 US 260507 profile
+### NEEV US 260507 profile
+
+Verified vehicle: **US 2022 Hyundai Ioniq 5 SE AWD**.
+
+The additional profile requires Android API 19, device `wp_daudioplus_neev_us`,
+and `ro.build.product=NEEV.USA.0000.V015.012.260507` (build `KVT49L`). A
+read-only USB capture on 2026-10-27 found both framework files byte-identical to
+the NEEV23 US profile, so it requires those same two fingerprints above.
+`com.hkmc.micom.hev` / `com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` /
+`com.hkmc.bcm.IBCMService` were both present. No command or enum remapping was
+made.
+
+Holding TUNE was verified on that car on 2026-10-27: key 17 arrives on the main
+`daudio_wp_daudioplus_neev_us` input device (not its `_can` or `_knob`
+devices), so `knob.conf` selects that name on the exact NEEV US identity with
+the original 800 ms hold.
+
+Field testing on that car repeated the EV6 physical tests below, parked with no
+active navigation route, using a local build of this profile signed with a
+personal key:
+
+- The installed app observed Off -> Active -> Off using the existing command
+  arguments and feedback mapping, first on 2026-10-27.
+- The owner confirmed app Start/Stop and Ready after an infotainment restart
+  following Stop. A cool-battery morning test also activated.
+- Holding TUNE opened Launchpad after reboot. Recorded input was key 17 on
+  `daudio_wp_daudioplus_neev_us`; holding TUNE opens the screen and does not
+  issue Start.
+
+Matching framework files show the Binder interface is the same code; they do not
+prove the vehicle MICOM/BMS behind it responds identically on other cars. The
+same items left unverified on the EV6 (driving activation, navigation
+interaction, active-session power loss, and a public release cycle) remain
+unverified here. No firmware, raw logs, or disassembly are included.
+
+**Battery temperature:** read-only USB captures on
+2026-10-28 found `com.hkmc.micom.cluster` / `com.hkmc.cluster.IClusterService`
+present, and this profile's `automotive.odex` declares the same cluster contract
+the EV6 reader uses: `addNavigationClusterListener` 37,
+`requestBatteryInfoReq()` 109, `removeNavigationClusterListener` 38, and
+listener `onHandleBatteryInfoResp(int[])` 16. The temperature display and warm
+advisory are therefore enabled for this exact profile. The interface does not
+define the array layout, so the EV6 decoding (eight values, index 1 as minimum
+pack temperature) was checked in the car: on 2026-10-28 the owner confirmed
+the Launchpad reading appeared and agreed with an OBD reader's temperature.
+Exact values were not recorded. On the same day, with the battery already
+warm, tapping Start showed the Battery warm notice. NEEV23 US shares these
+framework files and reads the same contract; its in-car temperature check is
+still pending.
+
+**Other model years:** other US-market Ioniq 5 vehicles reporting this exact
+device, software version, and both firmware fingerprints may also be
+compatible, but have not been tested beyond the verified **US 2022 Ioniq 5 SE AWD**.
+Model year alone does not establish compatibility.
+
+### EV6 US 260507 profile
 
 **Other model years:** US-market 2022–2024 EV6 vehicles with the same Gen5W
 hardware and exact supported firmware may also be compatible, but have not
@@ -32,7 +143,7 @@ and `ro.build.product=CVEV.USA.0000.V015.012.260507`, plus both fingerprints:
 | `/system/framework/automotive-service.odex` | `8af745b41aa28f490953d61531215cd94e059f104b31f6236a8f6c7af23b8062` |
 
 The property is read directly: Android `Build.PRODUCT` exposes a different
-property. The original Ioniq 5 checks remain unchanged. Neither profile accepts
+property. The NEEV23 US checks remain unchanged. Neither profile accepts
 the other profile's hashes. The HEV/BCM descriptors are checked for both.
 
 Field testing on October 24-25, 2026 used a US 2023 Kia EV6 Wind RWD, Gen5W
@@ -59,8 +170,8 @@ been installed as a new vehicle build.
 No EV6 command/enum remapping was needed. Start/Stop command arguments, package
 IDs, release version, and original Ioniq TUNE default remain unchanged. The
 controller adds a pending timeout: five minutes for the EV6 profile and two minutes
-for the Ioniq 5, whose activation normally follows in about 60–70 seconds. Native
-temperature reads and the warm advisory run only on the exact EV6 and Ioniq 5
+for the Ioniq 5 profiles (NEEV23 US activation normally follows in about 60–70 seconds).
+Native temperature reads and the warm advisory run only on the exact EV6 and Ioniq 5
 profiles, which share one cluster contract (see TEMPERATURE-AND-TIMEOUT.md).
 No raw vehicle logs, firmware, disassembly, APKs, or signing material
 are included. This is evidence for the listed profile, not blanket EV6 support.
@@ -73,7 +184,7 @@ pending request; stop it and confirm Off first. Public APKs should be built and
 signed through the maintainer's release process. Local test keys differ from the
 upstream key and do not establish cross-signed update compatibility.
 
-## Command profile
+### Command profile
 
 The Binder argument mapping was derived from the inspected OEM framework and
 native navigation implementation, using the public
@@ -98,7 +209,7 @@ preference, or coordinate with native navigation in V1. Start requires the
 existing enable setting, EV READY, and an Off indicator. The BMS retains control
 of temperature, charge, and other operating constraints.
 
-## Session behavior and verification limits
+### Session behavior and verification limits
 
 A foreground service owns a requested session after the activity closes. Stop
 is available while waiting. Recovery cancels uncertain ownership and never
@@ -109,5 +220,5 @@ The source includes unit tests for the request/feedback distinction, cancellatio
 communication failures, recovery, navigation between app pages, favorites,
 connection formatting, and TUNE event parsing/hold detection. Emulator tests
 and static profile derivation do not establish real battery heating. At source
-publication, the original Ioniq 5 profile had not been verified in a parked car
+publication, the NEEV23 US profile had not been verified in a parked car
 in this workspace. The later EV6 field observations are scoped separately above.

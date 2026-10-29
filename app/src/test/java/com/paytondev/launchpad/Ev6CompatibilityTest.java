@@ -12,10 +12,10 @@ public class Ev6CompatibilityTest {
             "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a",
             "8af745b41aa28f490953d61531215cd94e059f104b31f6236a8f6c7af23b8062"));
     }
-    @Test public void originalIoniqProfileRemainsExact() {
-        assertTrue(ev6(19, PreconditioningProfile.DEVICE, "original product not constrained",
-            PreconditioningProfile.FRAMEWORK_SHA256, PreconditioningProfile.SERVICE_SHA256));
-        assertFalse(ev6(19, PreconditioningProfile.DEVICE, PreconditioningProfile.EV6_SOFTWARE,
+    @Test public void ioniq5Neev23UsProfileRemainsExact() {
+        assertTrue(ev6(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "Ioniq 5 NEEV23 US software not constrained",
+            PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
+        assertFalse(ev6(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, PreconditioningProfile.EV6_SOFTWARE,
             PreconditioningProfile.EV6_FRAMEWORK_SHA256, PreconditioningProfile.EV6_SERVICE_SHA256));
     }
     @Test public void mismatchedDeviceApiProductOrEitherHashCannotEnableEv6() {
@@ -26,7 +26,7 @@ public class Ev6CompatibilityTest {
         assertFalse(ev6(19, device, "CVEV.USA.0000.V015.012.999999", framework, service));
         assertFalse(ev6(19, device, software, "unknown", service));
         assertFalse(ev6(19, device, software, framework, "unknown"));
-        assertFalse(ev6(19, device, software, PreconditioningProfile.FRAMEWORK_SHA256, PreconditioningProfile.SERVICE_SHA256));
+        assertFalse(ev6(19, device, software, PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
         assertFalse(ev6(19, device, null, framework, service));
         assertFalse(ev6(19, null, software, framework, service));
         assertFalse(ev6(19, device, software, null, null));

@@ -66,7 +66,8 @@ public class PreconditioningControllerTest {
     }
     @Test public void eachProfileHasItsOwnActivationTimeout() {
         assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_DEVICE));
-        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.DEVICE));
+        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
+        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
     }
     @Test public void timeoutCancelsOnceAndRestoresStartOnlyAfterFreshOff() {
         FakeVehicle car = new FakeVehicle(); car.interval = 5000; Journal journal = new Journal();

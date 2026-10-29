@@ -124,10 +124,11 @@ cancellation after five minutes without confirmed activation, as explained below
   failed; do not treat it as current. Advanced retains the old value and its age.
 
 Temperature polling is intended to stop when you leave Launchpad and resume
-when you reopen it. A known issue can leave the reading stale after returning
-during an active session. If this happens, leave and reopen Launchpad again;
-this restored updates in the reported test after conditioning ended. It does
-not confirm the current temperature or stop an active request. Use **Stop**
+when you reopen it. Builds before 1.3.1 could leave the reading stale after
+returning during an active session; 1.3.1 fixes this (confirmed on an Ioniq 5,
+not yet rechecked on the EV6). If it still happens, leave and reopen Launchpad
+again. A stale reading does not confirm the current temperature or stop an
+active request. Use **Stop**
 when you want to cancel conditioning.
 
 Reading the temperature does not turn heating on. The incoming value uses

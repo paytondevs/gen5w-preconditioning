@@ -8,7 +8,9 @@ uninstall drive.
 BEFORE YOU BEGIN
 Use a maintainer release whose notes explicitly support your head unit and
 software. EV6 support was tested on a US 2023 EV6 Wind RWD, Gen5W software
-CV_E.USA.S5W_M.V015.012.260507. Matching 2022-2024 US cars are untested.
+CV_E.USA.S5W_M.V015.012.260507. Ioniq 5 NEEV US support was tested on a US
+2022 Ioniq 5 SE AWD, software NEEV.USA.0000.V015.012.260507. Other matching
+cars and model years are untested.
 NEMESIS must already be installed. Engineering Mode is not needed for this step.
 Each release is signed with its own key. The installer replaces
 /system/app/Launchpad.apk directly, so a different key does not block an
@@ -40,15 +42,16 @@ USING PRECONDITIONING
 Enable Battery conditioning mode in the car's EV settings. Start requests
 conditioning; Request sent is not confirmation. Active means the car reports
 conditioning active. Stop cancels; wait for Session ended and Car indicator: Off.
-On supported EV6 software, Battery warm offers a ten-second reset or explicit
-Start anyway. The car still decides whether to activate. A request never seen
-Active has a five-minute cancellation timer; this has automated test coverage,
-but is not yet verified in-car. Active sessions do not use that timeout.
+On supported EV6 and Ioniq 5 NEEV US software, Battery warm offers a
+ten-second reset or explicit Start anyway. The car still decides whether to
+activate. A request never seen Active has a five-minute cancellation timer;
+this has automated test coverage, but is not yet verified in-car. Active
+sessions do not use that timeout.
 
 Battery temp is the lowest reported battery-pack sensor, not outside temperature.
-If it becomes stale after leaving/returning, try reopening Launchpad. This
-restored updates in the reported test after conditioning ended. A stale value
-does not establish whether the battery is warm or conditioning is active.
+It should resume updating when you return to Launchpad during a session. If it
+stays stale, reopen Launchpad. A stale value does not establish whether the
+battery is warm or conditioning is active.
 
 IF IT FAILS
 Keep launchpad-install.log from this drive. Open NEMESIS Manager with three

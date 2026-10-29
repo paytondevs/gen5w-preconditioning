@@ -1,0 +1,59 @@
+name: Vehicle port request
+description: Ask for your car to be supported, using the report from the vehicle porting kit USB.
+title: "Port request: "
+labels: ["vehicle port"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping add a car. First check the [compatibility chart](https://github.com/paytondevs/gen5w-preconditioning/blob/main/COMPATIBILITY.md#compatibility-chart): your car may already be supported.
+
+        If it isn't, run the **vehicle porting kit** USB (`Launchpad-port-kit-usb.zip` on the [releases page](https://github.com/paytondevs/gen5w-preconditioning/releases)). It only reads details from the car and saves them to `launchpad-port-report.txt` on the drive.
+  - type: input
+    id: vehicle
+    attributes:
+      label: Vehicle
+      description: Model, model year, trim and market.
+      placeholder: US 2024 IONIQ 5 Limited AWD
+    validations:
+      required: true
+  - type: input
+    id: software
+    attributes:
+      label: Head-unit software version
+      description: The full software version shown in the car's settings, under software or system information.
+      placeholder: NEEV.USA.0000.V015.012.260507
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Porting kit report
+      description: Drag `launchpad-port-report.txt` from the USB drive into this box. If the kit said it failed, add `launchpad-collect.log` too.
+      placeholder: Drop launchpad-port-report.txt here.
+    validations:
+      required: true
+  - type: dropdown
+    id: knob
+    attributes:
+      label: Did you hold the TUNE knob while the kit was running?
+      options:
+        - "Yes"
+        - "No"
+        - My car has no TUNE knob
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Anything unusual about the car, or what happened when you ran the kit.
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: Nothing I attached shows my VIN, license plate or location.
+          required: true

@@ -1,9 +1,16 @@
 # Building Launchpad and the TUNE-knob service
 
-The Android project builds Launchpad 1.2.0 (version code 3), package
+The Android project builds Launchpad, package
 `com.paytondev.launchpad`, for Android 4.4/API 19. The TUNE daemon source is in
 `app/src/main/java/com/paytondev/launchpad/knob/`; its NEMESIS scripts and input
 profile are in `tune-service/`.
+
+The release version is the single line in [`VERSION`](VERSION), e.g. `1.3.0`.
+Gradle uses it as `versionName` and derives `versionCode` as
+`major * 10000 + minor * 100 + patch` (so minor and patch stay below 100).
+`tools/build_usb_bundles.py` writes it into the packaged `NEMESIS.data`, whose
+source keeps a `version=@VERSION@` placeholder, and CI tags the draft release
+`v<VERSION>`. Don't edit the version anywhere else.
 
 ## Requirements
 
@@ -22,6 +29,7 @@ the first build also downloads Android build dependencies.
 ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleDebug :app:assembleRelease
 python3 tools/test_ev6_scripts.py
 python3 tools/test_temperature_binder.py
+python3 tools/test_service_rebind.py
 python3 tools/test_usb_bundles.py
 ```
 
@@ -33,6 +41,12 @@ The temperature contract test uses `JAVA_HOME` or `java`/`javac` on PATH, compil
 the real reader against small host Binder fixtures, and writes results under
 `build/temperature-contract/`. It never contacts a car. It does not substitute
 for Android service lifecycle or in-car verification.
+
+The service rebind test compiles the real `PreconditioningService` against small
+Android fixtures under `build/service-rebind/`. It models Android's rule that a
+client returning to a live service gets `onRebind` only when `onUnbind` returned
+true, and checks that temperature polling resumes during a session. It never
+contacts a car and does not replace an in-car check.
 
 The unsigned release is at
 `app/build/outputs/apk/release/app-release-unsigned.apk`. Do not install it as a
@@ -65,7 +79,7 @@ The script runs tests/lint, builds, removes prior ZIP signature metadata, signs
 with the existing v1 SHA1/RSA procedure, aligns the APK, and verifies the
 signature for API 19. The final artifact is `dist/Launchpad.apk`.
 
-## NEMESIS package and USB install bundle
+## NEMESIS package and USB bundles
 
 ```sh
 python3 tools/build_usb_bundles.py            # uses dist/Launchpad.apk
@@ -87,7 +101,19 @@ Outputs in `dist/`:
   of `tune-service/scripts/common.sh`) against
   `packages/paytondev.launchpad.zip`.
 
-The USB ZIP also includes a plain-text `README.txt` (from
+- `Launchpad-port-kit-usb.zip`: the read-only vehicle porting kit. Its
+  `type=execute` `NEMESIS.data` runs `launchpad-port/collect.sh` (from
+  `usb/port-kit/`, with copies of `lib.sh` and `common.sh`). There is no
+  `packages/` folder, so it has nothing to install. It writes
+  `launchpad-port-report.txt` to the drive. The same signed APK is copied to
+  `/data/local/tmp/launchpad-port` only as the dex container for `PortProbe`,
+  run through `app_process`, and is removed afterwards with its dalvik-cache entry.
+  `PortProbe` makes no Binder call except `getInterfaceDescriptor()`, reads
+  transaction codes from the OEM framework classes by reflection, and listens to
+  key events passively. See
+  [COMPATIBILITY.md](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit).
+
+The install USB ZIP also includes a plain-text `README.txt` (from
 `usb/README-template.txt`) with its log filename, installation steps and the
 known EV6 display limitation. The packaging test builds the bundle in a
 temporary directory using a synthetic APK; it checks the descriptor target,
@@ -129,13 +155,16 @@ scripts are toolbox-only `#!/system/bin/sh` (KitKat mksh: no `grep`, `awk`,
 The service uses package id `paytondev.launchpad` and registry name
 `paytondev.launchpad/knobd`. It opens `com.paytondev.launchpad/.MainActivity`
 and passes the existing `from_knob` intent extra. It listens passively, without
-grabbing the input device or injecting events. Its profile expects device name
+grabbing the input device or injecting events. Its default profile expects the NEEV23 US (Ioniq 5) device name
 `daudio_wp_daudioplus_neev23_us`, key code 17, and an 800 ms hold. On the exact
 EV6 US API 19 / 260507 identity, `knob.conf` selects
-`daudio_wp_daudioplus_cvev_us` with the same key and hold duration.
+`daudio_wp_daudioplus_cvev_us` with the same key and hold duration, and on the
+exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
+`daudio_wp_daudioplus_neev_us`.
 
-Publish `Launchpad-install-usb.zip`, `paytondev.launchpad.zip` (for
-manual ADB installs) and `dist/Launchpad.apk` as GitHub release assets. These
+Publish `Launchpad-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
+`paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`
+as GitHub release assets. These
 scripts generate local artifacts only and never connect to a car.
 
 ## Continuous integration
@@ -146,14 +175,13 @@ scripts generate local artifacts only and never connect to a car.
 - **Merges to `main`** (or a manual run on `main`): generates a throwaway
   signing key, runs `tools/build_apk.sh` with it, then
   `tools/build_usb_bundles.py`, then `SHA256SUMS.txt`. The files are kept as a
-  workflow artifact and uploaded to the draft release `v<versionName>`. There is
+  workflow artifact and uploaded to the draft release `v<VERSION>`. There is
   one draft per version: each merge retargets it to the new commit and replaces
   its assets, leaving the notes alone. Publishing creates the tag.
 
-Once `v<versionName>` is published, later merges only produce the workflow
-artifact. To start the next draft, bump `versionName`/`versionCode` in
-`app/build.gradle.kts` and `version=` in `tune-service/NEMESIS.data`; the job
-fails if the two versions differ. The workflow needs no secrets.
+Once `v<VERSION>` is published, later merges only produce the workflow
+artifact. To start the next draft, change `VERSION`. The workflow needs no
+secrets.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for firmware and verification limits.
 See [RELEASE-PREPARATION.md](RELEASE-PREPARATION.md) for release decisions,

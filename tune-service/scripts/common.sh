@@ -26,6 +26,17 @@ files_equal() { cmp "$1" "$2" >/dev/null 2>&1; }
 
 android_up() { [ "$(getprop sys.boot_completed)" = 1 ]; }
 
+# app_process needs init's framework environment (BOOTCLASSPATH); load it if the
+# caller (svcmgr, NEMESIS) did not pass it through.
+BOOT_ENV=/init.environ.rc
+load_boot_env() {
+    if [ -z "$BOOTCLASSPATH" ] && [ -r "$BOOT_ENV" ]; then
+        while read CMD NAME VALUE; do
+            [ "$CMD" = export ] && export "$NAME=$VALUE"
+        done < "$BOOT_ENV"
+    fi
+}
+
 # Size in bytes of a file, from toolbox `ls -l` (perms owner group size date time name).
 file_size() {
     set -- $(ls -l "$1" 2>/dev/null)

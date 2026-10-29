@@ -9,13 +9,7 @@ HOLD_MS=800
 TARGET_COMPONENT=com.paytondev.launchpad/.MainActivity
 [ -r "$HERE/knob.conf" ] && . "$HERE/knob.conf"
 
-# app_process needs init's framework environment (BOOTCLASSPATH); load it if svcmgr
-# did not pass it through.
-if [ -z "$BOOTCLASSPATH" ] && [ -r /init.environ.rc ]; then
-    while read CMD NAME VALUE; do
-        [ "$CMD" = export ] && export "$NAME=$VALUE"
-    done < /init.environ.rc
-fi
+load_boot_env
 
 # The target is a normal framework app, so wait until Android is up before listening.
 while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 2; done

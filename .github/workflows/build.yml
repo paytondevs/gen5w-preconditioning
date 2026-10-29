@@ -1,6 +1,6 @@
 # Builds Launchpad on every PR; on every merge to main, signs it with a throwaway
 # key, builds the NEMESIS package and USB bundles, and refreshes the draft release
-# for the current versionName. Never connects to a car.
+# for the version in VERSION. Never connects to a car.
 name: build
 
 on:
@@ -48,15 +48,9 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Check versions match
-        run: |
-          app=$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
-          pkg=$(tr -d '\r' < tune-service/NEMESIS.data | sed -n 's/^version=//p')
-          if [ -z "$app" ] || [ "$app" != "$pkg" ]; then
-            echo "::error::versionName ($app) in app/build.gradle.kts must match version= ($pkg) in tune-service/NEMESIS.data"
-            exit 1
-          fi
-          echo "VERSION=$app" >> "$GITHUB_ENV"
+      # Gradle and build_usb_bundles.py read the same file and validate it.
+      - name: Read version
+        run: echo "VERSION=$(tr -d ' \r\n' < VERSION)" >> "$GITHUB_ENV"
 
       # The package writes /system/app/Launchpad.apk directly instead of going
       # through pm install, so each build can be signed with a fresh key.
@@ -77,7 +71,8 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: |
-          sha256sum Launchpad.apk paytondev.launchpad.zip Launchpad-install-usb.zip > SHA256SUMS.txt
+          sha256sum Launchpad.apk paytondev.launchpad.zip Launchpad-install-usb.zip \
+            Launchpad-port-kit-usb.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v7
@@ -87,21 +82,22 @@ jobs:
             dist/Launchpad.apk
             dist/paytondev.launchpad.zip
             dist/Launchpad-install-usb.zip
+            dist/Launchpad-port-kit-usb.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
-      # One rolling draft per versionName. Published releases are never touched.
+      # One rolling draft per VERSION. Published releases are never touched.
       - name: Update draft release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           tag="v$VERSION"
-          assets="dist/Launchpad.apk dist/paytondev.launchpad.zip dist/Launchpad-install-usb.zip dist/SHA256SUMS.txt"
+          assets="dist/Launchpad.apk dist/paytondev.launchpad.zip dist/Launchpad-install-usb.zip dist/Launchpad-port-kit-usb.zip dist/SHA256SUMS.txt"
           draft=$(gh release list --limit 100 --json tagName,isDraft \
             --jq "[.[] | select(.tagName == \"$tag\") | .isDraft | tostring][0] // empty")
           if [ "$draft" = "false" ]; then
-            echo "::warning::$tag is already published; bump versionName (and NEMESIS.data version) to start a new draft. Build is in the workflow artifacts."
+            echo "::warning::$tag is already published; bump VERSION to start a new draft. Build is in the workflow artifacts."
           elif [ "$draft" = "true" ]; then
             gh release edit "$tag" --target "$GITHUB_SHA"
             gh release upload "$tag" $assets --clobber

@@ -1,5 +1,5 @@
 [nemesis]
-version=1.2.0
+version=@VERSION@
 id=paytondev.launchpad
 name=Launchpad
 types=application,service

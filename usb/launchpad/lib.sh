@@ -9,6 +9,8 @@ PKGZIP=$USBROOT/packages/$PKG_ID.zip
 ACTION=${0##*/}
 ACTION=${ACTION%.sh}
 LOG=$USBROOT/launchpad-$ACTION.log
+# A script may set this before sourcing this file.
+: "${SUCCESS_HINT:=Reboot the head unit (pinhole button) to finish, then remove the USB drive.}"
 
 say() {
     LINE="$(date '+%Y-%m-%d %H:%M:%S') $*"
@@ -62,7 +64,7 @@ verify_installed() {
 
 finish() {
     if [ "$1" = 0 ]; then
-        say "SUCCESS. Reboot the head unit (pinhole button) to finish, then remove the USB drive."
+        say "SUCCESS. $SUCCESS_HINT"
     else
         say "FAILED. Keep this log ($LOG); NEMESIS's own log is /data/nemesis/nemesis.log (Manager > Logs > Copy to USB)."
     fi

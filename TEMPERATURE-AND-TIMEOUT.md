@@ -7,12 +7,12 @@ It has no new signed release or public version bump. The
 
 ## Scope
 
-| Behavior | EV6 exact profile | Original Ioniq 5 profile |
-| --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) |
-| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Enabled for a valid warm reading |
-| Cancellation of an unconfirmed request | After five minutes | After two minutes (activation normally follows in about 60–70 seconds) |
-| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved |
+| Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile |
+| --- | --- | --- | --- |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) |
+| 20°C / 68°F advisory and ten-second reset | Enabled for a valid warm reading | Enabled for a valid warm reading | Enabled for a valid warm reading |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) |
+| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
 and an Off indicator. The BMS remains responsible for actual activation. No OBD
@@ -22,7 +22,7 @@ added.
 ## Native read contract and bounds
 
 Only the hash-validated EV6 and Ioniq 5 clients reach
-`ClusterBatteryTemperatureReader` (`PreconditioningProfile.readsClusterBatteryTemperature`).
+`ClusterBatteryTemperatureReader` (`PreconditioningProfile.supportsBatteryTemperature`).
 Its contract is service `com.hkmc.micom.cluster`, descriptor
 `com.hkmc.cluster.IClusterService`, registration 37, request 109 without
 arguments, and removal 38. The listener descriptor is
@@ -132,11 +132,33 @@ using the local development build:
 - During that session the owner left Launchpad and returned before conditioning
   stopped. The temperature reading was then stale for about 350 seconds and
   recovered after closing and reopening Launchpad. This is a known display
-  refresh issue; the service rebind/polling lifecycle is a suspected cause, not
-  yet reproduced or fixed. Reopening Launchpad is the observed workaround.
+  refresh issue; its cause is described below. Reopening Launchpad is the
+  observed workaround.
   The owner considers this a low-priority issue for the intended pre-charger
   use. A stale reading is not evidence of the battery's current temperature or
   whether conditioning is still active.
+- On 2026-10-28, on a US 2022 Ioniq 5 SE AWD (NEEV US profile) using a local
+  build, battery conditioning ran for about 15 minutes while driving, then ended
+  on its own, and Launchpad detected the end of the session. The temperature
+  display went stale during the session and refreshed correctly after reopening
+  Launchpad. This records conditioning running while driving on that car; it
+  does not establish when the car ends conditioning or verify Start while
+  driving.
+- Cause of the stale display: `MainActivity.onStop` unbinds, and `onUnbind`
+  stops the poll. It returned false, so when Launchpad returned to a service kept
+  alive by an active session, Android reused the cached binder without calling
+  `onBind` or `onRebind`, and nothing restarted polling until the session ended
+  and a later reopen created a new service. The service now returns true from
+  `onUnbind` and restarts polling from both `onBind` and `onRebind`.
+  `tools/test_service_rebind.py` covers unbind and return during a session with
+  host fixtures. On 2026-10-28 the owner confirmed the fix in the Ioniq 5 using
+  a local 1.3.1 build: after starting conditioning, leaving Launchpad for more
+  than 30 seconds and returning, the reading resumed updating without reopening
+  the app. The fix is in shared service code but has not been rechecked on the
+  EV6.
+- Also on 2026-10-28, on the Ioniq 5 with the battery already warm, tapping Start
+  showed the Battery warm notice. Start anyway and the notice reset were not
+  separately reported on that car.
 
 Host tests cover the warm notice, override, unknown-temperature fallback,
 eligibility loss, timeout boundaries, cancellation failure, retained ownership,
@@ -148,8 +170,9 @@ The five-minute pending timeout has host-test coverage but has not been verified
 in the car. The owner clarified that the observed stop followed Active, so it
 does not test this timeout. Release preparation is proceeding with this limit
 disclosed; no artificial vehicle failure is required to test it. Failed-read
-recovery also remains unverified, and the observed display-resume issue above
-is a known limitation with a reopening workaround.
+recovery also remains unverified. The display-resume issue above is fixed and
+confirmed on the Ioniq 5; reopening Launchpad remains a harmless workaround on
+older builds.
 
 Before publishing binaries, verify the public install/update USB bundle,
 including an update over a build signed with a different key, and removal from
@@ -158,9 +181,25 @@ behavior, native-navigation coexistence, and driving activation remain unverifie
 These limits do not negate the owner's successful manual conditioning/display
 tests; they keep separate behaviors from being marked tested by inference.
 
+On the Ioniq 5 NEEV US 260507 profile, `automotive.odex` (hash `dd72e04b…3661338`)
+declares the same transaction numbers and signatures: `addNavigationClusterListener`
+37, `requestBatteryInfoReq()` 109, `removeNavigationClusterListener` 38, and
+listener `onHandleBatteryInfoResp(int[])` 16, with the same service and listener
+descriptors. The array layout is not part of that interface, so it was checked
+in the car: on 2026-10-28, on a US 2022 Ioniq 5 SE AWD using a local build, the
+owner confirmed the reading appeared on Launchpad and agreed with an OBD reader's
+temperature. Exact values were not recorded, and the comparison was not repeated
+across a wide temperature range. During a longer conditioning session the
+displayed value no longer matched the OBD reading; after relaunching Launchpad
+it updated and agreed again once the pack had cooled. Whether the display showed
+the stale label was not recorded; it was consistent with the refresh issue above,
+which is now fixed. The Battery warm notice was later shown on that car (see the
+evidence list); the pending timeout has not been exercised there.
+
 Native reads remain unverified on other firmware, trims, model years or markets.
 The deadline is per profile (`PreconditioningProfile.activationTimeoutMs`): five minutes on the
-EV6 and two minutes on the Ioniq 5, where the owner reports activation in about 60–70 seconds.
+EV6 and two minutes on both Ioniq 5 profiles, where the NEEV23 US owner reports activation in
+about 60–70 seconds.
 No proprietary firmware/disassembly, raw vehicle logs, APKs, private updater,
 signing key, or password is included in this contribution.
 

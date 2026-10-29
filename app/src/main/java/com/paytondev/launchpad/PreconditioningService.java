@@ -103,7 +103,7 @@ public final class PreconditioningService extends Service {
             temperatureWorker.removeCallbacks(temperaturePoll);
             if (!snapshot.requested) { worker.removeCallbacks(tick); stopSelf(); }
         } });
-        return true;
+        return true; // Request onRebind when a client returns to the live service.
     }
     @Override public int onStartCommand(final Intent intent, int flags, int startId) {
         worker.post(new Runnable() { @Override public void run() {
