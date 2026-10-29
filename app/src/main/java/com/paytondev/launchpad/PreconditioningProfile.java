@@ -27,11 +27,10 @@ final class PreconditioningProfile {
     }
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
-    // Ioniq 6: activation time unmeasured, so it keeps the five-minute default.
+    // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
-        return EV6_DEVICE.equals(device) || IONIQ6_CEEV_US_DEVICE.equals(device)
-            ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
+        return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
     }
     // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
     // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.

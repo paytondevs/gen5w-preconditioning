@@ -164,8 +164,9 @@ the original 800 ms hold. Opening Launchpad with TUNE has not been tried yet.
 `removeNavigationClusterListener` 38. The listener's callback code and the
 reading's array layout aren't part of the report, so the reading has not been
 checked in the car or compared with an OBD reader. The warm notice uses the
-unconfirmed 20°C / 68°F default, and the pending timeout keeps the five-minute
-default, because this car's cutoff and activation time are unmeasured.
+unconfirmed 20°C / 68°F default because this car's cutoff is unmeasured. The
+pending timeout is two minutes, the same as the Ioniq 5; this car's activation
+time is unmeasured.
 
 Still unverified: Start reaching Active and Stop returning to Off, the
 temperature reading, TUNE opening Launchpad, and everything left unverified on
@@ -215,8 +216,8 @@ been installed as a new vehicle build.
 
 No EV6 command/enum remapping was needed. Start/Stop command arguments, package
 IDs, release version, and original Ioniq TUNE default remain unchanged. The
-controller adds a pending timeout: five minutes on the EV6 and Ioniq 6 and two
-minutes on both Ioniq 5 profiles. Native temperature reads and the warm advisory run on
+controller adds a pending timeout: five minutes on the EV6 and two minutes on
+both Ioniq 5 profiles and the Ioniq 6. Native temperature reads and the warm advisory run on
 every supported profile once its firmware check passes.
 No raw vehicle logs, firmware, disassembly, APKs, or signing material
 are included. This is evidence for the listed profile, not blanket EV6 support.

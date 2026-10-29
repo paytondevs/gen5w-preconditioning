@@ -11,7 +11,7 @@ It has no new signed release or public version bump. The
 | --- | --- | --- | --- | --- |
 | Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report (not yet field-tested) |
 | Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F (cutoff unconfirmed) |
-| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After five minutes (activation time unmeasured) |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline; activation time unmeasured) |
 | Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
@@ -101,7 +101,7 @@ their cutoffs are confirmed.
 ## Pending-request timeout
 
 At the first status refresh at or after the profile deadline (five minutes on the
-EV6 and Ioniq 6, two on the Ioniq 5), a request with no observed
+EV6, two on the Ioniq 5 and Ioniq 6), a request with no observed
 Active indication sends the existing cancel sequence. A fresh Active indication
 at the deadline wins. Sessions that have already been observed Active have no
 pending cutoff. Unknown/missing feedback cannot indefinitely extend a pending
@@ -206,7 +206,7 @@ evidence list); the pending timeout has not been exercised there.
 
 Native reads remain unverified on other firmware, trims, model years or markets.
 The deadline is per profile (`PreconditioningProfile.activationTimeoutMs`): five minutes on the
-EV6 and Ioniq 6 and two minutes on both Ioniq 5 profiles, where the NEEV23 US owner reports activation in
+EV6 and two minutes on both Ioniq 5 profiles and the Ioniq 6, where the NEEV23 US owner reports activation in
 about 60–70 seconds.
 No proprietary firmware/disassembly, raw vehicle logs, APKs, private updater,
 signing key, or password is included in this contribution.

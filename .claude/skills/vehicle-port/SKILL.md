@@ -105,6 +105,12 @@ before editing, and mirror their naming and comment style.
      comment saying they are byte-identical, with the capture date.
    - Name constants as `<MODEL>_<HEADUNIT>_<MARKET>`, like `IONIQ5_NEEV_US` and
      `EV6`.
+   - **Every new profile uses the Ioniq 5 two-minute pending timeout**
+     (`IONIQ5_ACTIVATION_TIMEOUT_MS`), even when the car's activation time is
+     unmeasured. Don't add the device to the EV6 branch of `activationTimeoutMs()`;
+     the five minutes there is the EV6's own field-validated value, not a default for
+     new cars. Add the new device to `eachProfileHasItsOwnActivationTimeout` in
+     `PreconditioningControllerTest`, and say "two minutes" in the docs.
 2. **`OemVehicleClient.connect()`.** It reads `ro.build.product` only for devices named
    in its `if`. Add the new device there, or `software` stays `""` and the new profile
    can never match. This is the easiest step to miss, and no unit test catches it.
