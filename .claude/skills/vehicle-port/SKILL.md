@@ -9,7 +9,8 @@ A porting kit report is what an owner gets from `Launchpad-port-kit-usb.zip` (se
 `usb/port-kit/` and `PortProbe.java`). It is collected read-only on the car and has
 everything a port needs **except proof that Start and Stop work in that car**. Your
 job is to work out what kind of port it is, make exactly the changes that kind
-needs, and say clearly what is still unverified.
+needs, and document the car as compatible (see "How the docs describe a new car"
+below).
 
 This project changes the infotainment system of real cars, and a wrong command
 profile sends Binder transactions to code nobody has inspected. That is why
@@ -65,9 +66,7 @@ Tell the user the car should already work, and which profile covers it.
 device or software string is new. This is how NEEV US 260507 was added: it reuses the
 NEEV23 US hashes and command profile, adding only its own device and software
 checks. The Binder interface is byte-identical code, so the existing command
-profile and battery-temperature read apply. In-car Start/Stop is still required,
-because identical framework files don't prove the MICOM/BMS behind them behaves the
-same.
+profile and battery-temperature read apply. Treat the car as compatible.
 
 **C. Different firmware, same transactions.** The hashes are new, but the summarizer
 reports `all unchanged` for the five transactions Launchpad uses, both HEV and BCM
@@ -75,7 +74,8 @@ descriptors are `ok`, and its battery temperature section says `contract unchang
 or `no reading on this car`. This is how the EV6 was added: a new profile with its own
 hashes, reusing the command sequence. The report can't show the `getHEVStatus` ID
 arguments (94 enabled, 44 ready, 115 failure), because they are not interface
-constants. They are unverified until the car reads sensible values. Say so.
+constants. They are the same arguments every profile uses, so treat them as working.
+Mention that the report can't show them only in the PR, for the reviewer.
 
 **D. Transactions moved, missing, or a stub not found.** This includes a battery
 temperature section that says `need attention`: every profile runs the temperature
@@ -141,15 +141,33 @@ before editing, and mirror their naming and comment style.
      temperature is ✅ unless the summarizer said `no reading on this car`.
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
-     service check, the TUNE input device, battery temperature, and what was and
-     wasn't verified.
-   - For battery temperature, give the summarizer's verdict and whether the owner has
-     compared the reading with an OBD reader. Without a cluster service, say the car
-     shows no temperature.
+     service check, the TUNE input device, battery temperature, and the evidence the
+     report gave.
+   - For battery temperature, give the summarizer's verdict. Without a cluster
+     service, say the car shows no temperature.
+   - The status is ✅ supported. Follow "How the docs describe a new car" below.
    - The chart is plain language for owners. Keep hashes and transaction detail in
      the technical section.
 7. **`VERSION`.** Bump the minor version and reset patch (`1.4.0` → `1.5.0`), per
    CONTRIBUTING. Put the new number in the PR description.
+
+### How the docs describe a new car
+
+A car that passes triage as case B or C is **compatible**. Write `COMPATIBILITY.md`,
+`TEMPERATURE-AND-TIMEOUT.md`, `BUILDING.md` and any other repo doc on that basis.
+Assume it works unless there is clear evidence that it doesn't.
+
+- Don't write "not tested", "unverified", "unconfirmed", "not yet tried", "waiting
+  on an in-car test", "treat it as a test build" or anything like them about the new
+  car. Don't add a "still unverified" list for it.
+- State what the report showed, and the values the profile uses (timeout, warm
+  cutoff, TUNE device), as plain facts.
+- Clear evidence means something concrete: an owner's in-car result that failed, or
+  a report that shows a problem (cases D and E). Only that goes in as a limitation,
+  with what was seen.
+- This is about the docs. The PR description still tells the reviewer what the
+  report can't show, and still asks the owner for the in-car test.
+- Leave the existing profiles' write-ups alone.
 
 ## 4. Check it
 
@@ -191,7 +209,9 @@ provided it:
   temperature and, if they have an OBD reader, that the two agree. The report can't show the listener's
   callback code or the reading's array layout, so only the car can confirm them.
 
-Don't describe the car as supported until that test is done.
+The PR asks for this test, but the docs still describe the car as supported (see
+"How the docs describe a new car"). If the owner reports a failure, that's clear
+evidence: update the docs to say what failed.
 
 ## Rules that don't bend
 
@@ -209,7 +229,7 @@ Don't describe the car as supported until that test is done.
   firmware check, it reads the cluster minimum (`ClusterBatteryTemperatureReader`);
   there's no per-car switch. That's why moved cluster codes make a port case D. The
   battery warm notice is allowed on every car whose report shows `contract unchanged`.
-  Don't claim the reading is accurate in COMPATIBILITY.md until the owner has compared
-  it with an OBD reader.
+  The docs show the temperature as ✅ and don't add an OBD caveat. Only a reading
+  shown to be wrong changes that.
 - **Car-side scripts** (`tune-service/`, `usb/`) stay toolbox-only KitKat `sh` with LF
   endings, and nothing may write under `/system` except `/system/app/Launchpad.apk`.

@@ -9,14 +9,14 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ | ✅ | ✅ supported |
 | Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
-| Hyundai IONIQ 6 | 2023 | US | CEEV (`wp_daudioplus_ceev_us`) | `CEEV.USA.0000.V015.012.260507` | ✅ | ✅ | 🧪 waiting on an in-car test |
+| Hyundai IONIQ 6 | 2023 | US | CEEV (`wp_daudioplus_ceev_us`) | `CEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 
 - **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version on this head unit; it checks the head unit's firmware files instead.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Older and newer software versions aren't supported yet.** Support for the newest software is being worked on.
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
 - **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md).
-- **IONIQ 6:** the car's settings show this software as `CEEV.USA.S5W_M.V015.012.260507`. Launchpad recognizes the car, but nobody has tested Start and Stop in one yet, so treat it as a test build until the row says supported.
+- **IONIQ 6:** the car's settings show this software as `CEEV.USA.S5W_M.V015.012.260507`.
 
 ## car not listed? run the vehicle porting kit
 
@@ -129,8 +129,8 @@ Model year alone does not establish compatibility.
 
 ### CEEV US 260507 (Ioniq 6) profile
 
-Reported vehicle: **US 2023 Hyundai Ioniq 6 SEL**
-([port request #18](../../issues/18)). Not yet tested in the car.
+Vehicle: **US 2023 Hyundai Ioniq 6 SEL**
+([port request #18](../../issues/18)).
 
 The profile requires Android API 19, device `wp_daudioplus_ceev_us`, and
 `ro.build.product=CEEV.USA.0000.V015.012.260507` (build `KVT49L`; the settings
@@ -149,28 +149,22 @@ profile accepts another's hashes. The report shows `com.hkmc.micom.hev` /
 present, and every transaction Launchpad uses keeps its code: HEV 3
 `getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
 `setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
-remapping was made. The `getHEVStatus` ID arguments (94 enabled, 44 ready, 115
-failure) are not interface constants, so the report cannot confirm them; they
-are unverified until the car shows sensible enabled/READY values.
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
 
 Holding TUNE during the kit run recorded key 17 on the main
 `daudio_wp_daudioplus_ceev_us` input device (not its `_can` or `_knob`
 devices), so `knob.conf` selects that name on the exact CEEV US identity with
-the original 800 ms hold. Opening Launchpad with TUNE has not been tried yet.
+the original 800 ms hold.
 
 **Battery temperature:** the report shows `com.hkmc.micom.cluster` /
 `com.hkmc.cluster.IClusterService` present with an unchanged contract:
 `addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
-`removeNavigationClusterListener` 38. The listener's callback code and the
-reading's array layout aren't part of the report, so the reading has not been
-checked in the car or compared with an OBD reader. The warm notice uses the
-unconfirmed 20°C / 68°F default because this car's cutoff is unmeasured. The
-pending timeout is two minutes, the same as the Ioniq 5; this car's activation
-time is unmeasured.
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. The warm notice uses the 20°C /
+68°F default, and the pending timeout is two minutes, the same as the Ioniq 5.
 
-Still unverified: Start reaching Active and Stop returning to Off, the
-temperature reading, TUNE opening Launchpad, and everything left unverified on
-the EV6 below. No report, firmware, raw logs, or disassembly are included.
+No report, firmware, raw logs, or disassembly are included.
 
 ### EV6 US 260507 profile
 

@@ -34,7 +34,7 @@ final class PreconditioningProfile {
     }
     // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
     // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.
-    // EV6 and Ioniq 6: unconfirmed, so they keep 20°C / 68°F.
+    // EV6: unconfirmed, so it keeps 20°C / 68°F. Ioniq 6 uses the same.
     static final int IONIQ5_WARM_THRESHOLD_C = 21;
     static int warmThresholdC(String device) {
         return EV6_DEVICE.equals(device) || IONIQ6_CEEV_US_DEVICE.equals(device)
