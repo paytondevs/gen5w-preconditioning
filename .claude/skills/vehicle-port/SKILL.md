@@ -65,19 +65,24 @@ Tell the owner their car should already work, and which profile covers it.
 device or software string is new. This is how NEEV US 260507 was added: it reuses the
 NEEV23 US hashes and command profile, adding only its own device and software
 checks. The Binder interface is byte-identical code, so the existing command
-profile applies. In-car Start/Stop is still required, because identical framework
-files don't prove the MICOM/BMS behind them behaves the same.
+profile and battery-temperature read apply. In-car Start/Stop is still required,
+because identical framework files don't prove the MICOM/BMS behind them behaves the
+same.
 
 **C. Different firmware, same transactions.** The hashes are new, but the summarizer
-reports `all unchanged` for the five transactions Launchpad uses, and both HEV and BCM
-descriptors are `ok`. This is how the EV6 was added: a new profile with its own
+reports `all unchanged` for the five transactions Launchpad uses, both HEV and BCM
+descriptors are `ok`, and its battery temperature section says `contract unchanged`
+or `no reading on this car`. This is how the EV6 was added: a new profile with its own
 hashes, reusing the command sequence. The report can't show the `getHEVStatus` ID
 arguments (94 enabled, 44 ready, 115 failure), because they are not interface
 constants. They are unverified until the car reads sensible values. Say so.
 
-**D. Transactions moved, missing, or a stub not found.** Stop and report back. Don't
-remap numbers yourself. The literal codes live in `PreconditioningProfile` (start,
-maintain, cancel) and `OemVehicleClient` (getters and the `write()` allowlist). Moving
+**D. Transactions moved, missing, or a stub not found.** This includes a battery
+temperature section that says `need attention`: every profile runs the temperature
+read, so a new profile would send 37/109/38 to whatever those codes now mean. Stop and
+report back. Don't remap numbers yourself. The literal codes live in
+`PreconditioningProfile` (start, maintain, cancel), `OemVehicleClient` (getters and the
+`write()` allowlist) and `ClusterBatteryTemperatureReader` (37/109/38). Moving
 them for one profile means making the command profile per-profile, which is a design
 change for the maintainer. Give the maintainer what they need to decide: the old and
 new code of each method, from the report's `[interfaces]` table.
@@ -111,22 +116,29 @@ before editing, and mirror their naming and comment style.
    - If the key code also differs, set `KEY_CODE` inside that block only.
    - If the report shows `likely_knob=none`, leave TUNE out of the port and say so.
      TUNE only opens the screen; it never starts conditioning.
-4. **Tests.**
+4. **Battery temperature needs no code.** Every profile reads the cluster minimum
+   (`ClusterBatteryTemperatureReader`) once it passes the firmware check. Don't add a
+   per-car switch, and don't skip the car's temperature in the docs or the in-car test.
+5. **Tests.**
    - Add `app/src/test/java/com/paytondev/launchpad/<Name>CompatibilityTest.java`,
      modelled on `Ioniq5NeevUsCompatibilityTest.java`: the exact identity matches; a
      wrong API, device, software or either hash does not; other profiles are
      unaffected.
    - If you changed `knob.conf`, add the new identity and its near-misses to
      `test_tune_selection_keeps_key_duration_and_target` in `tools/test_ev6_scripts.py`.
-5. **`COMPATIBILITY.md`.**
+6. **`COMPATIBILITY.md`.**
    - Add a chart row (vehicle, model years, market, head unit with its device code,
      software version, status).
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
-     service check, the TUNE input device, and what was and wasn't verified.
+     service check, the TUNE input device, battery temperature, and what was and
+     wasn't verified.
+   - For battery temperature, give the summarizer's verdict and whether the owner has
+     compared the reading with an OBD reader. Without a cluster service, say the car
+     shows no temperature.
    - The chart is plain language for owners. Keep hashes and transaction detail in
      the technical section.
-6. **`VERSION`.** Bump the minor version and reset patch (`1.4.0` → `1.5.0`), per
+7. **`VERSION`.** Bump the minor version and reset patch (`1.4.0` → `1.5.0`), per
    CONTRIBUTING. Put the new number in the PR description.
 
 ## 4. Check it
@@ -165,6 +177,9 @@ provided it:
 - say plainly that it is waiting on an in-car test
 - give the owner the steps: install a build from this branch, press Start, wait for
   Active, press Stop, confirm Off
+- ask them to check that the Preconditioning tab shows a battery temperature and, if
+  they have an OBD reader, that the two agree. The report can't show the listener's
+  callback code or the reading's array layout, so only the car can confirm them.
 
 Don't describe the car as supported until that test is done.
 
@@ -179,7 +194,8 @@ Don't describe the car as supported until that test is done.
   1 Active, anything else Unknown. The failure field stays raw.
 - **Battery temperature comes with every profile.** Once a new profile passes the
   firmware check, it reads the cluster minimum (`ClusterBatteryTemperatureReader`);
-  there's no per-car switch. Don't claim the reading is accurate in COMPATIBILITY.md
-  until the reporter has compared it with an OBD reader.
+  there's no per-car switch. That's why moved cluster codes make a port case D. Don't
+  claim the reading is accurate in COMPATIBILITY.md until the owner has compared it
+  with an OBD reader.
 - **Car-side scripts** (`tune-service/`, `usb/`) stay toolbox-only KitKat `sh` with LF
   endings, and nothing may write under `/system` except `/system/app/Launchpad.apk`.
