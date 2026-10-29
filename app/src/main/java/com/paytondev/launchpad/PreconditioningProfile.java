@@ -14,22 +14,31 @@ final class PreconditioningProfile {
     static final String EV6_SOFTWARE = "CVEV.USA.0000.V015.012.260507";
     static final String EV6_FRAMEWORK_SHA256 = "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a";
     static final String EV6_SERVICE_SHA256 = "8af745b41aa28f490953d61531215cd94e059f104b31f6236a8f6c7af23b8062";
+    // CEEV US 260507 (US 2023 Ioniq 6 SEL): own firmware files, captured on 2026-10-29;
+    // the five HEV/BCM transactions and the cluster contract match the other profiles.
+    static final String IONIQ6_CEEV_US_DEVICE = "wp_daudioplus_ceev_us";
+    static final String IONIQ6_CEEV_US_SOFTWARE = "CEEV.USA.0000.V015.012.260507";
+    static final String IONIQ6_CEEV_US_FRAMEWORK_SHA256 = "408b426e14b3f8dfdf1926e608e4f02689e89fc386b7f93a97f261ac5b6e4287";
+    static final String IONIQ6_CEEV_US_SERVICE_SHA256 = "afbc60509dd8a8fbac842523bf618424c088685d832a125a84d1d11dc1770bd4";
 
     static boolean supportsDevice(int sdk, String device) {
-        return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device));
+        return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device)
+            || IONIQ6_CEEV_US_DEVICE.equals(device));
     }
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
+    // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
     }
     // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
     // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.
-    // EV6: unconfirmed, so it keeps 20°C / 68°F.
+    // EV6: unconfirmed, so it keeps 20°C / 68°F. Ioniq 6 uses the same.
     static final int IONIQ5_WARM_THRESHOLD_C = 21;
     static int warmThresholdC(String device) {
-        return EV6_DEVICE.equals(device) ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : IONIQ5_WARM_THRESHOLD_C;
+        return EV6_DEVICE.equals(device) || IONIQ6_CEEV_US_DEVICE.equals(device)
+            ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : IONIQ5_WARM_THRESHOLD_C;
     }
     static boolean matchesFirmware(int sdk, String device, String software,
                                    String frameworkHash, String serviceHash) {
@@ -40,6 +49,10 @@ final class PreconditioningProfile {
         if (IONIQ5_NEEV_US_DEVICE.equals(device)) {
             return IONIQ5_NEEV_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
+        }
+        if (IONIQ6_CEEV_US_DEVICE.equals(device)) {
+            return IONIQ6_CEEV_US_SOFTWARE.equals(software) && IONIQ6_CEEV_US_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ6_CEEV_US_SERVICE_SHA256.equals(serviceHash);
         }
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);

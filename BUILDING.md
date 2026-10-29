@@ -160,7 +160,8 @@ grabbing the input device or injecting events. Its default profile expects the N
 EV6 US API 19 / 260507 identity, `knob.conf` selects
 `daudio_wp_daudioplus_cvev_us` with the same key and hold duration, and on the
 exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
-`daudio_wp_daudioplus_neev_us`.
+`daudio_wp_daudioplus_neev_us`. On the exact CEEV US (Ioniq 6) API 19 / 260507
+identity it selects `daudio_wp_daudioplus_ceev_us`.
 
 Publish `Launchpad-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
 `paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`

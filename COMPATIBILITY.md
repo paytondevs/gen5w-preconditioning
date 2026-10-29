@@ -9,12 +9,14 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ | ✅ | ✅ supported |
 | Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 6 | 2023 | US | CEEV (`wp_daudioplus_ceev_us`) | `CEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 
 - **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version on this head unit; it checks the head unit's firmware files instead.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Older and newer software versions aren't supported yet.** Support for the newest software is being worked on.
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
 - **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md).
+- **IONIQ 6:** the car's settings show this software as `CEEV.USA.S5W_M.V015.012.260507`.
 
 ## car not listed? run the vehicle porting kit
 
@@ -125,6 +127,45 @@ device, software version, and both firmware fingerprints may also be
 compatible, but have not been tested beyond the verified **US 2022 Ioniq 5 SE AWD**.
 Model year alone does not establish compatibility.
 
+### CEEV US 260507 (Ioniq 6) profile
+
+Vehicle: **US 2023 Hyundai Ioniq 6 SEL**
+([port request #18](../../issues/18)).
+
+The profile requires Android API 19, device `wp_daudioplus_ceev_us`, and
+`ro.build.product=CEEV.USA.0000.V015.012.260507` (build `KVT49L`; the settings
+screen shows `ro.build.product2`, `CEEV.USA.S5W_M.V015.012.260507`), plus both
+fingerprints from a read-only porting kit report (kit 1.4.0) collected on
+2026-10-29:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `408b426e14b3f8dfdf1926e608e4f02689e89fc386b7f93a97f261ac5b6e4287` |
+| `/system/framework/automotive-service.odex` | `afbc60509dd8a8fbac842523bf618424c088685d832a125a84d1d11dc1770bd4` |
+
+These framework files differ from both the Ioniq 5 and EV6 profiles, and no
+profile accepts another's hashes. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
+
+Holding TUNE during the kit run recorded key 17 on the main
+`daudio_wp_daudioplus_ceev_us` input device (not its `_can` or `_knob`
+devices), so `knob.conf` selects that name on the exact CEEV US identity with
+the original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. The warm notice uses the 20°C /
+68°F default, and the pending timeout is two minutes, the same as the Ioniq 5.
+
+No report, firmware, raw logs, or disassembly are included.
+
 ### EV6 US 260507 profile
 
 **Other model years:** US-market 2022–2024 EV6 vehicles with the same Gen5W
@@ -170,7 +211,7 @@ been installed as a new vehicle build.
 No EV6 command/enum remapping was needed. Start/Stop command arguments, package
 IDs, release version, and original Ioniq TUNE default remain unchanged. The
 controller adds a pending timeout: five minutes on the EV6 and two minutes on
-both Ioniq 5 profiles. Native temperature reads and the warm advisory run on
+both Ioniq 5 profiles and the Ioniq 6. Native temperature reads and the warm advisory run on
 every supported profile once its firmware check passes.
 No raw vehicle logs, firmware, disassembly, APKs, or signing material
 are included. This is evidence for the listed profile, not blanket EV6 support.
