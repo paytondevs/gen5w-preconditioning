@@ -6,6 +6,11 @@ final class PreconditioningProfile {
     static final String IONIQ5_NEEV23_US_DEVICE = "wp_daudioplus_neev23_us";
     static final String IONIQ5_NEEV23_US_FRAMEWORK_SHA256 = "dd72e04bce0a2b4bda1506308ac21f91002c1436553b8156c345cc4313661338";
     static final String IONIQ5_NEEV23_US_SERVICE_SHA256 = "3cf40fb00854c63afa49abea1dad18a0afcbc0dd68b17de9ed7ea3f5aeab4222";
+    // NEEV23 US 260206 (US 2024 Ioniq 5): same device, older software with its own
+    // framework files; the porting kit report of 2026-10-29 showed the same transactions.
+    static final String IONIQ5_NEEV23_US_260206_SOFTWARE = "NEEV23.USA.0000.V015.011.260206";
+    static final String IONIQ5_NEEV23_US_260206_FRAMEWORK_SHA256 = "301b134d231b1ca1d0aa75ae090d219ac963fc935c3f3bc0b3b1393c6614703e";
+    static final String IONIQ5_NEEV23_US_260206_SERVICE_SHA256 = "efb949ec92fff388cbbb78e5bf4e16df3cc8d417dbf5cb5e87e62fb46d542549";
     // NEEV US 260507 (US 2022 Ioniq 5): automotive.odex and automotive-service.odex
     // captured on 2026-10-27 are byte-identical to NEEV23 US, so it reuses those hashes.
     static final String IONIQ5_NEEV_US_DEVICE = "wp_daudioplus_neev_us";
@@ -35,6 +40,9 @@ final class PreconditioningProfile {
                                    String frameworkHash, String serviceHash) {
         if (!supportsDevice(sdk, device)) return false;
         if (IONIQ5_NEEV23_US_DEVICE.equals(device)) {
+            if (IONIQ5_NEEV23_US_260206_SOFTWARE.equals(software)
+                && IONIQ5_NEEV23_US_260206_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV23_US_260206_SERVICE_SHA256.equals(serviceHash)) return true;
             return IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash) && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }
         if (IONIQ5_NEEV_US_DEVICE.equals(device)) {

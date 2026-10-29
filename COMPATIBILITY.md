@@ -8,9 +8,11 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 | Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | `NEEV23.USA.0000.V015.011.260206` | 🧪 | ✅ | 🧪 waiting on an in-car test |
 | Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 
-- **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version on this head unit; it checks the head unit's firmware files instead.
+- **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version for that release; it checks the head unit's firmware files instead. The older 260206 release (shown in the car's settings as `NEEV23.USA.S5W_M.V015.011.260206`) has its own entry, which checks both.
+- **🧪 waiting on an in-car test** means the car's details were read with the porting kit and Launchpad has been set up for it, but nobody has yet confirmed in that car that **Start** turns battery conditioning on and **Stop** turns it off.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Older and newer software versions aren't supported yet.** Support for the newest software is being worked on.
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
@@ -124,6 +126,55 @@ still pending.
 device, software version, and both firmware fingerprints may also be
 compatible, but have not been tested beyond the verified **US 2022 Ioniq 5 SE AWD**.
 Model year alone does not establish compatibility.
+
+### NEEV23 US 260206 profile
+
+Port request: [#16](../../issues/16), a **US 2024 Hyundai IONIQ 5 Limited AWD**.
+
+This profile requires Android API 19, the same device as the NEEV23 US profile
+(`wp_daudioplus_neev23_us`), `ro.build.product=NEEV23.USA.0000.V015.011.260206`
+(build `KVT49L`; the settings screen shows `NEEV23.USA.S5W_M.V015.011.260206`),
+and both of these fingerprints:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `301b134d231b1ca1d0aa75ae090d219ac963fc935c3f3bc0b3b1393c6614703e` |
+| `/system/framework/automotive-service.odex` | `efb949ec92fff388cbbb78e5bf4e16df3cc8d417dbf5cb5e87e62fb46d542549` |
+
+These framework files differ from the 260507 NEEV23 US ones, so the original
+NEEV23 US check (which matches its own hashes and ignores the software version)
+is unchanged and does not admit this car. This profile adds a separate exact
+match on the same device, and `OemVehicleClient` now reads `ro.build.product`
+on NEEV23 US too. Neither hash pair can be mixed with the other.
+
+A read-only porting kit report (kit 1.4.0) of 2026-10-29 found:
+
+- `com.hkmc.micom.hev` / `com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` /
+  `com.hkmc.bcm.IBCMService` present.
+- The five HEV/BCM transactions Launchpad uses unchanged: `getHEVStatus` 3,
+  `setBattCondEvStation` 62, `setBattCondRouteDis` 65,
+  `setBattCondRemainTime` 66 and `getBattCondIndSta` 109. The command profile
+  below is reused without remapping.
+- TUNE: holding the knob produced key 17 on the main
+  `daudio_wp_daudioplus_neev23_us` input device, the existing `knob.conf`
+  default, so `knob.conf` is unchanged. Holding TUNE opens the screen and does
+  not issue Start.
+
+**Battery temperature:** `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` is present and declares the same
+`addNavigationClusterListener` 37, `requestBatteryInfoReq` 109 and
+`removeNavigationClusterListener` 38, so the porting kit's verdict is
+"contract unchanged" and the temperature display and warm advisory are enabled
+as on every profile. The report can't show the listener's callback code or the
+reading's array layout; the owner has not yet compared the reading with an OBD
+reader.
+
+**Not yet verified:** Start reaching Active and Stop returning to Off in this
+car, the battery temperature reading, and the `getHEVStatus` ID arguments (94
+enabled, 44 ready, 115 failure), which are not interface constants and so
+can't appear in the report. Identical transaction codes don't prove the
+MICOM/BMS behind them behaves the same. No report, firmware, raw logs or
+disassembly are included.
 
 ### EV6 US 260507 profile
 
