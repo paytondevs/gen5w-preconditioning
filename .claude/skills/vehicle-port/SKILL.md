@@ -138,7 +138,7 @@ before editing, and mirror their naming and comment style.
 6. **`COMPATIBILITY.md`.**
    - Add a chart row (vehicle, model years, market, head unit with its device code,
      software version, preconditioning, battery temperature, status). Battery
-     temperature is ✅ unless the summarizer said `no reading on this car`.
+     temperature is ✅ unless the summarizer said `no reading on this car`; then it's ❌.
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
      service check, the TUNE input device, battery temperature, and the evidence the
@@ -162,9 +162,15 @@ Assume it works unless there is clear evidence that it doesn't.
   car. Don't add a "still unverified" list for it.
 - State what the report showed, and the values the profile uses (timeout, warm
   cutoff, TUNE device), as plain facts.
-- Clear evidence means something concrete: an owner's in-car result that failed, or
-  a report that shows a problem (cases D and E). Only that goes in as a limitation,
-  with what was seen.
+- Clear evidence means something concrete. Only these go in as a limitation, with
+  what was seen:
+  - an owner's in-car result that failed
+  - a report that shows a problem (cases D and E)
+  - a feature whose function or other dependency doesn't exist in the porting kit
+    report. Examples: no `com.hkmc.micom.cluster` service or no cluster transactions
+    (`no reading on this car`) means no battery temperature, and `likely_knob=none`
+    means no TUNE shortcut. Mark that one feature ❌ in the chart and name what was
+    missing in the technical section. The rest of the car stays compatible.
 - This is about the docs. The PR description still tells the reviewer what the
   report can't show, and still asks the owner for the in-car test.
 - Leave the existing profiles' write-ups alone.
