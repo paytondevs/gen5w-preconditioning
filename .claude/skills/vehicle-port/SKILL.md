@@ -128,7 +128,8 @@ before editing, and mirror their naming and comment style.
      `test_tune_selection_keeps_key_duration_and_target` in `tools/test_ev6_scripts.py`.
 6. **`COMPATIBILITY.md`.**
    - Add a chart row (vehicle, model years, market, head unit with its device code,
-     software version, status).
+     software version, preconditioning, battery temperature, status). Battery
+     temperature is ✅ unless the summarizer said `no reading on this car`.
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
      service check, the TUNE input device, battery temperature, and what was and

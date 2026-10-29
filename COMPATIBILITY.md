@@ -4,11 +4,11 @@
 
 Launchpad only works on the exact cars and head-unit software versions below. Your head unit's **software version** is what decides it, not the model year.
 
-| vehicle | model years | market | head unit | software version | status |
-| --- | --- | --- | --- | --- | --- |
-| Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ supported |
-| Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ supported |
-| Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ supported |
+| vehicle | model years | market | head unit | software version | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Hyundai IONIQ 5 | 2022–2023 | US | NEEV (`wp_daudioplus_neev_us`) | `NEEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2022–2023 | US | NEEV23 (`wp_daudioplus_neev23_us`) | 260507 (see below) | ✅ | ✅ | ✅ supported |
+| Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | `CVEV.USA.0000.V015.012.260507` | ✅ | ✅ | ✅ supported |
 
 - **NEEV23:** the supported NEEV23 firmware is the 260507 release. Launchpad doesn't check the software version on this head unit; it checks the head unit's firmware files instead.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
