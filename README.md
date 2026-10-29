@@ -108,6 +108,8 @@ if the car hasn't confirmed after five minutes on the EV6 (two on the IONIQ 5), 
 
 press **Stop** to cancel, even while it's still waiting. closing Launchpad does **not** stop a request that's already running.
 
+**dark mode:** go to **Advanced → Appearance**. **Follow car** (the default) matches the head unit's day/night display, or pick **Light** or **Dark** to keep one. Follow car only works once Launchpad knows how your car signals night; the **Appearance signals** panel at the bottom of Advanced is there to find out.
+
 ## updating
 
 exactly the same as installing: put **`Launchpad-install-usb.zip`** from the newest release on the drive, run it, and reboot. if Launchpad is already installed, it updates it in place, and the log says so.

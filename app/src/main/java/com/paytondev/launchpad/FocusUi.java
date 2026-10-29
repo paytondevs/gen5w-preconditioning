@@ -1,7 +1,7 @@
 package com.paytondev.launchpad;
 
 import android.content.Context;
-import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -17,14 +17,10 @@ import android.widget.TextView;
 
 /** Native view styling; every pictorial glyph comes from the bundled icon assets. */
 final class FocusUi {
-    static final int BLUE = Color.rgb(0, 122, 255);
-    static final int INK = Color.rgb(16, 21, 34);
-    static final int MUTED = Color.rgb(103, 115, 136);
-    static final int SURFACE = Color.rgb(240, 242, 246);
-    static final int LINE = Color.rgb(223, 227, 234);
     final Context context;
+    final Palette p;
 
-    FocusUi(Context context) { this.context = context; }
+    FocusUi(Context context, Palette palette) { this.context = context; this.p = palette; }
     int dp(float value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
     LinearLayout column() { return linear(LinearLayout.VERTICAL); }
     LinearLayout row() { return linear(LinearLayout.HORIZONTAL); }
@@ -43,18 +39,21 @@ final class FocusUi {
         v.setScaleType(ImageView.ScaleType.FIT_CENTER);
         v.setLayoutParams(new LinearLayout.LayoutParams(dp(size), dp(size)));
         v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        // These glyphs are drawn in dark grey; in dark mode they take the secondary text color.
+        if (p.dark && (resource == R.drawable.ic_car || resource == R.drawable.ic_chevron || resource == R.drawable.ic_copy))
+            v.setColorFilter(p.secondary, PorterDuff.Mode.SRC_IN);
         return v;
     }
     GradientDrawable rounded(int color, int radius, int stroke) {
         GradientDrawable shape = new GradientDrawable();
         shape.setColor(color); shape.setCornerRadius(dp(radius));
-        if (stroke != 0) shape.setStroke(dp(stroke == BLUE ? 2 : 1), stroke);
+        if (stroke != 0) shape.setStroke(dp(stroke == p.accent ? 2 : 1), stroke);
         return shape;
     }
     Drawable control(int fill, int radius) {
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[]{android.R.attr.state_pressed}, rounded(0xffe7f0ff, radius, BLUE));
-        states.addState(new int[]{android.R.attr.state_activated}, fill == BLUE ? ring(fill, radius) : rounded(fill, radius, BLUE));
+        states.addState(new int[]{android.R.attr.state_pressed}, rounded(p.pressed, radius, p.accent));
+        states.addState(new int[]{android.R.attr.state_activated}, fill == p.accent ? ring(fill, radius) : rounded(fill, radius, p.accent));
         states.addState(new int[]{}, rounded(fill, radius, 0));
         return states;
     }
@@ -67,7 +66,7 @@ final class FocusUi {
         return states;
     }
     private Drawable ring(int fill, int radius) {
-        LayerDrawable ring = new LayerDrawable(new Drawable[]{rounded(Color.WHITE, radius, BLUE),
+        LayerDrawable ring = new LayerDrawable(new Drawable[]{rounded(p.background, radius, p.accent),
             rounded(fill, radius - 4, 0)});
         ring.setLayerInset(1, dp(4), dp(4), dp(4), dp(4));
         return ring;
@@ -75,7 +74,7 @@ final class FocusUi {
     @SuppressWarnings("deprecation")
     void background(View view, Drawable drawable) { view.setBackgroundDrawable(drawable); }
     View divider(boolean vertical) {
-        View v = new View(context); v.setBackgroundColor(LINE);
+        View v = new View(context); v.setBackgroundColor(p.line);
         v.setLayoutParams(new LinearLayout.LayoutParams(vertical ? dp(1) : -1, vertical ? -1 : dp(1)));
         return v;
     }
@@ -89,15 +88,15 @@ final class FocusUi {
     LinearLayout actionRow(String title, String subtitle, int resource, int fill, boolean large) {
         LinearLayout row = row(); row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(large ? 8 : 24), dp(10), dp(16), dp(10));
-        background(row, control(Color.WHITE, 16));
+        background(row, control(p.card, 16));
         int iconSize = large ? 84 : 56;
         row.addView(appIcon(resource, fill, iconSize, large ? 48 : 36),
             new LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)));
         LinearLayout labels = column(); labels.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -1, 1);
         labelParams.leftMargin = dp(large ? 24 : 28);
-        labels.addView(text(title, large ? 28 : 22, INK, true));
-        TextView sub = text(subtitle, large ? 19 : 18, MUTED, false);
+        labels.addView(text(title, large ? 28 : 22, p.ink, true));
+        TextView sub = text(subtitle, large ? 19 : 18, p.muted, false);
         sub.setTag("subtitle"); sub.setSingleLine(true);
         sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
@@ -109,13 +108,13 @@ final class FocusUi {
     LinearLayout homeAction(String title, String subtitle, int resource, int fill) {
         LinearLayout row = row(); row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(8), dp(6), dp(8), dp(6));
-        background(row, control(Color.WHITE, 16));
+        background(row, control(p.background, 16));
         row.addView(appIcon(resource, fill, 56, 34), new LinearLayout.LayoutParams(dp(56), dp(56)));
         LinearLayout labels = column(); labels.setGravity(Gravity.CENTER_VERTICAL);
-        TextView heading = text(title, 24, INK, true);
+        TextView heading = text(title, 24, p.ink, true);
         heading.setSingleLine(true); heading.setEllipsize(android.text.TextUtils.TruncateAt.END);
         labels.addView(heading);
-        TextView sub = text(subtitle, 16, MUTED, false); sub.setTag("subtitle");
+        TextView sub = text(subtitle, 16, p.muted, false); sub.setTag("subtitle");
         sub.setSingleLine(true); sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2); subParams.topMargin = dp(5);
         labels.addView(sub, subParams);
@@ -128,9 +127,9 @@ final class FocusUi {
     LinearLayout button(String title, int resource, boolean outlined, int width) {
         LinearLayout row = row(); row.setGravity(Gravity.CENTER);
         row.setPadding(dp(12), 0, dp(12), 0);
-        background(row, outlined ? outlinedControl() : control(SURFACE, 24));
+        background(row, outlined ? outlinedControl() : control(p.surface, 24));
         row.addView(icon(resource, 24));
-        TextView label = text(title, 17, outlined ? BLUE : 0xff45536a, false);
+        TextView label = text(title, 17, outlined ? p.link : p.secondary, false);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, -2);
         p.leftMargin = dp(10); row.addView(label, p);
         row.setLayoutParams(new LinearLayout.LayoutParams(dp(width), dp(48)));
@@ -139,9 +138,9 @@ final class FocusUi {
     }
     Drawable outlinedControl() {
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[]{android.R.attr.state_pressed}, rounded(0xffe7f0ff, 24, BLUE));
-        states.addState(new int[]{android.R.attr.state_activated}, rounded(0xffd9eaff, 24, BLUE));
-        states.addState(new int[]{}, rounded(Color.WHITE, 24, BLUE));
+        states.addState(new int[]{android.R.attr.state_pressed}, rounded(p.pressed, 24, p.accent));
+        states.addState(new int[]{android.R.attr.state_activated}, rounded(p.activated, 24, p.accent));
+        states.addState(new int[]{}, rounded(p.card, 24, p.accent));
         return states;
     }
     void available(View view, boolean available, String subtitle) {

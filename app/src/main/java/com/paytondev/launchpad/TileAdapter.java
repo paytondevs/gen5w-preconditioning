@@ -15,6 +15,7 @@ final class TileAdapter extends BaseAdapter {
     private final Favorites favorites;
     private final List<AppCatalog.Entry> items = new ArrayList<>();
     private int knobPosition = -1;
+    private FocusUi ui;
 
     TileAdapter(LayoutInflater inflater, Favorites favorites) {
         this.inflater = inflater;
@@ -24,6 +25,13 @@ final class TileAdapter extends BaseAdapter {
     void setItems(List<AppCatalog.Entry> entries) {
         items.clear();
         items.addAll(entries);
+        notifyDataSetChanged();
+    }
+
+    /** Dark mode draws tiles from the palette; light keeps the XML drawables. */
+    void setUi(FocusUi value) {
+        if (value == ui) return;
+        ui = value;
         notifyDataSetChanged();
     }
 
@@ -45,7 +53,13 @@ final class TileAdapter extends BaseAdapter {
         View v = convertView != null ? convertView : inflater.inflate(R.layout.tile, parent, false);
         AppCatalog.Entry e = items.get(position);
         ((ImageView) v.findViewById(R.id.icon)).setImageDrawable(e.icon);
-        ((TextView) v.findViewById(R.id.label)).setText(e.label);
+        TextView label = (TextView) v.findViewById(R.id.label);
+        label.setText(e.label);
+        if (ui != null && ui.p.dark) {
+            label.setTextColor(ui.p.ink); ui.background(v, ui.control(ui.p.surface, 18));
+        } else {
+            label.setTextColor(v.getResources().getColor(R.color.text)); v.setBackgroundResource(R.drawable.tile_bg);
+        }
         v.findViewById(R.id.badge).setVisibility(favorites.contains(e.key) ? View.VISIBLE : View.GONE);
         v.setActivated(position == knobPosition);
         v.setEnabled(e.launchable);

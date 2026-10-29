@@ -21,14 +21,19 @@ final class TemperatureChart extends View {
     private TemperatureHistory.Trace trace = TemperatureHistory.Trace.EMPTY;
     private long now;
     private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
+    private Palette palette = Palette.LIGHT;
 
     TemperatureChart(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
         line.setStyle(Paint.Style.STROKE); line.setStrokeCap(Paint.Cap.ROUND); line.setStrokeJoin(Paint.Join.ROUND);
         dashed.setStyle(Paint.Style.STROKE); dashed.setStrokeWidth(2 * dp); dashed.setColor(TemperatureGauge.WARM);
         dashed.setPathEffect(new DashPathEffect(new float[]{8 * dp, 6 * dp}, 0));
-        label.setTextSize(13 * dp); label.setColor(FocusUi.MUTED);
+        label.setTextSize(13 * dp); label.setColor(palette.muted);
         setContentDescription("Battery temperature this session");
+    }
+    void setPalette(Palette value) {
+        if (value == palette) return;
+        palette = value; label.setColor(palette.muted); invalidate();
     }
     void setTrace(TemperatureHistory.Trace trace, long now, int thresholdC) {
         this.trace = trace; this.now = now; this.thresholdC = thresholdC; invalidate();
@@ -58,7 +63,7 @@ final class TemperatureChart extends View {
 
     @Override protected void onDraw(Canvas canvas) {
         frame.set(0, 0, getWidth(), getHeight());
-        fill.setStyle(Paint.Style.FILL); fill.setColor(0xffffffff);
+        fill.setStyle(Paint.Style.FILL); fill.setColor(palette.card);
         canvas.drawRoundRect(frame, 14 * dp, 14 * dp, fill);
         List<TemperatureHistory.Sample> samples = trace.samples;
         if (samples.isEmpty()) {
@@ -70,7 +75,7 @@ final class TemperatureChart extends View {
         float[] range = range(samples, thresholdC);
         long start = start(samples, now);
         label.setTextAlign(Paint.Align.RIGHT);
-        line.setStrokeWidth(dp); line.setColor(FocusUi.LINE);
+        line.setStrokeWidth(dp); line.setColor(palette.line);
         for (float c : range) {
             float yy = y(c, range[0], range[1], top, height);
             canvas.drawLine(left, yy, left + width, yy, line);
@@ -81,16 +86,16 @@ final class TemperatureChart extends View {
         canvas.drawPath(path, dashed);
         label.setColor(TemperatureGauge.WARM); label.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText(BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
-        label.setColor(FocusUi.MUTED);
+        label.setColor(palette.muted);
         // The session marker's label sits in the time axis row, replacing an end label it would hit.
         float axis = top + height + 20 * dp, sx = -1;
         if (trace.sessionStart >= 0 && trace.sessionStart >= start) {
             sx = x(trace.sessionStart, start, now, left, width);
-            line.setColor(FocusUi.INK); line.setStrokeWidth(1.5f * dp);
+            line.setColor(palette.ink); line.setStrokeWidth(1.5f * dp);
             canvas.drawLine(sx, top, sx, top + height + 6 * dp, line);
-            label.setTextAlign(Paint.Align.CENTER); label.setColor(FocusUi.INK); label.setFakeBoldText(true);
+            label.setTextAlign(Paint.Align.CENTER); label.setColor(palette.ink); label.setFakeBoldText(true);
             canvas.drawText("Start", Math.max(left + 18 * dp, Math.min(left + width - 18 * dp, sx)), axis, label);
-            label.setColor(FocusUi.MUTED); label.setFakeBoldText(false);
+            label.setColor(palette.muted); label.setFakeBoldText(false);
         }
         trace(canvas, samples, true, range, start, left, top, width, height);
         trace(canvas, samples, false, range, start, left, top, width, height);
@@ -102,7 +107,7 @@ final class TemperatureChart extends View {
     }
     private void trace(Canvas canvas, List<TemperatureHistory.Sample> samples, boolean maximum, float[] range,
                        long start, float left, float top, float width, float height) {
-        int color = maximum ? 0x99f59e0b : FocusUi.BLUE;
+        int color = maximum ? 0x99f59e0b : palette.accent;
         line.setColor(color); line.setStrokeWidth((maximum ? 2 : 3) * dp); fill.setColor(color);
         path.reset();
         TemperatureHistory.Sample previous = null;
