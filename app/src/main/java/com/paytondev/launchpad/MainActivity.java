@@ -158,7 +158,7 @@ public final class MainActivity extends Activity {
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
         appearance = AppearanceMode.fromPreference(prefs.getString("appearance", null));
-        carNight = DisplaySignals.night(getResources().getConfiguration());
+        carNight = DisplaySignals.night(this, getResources().getConfiguration());
         palette = Palette.of(appearance.dark(carNight));
         ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
         preview = PreviewData.enabled(getIntent());
@@ -188,6 +188,8 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); resumed = true; resumedAt = SystemClock.uptimeMillis();
+        // A day/night switch while Launchpad was hidden may not have reached onConfigurationChanged.
+        carNight = DisplaySignals.night(this, getResources().getConfiguration()); applyAppearance();
         IntentFilter filter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         try { registerReceiver(wifiChanges, filter); receiverRegistered = true; }
@@ -207,7 +209,7 @@ public final class MainActivity extends Activity {
     // uiMode is in configChanges, so a day/night switch arrives here instead of recreating.
     @Override public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
-        carNight = DisplaySignals.night(configuration); applyAppearance();
+        carNight = DisplaySignals.night(this, configuration); applyAppearance();
     }
     /** Rebuilds the current page in the resolved palette, keeping the TUNE selection. */
     private void applyAppearance() {

@@ -15,8 +15,13 @@ import java.util.Map;
 
 /** Read-only snapshot of Android display state, settings and properties. No vehicle Binder calls. */
 final class DisplaySignals {
-    static boolean night(Configuration configuration) {
-        return (configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    // Ioniq 5 NEEV23 US, 2026-10-29: the Hyundai Day/Night display mode sets Android night mode
+    // (UiModeManager.getNightMode() 1 in Day, 2 in Night) and the configuration follows it.
+    static boolean night(Context context, Configuration configuration) {
+        int night = configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (night != Configuration.UI_MODE_NIGHT_UNDEFINED) return night == Configuration.UI_MODE_NIGHT_YES;
+        UiModeManager manager = (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
+        return manager != null && manager.getNightMode() == UiModeManager.MODE_NIGHT_YES;
     }
 
     /** Runs off the main thread: it starts getprop and queries three settings tables. */
