@@ -143,7 +143,8 @@ before editing, and mirror their naming and comment style.
      version's table is shown open; every older version sits under "older software
      versions" in its own `<details>` block with `<summary><b><six digits></b></summary>`,
      newest first. Above the newest table, a `> [!WARNING]` names the newest
-     software version that isn't supported yet. When a port adds a newer version, move
+     software version that isn't supported yet and asks owners on it to run the
+     vehicle porting kit (link `#car-not-listed-run-the-vehicle-porting-kit`). When a port adds a newer version, move
      the previous newest table into a `<details>` block and update or remove the
      warning. A row is vehicle, model years,
      market, head unit with its device code, preconditioning, battery temperature,

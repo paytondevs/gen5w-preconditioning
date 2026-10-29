@@ -8,6 +8,8 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 > [!WARNING]
 > **260903 isn't supported yet.** 260507 is the newest software version Launchpad supports. If your car shows 260903, Launchpad leaves preconditioning **Unavailable** and doesn't send anything to the car.
+>
+> **On 260903? You can help add it.** Run the [vehicle porting kit](#car-not-listed-run-the-vehicle-porting-kit) and send in the report. It's read-only, takes about 30 seconds, and gives us what we need to add your car.
 
 ### 260507
 
