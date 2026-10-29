@@ -136,8 +136,20 @@ before editing, and mirror their naming and comment style.
    - If you changed `knob.conf`, add the new identity and its near-misses to
      `test_tune_selection_keeps_key_duration_and_target` in `tools/test_ev6_scripts.py`.
 6. **`COMPATIBILITY.md`.**
-   - Add a chart row (vehicle, model years, market, head unit with its device code,
-     software version, preconditioning, battery temperature, status). Battery
+   - The chart has one table per software version, headed `### <six digits>`: the
+     last six digits of the full version string (`260507` in
+     `CEEV.USA.0000.V015.012.260507`), newest first. Add the car to its version's
+     table, or start a new table for a new version. Only the newest supported
+     version's table is shown open; every older version sits under "older software
+     versions" in its own `<details>` block with `<summary><b><six digits></b></summary>`,
+     newest first. Above the newest table, a `> [!WARNING]` names the newest
+     software version that isn't supported yet and asks owners on it to run the
+     vehicle porting kit (link `#car-not-listed-run-the-vehicle-porting-kit`). When a port adds a newer version, move
+     the previous newest table into a `<details>` block and update or remove the
+     warning. A row is vehicle, model years,
+     market, head unit with its device code, preconditioning, battery temperature,
+     status. If the same vehicle is already in that table, widen its model years or
+     add the head unit to its row instead of adding a second row. Battery
      temperature is ✅ unless the summarizer said `no reading on this car`; then it's ❌.
    - Under "technical details", add a `### <name> profile` section like the NEEV US
      one: device, software, both hashes (or that they match another profile), the
@@ -148,8 +160,12 @@ before editing, and mirror their naming and comment style.
    - The status is ✅ supported. Follow "How the docs describe a new car" below.
    - The chart is plain language for owners. Keep hashes and transaction detail in
      the technical section.
-7. **`VERSION`.** Bump the minor version and reset patch (`1.4.0` → `1.5.0`), per
-   CONTRIBUTING. Put the new number in the PR description.
+7. **`VERSION`.** Bump the minor version and reset patch, counting from the latest
+   release (the newest published `v*` release), not from `VERSION` on `main`: with
+   `v1.4.0` released, the port is `1.5.0`. If `main` is already at that number or
+   higher because of another unreleased change, keep `main`'s value; ports that ship
+   in the same release share one bump. Per CONTRIBUTING. Put the new number in the PR
+   description.
 
 ### How the docs describe a new car
 

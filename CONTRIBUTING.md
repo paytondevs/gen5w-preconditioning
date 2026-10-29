@@ -4,7 +4,7 @@ i'm accepting any and all contributions: bug fixes, new vehicles, features, docs
 
 ## versioning
 
-the version lives in one place: the [`VERSION`](VERSION) file at the root of the repo. bump it in your PR:
+the version lives in one place: the [`VERSION`](VERSION) file at the root of the repo. bump it in your PR, counting from the **latest release** on the [releases page](../../releases), not from whatever `VERSION` says on `main` right now:
 
 | what you changed | bump | example |
 | --- | --- | --- |
@@ -14,7 +14,9 @@ the version lives in one place: the [`VERSION`](VERSION) file at the root of the
 
 if your change doesn't fit, pick what seems right and say so in the PR. i'll sort it out.
 
-**put the new version number in your PR description.** if another PR gets merged first with the same number, i'll ask you to bump it again.
+several PRs can land before the next release, and they all go out in it together, so they share one bump. if `main` already carries a bump past the latest release that's at least as big as yours, leave `VERSION` alone. for example, with `v1.4.0` the latest release and `main` already at `1.5.0` from another vehicle port, a second vehicle port stays at `1.5.0`, not `1.6.0`. a vehicle port on top of a bug fix that moved `main` to `1.4.1` still goes to `1.5.0`.
+
+**put the new version number in your PR description.**
 
 don't edit the version anywhere else. the app, the NEMESIS package and the release all read it from `VERSION`. see [BUILDING.md](BUILDING.md).
 
