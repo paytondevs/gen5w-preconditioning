@@ -11,9 +11,10 @@ Issue: `$ARGUMENTS`
 
 This takes the issue number (or `#N`, or the issue URL) and ports the car using the
 `vehicle-port` skill, start to finish. Typing `/quickport` is the go-ahead for
-everything below: creating the branch, committing, pushing, opening a draft PR and
-posting one comment on the issue. Don't stop to confirm steps. Stop only where
-the vehicle-port skill says to stop, or where this file does.
+everything below: creating the branch, committing, pushing and opening a draft PR.
+It is not a go-ahead to reply on the issue: never comment on it. Don't stop to
+confirm steps. Stop only where the vehicle-port skill says to stop, or where this
+file does.
 
 If no issue was given, ask which one and stop.
 
@@ -77,20 +78,20 @@ Then act on the case:
   a **draft**, as vehicle-port section 5 describes, with `Closes #<N>` in the
   description. If `ANDROID_HOME` isn't set or the SDK is missing, still run the
   Python tests. Say in the PR and to the user that the Gradle checks were left to
-  CI, and don't claim they passed. Then post one comment on the issue for the owner:
-  the PR link, and the in-car test from vehicle-port section 5 in plain words.
+  CI, and don't claim they passed. The in-car test steps for the owner go in the PR
+  description (vehicle-port section 5).
 - **A.** If the report confirms a new model year or trim for the chart, open a
-  docs-only PR (no `VERSION` bump) the same way. Then post one comment telling the
-  owner which profile covers their car and that the current release should work.
+  docs-only PR (no `VERSION` bump) the same way. Tell the user which profile covers
+  the car and that the current release should work.
 - **Incomplete report, issue and report disagree, or E.** Change no code and open no
-  branch. Post one comment saying exactly what's needed (a re-run, or
-  `launchpad-collect.log`) or which check rules the car out.
-- **D.** Change no code and post nothing on the issue. That case is the maintainer's
-  decision. Give the user the old and new code of each method from the report's
-  `[interfaces]` table, as vehicle-port describes.
+  branch. Tell the user exactly what's needed (a re-run, or `launchpad-collect.log`)
+  or which check rules the car out.
+- **D.** Change no code. That case is the maintainer's decision. Give the user the old
+  and new code of each method from the report's `[interfaces]` table, as vehicle-port
+  describes.
 
-Issue comments are for owners. Use plain language and keep hashes and transaction
-codes in the PR. Post at most one comment per run.
+Whatever the case, don't comment on the issue. The maintainer decides what to say to
+the owner and posts it.
 
 ## 5. Report back
 
@@ -100,10 +101,12 @@ End with a few lines for the user:
 - the new `VERSION`
 - which checks ran, and which were left to CI
 - what is still unverified (always the in-car Start/Stop test for B and C)
-- the issue comment, if you posted one
+- for A, E or an incomplete report, what the owner needs to hear, for the maintainer
+  to pass on
 
 ## Don't
 
+- Comment on, react to or otherwise reply to the issue.
 - Mark the PR ready for review, merge it or close the issue. The in-car test and the
   maintainer decide those.
 - Commit the report or logs. Check `git status` before every commit.

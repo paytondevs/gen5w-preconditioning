@@ -59,7 +59,7 @@ existing profile for the same device with identical hashes and (where that profi
 checks one) the same software. No code change is needed. At most, the
 [compatibility chart](../../../COMPATIBILITY.md#compatibility-chart) gains a model
 year or trim that this report newly confirms. Docs-only changes don't bump `VERSION`.
-Tell the owner their car should already work, and which profile covers it.
+Tell the user the car should already work, and which profile covers it.
 
 **B. Same firmware, new identity.** The hashes match an existing profile, but the
 device or software string is new. This is how NEEV US 260507 was added: it reuses the
@@ -185,16 +185,19 @@ profile was added. A report is not that evidence. Unless the owner has already
 provided it:
 - open the PR as a draft
 - say plainly that it is waiting on an in-car test
-- give the owner the steps: install a build from this branch, press Start, wait for
-  Active, press Stop, confirm Off
-- ask them to check that the Preconditioning tab shows a battery temperature and, if
-  they have an OBD reader, that the two agree. The report can't show the listener's
+- list the steps for the owner in the PR description: install a build from this
+  branch, press Start, wait for Active, press Stop, confirm Off
+- ask the owner there to check that the Preconditioning tab shows a battery
+  temperature and, if they have an OBD reader, that the two agree. The report can't show the listener's
   callback code or the reading's array layout, so only the car can confirm them.
 
 Don't describe the car as supported until that test is done.
 
 ## Rules that don't bend
 
+- **Don't reply to the port request issue.** No comments or reactions on it. Anything
+  the owner needs goes in the PR or back to the user, and the maintainer talks to the
+  owner.
 - **Never loosen an existing profile's check** to admit a new car. Add a profile.
   Exact matching is what keeps Launchpad from sending commands to firmware nobody has
   inspected.
