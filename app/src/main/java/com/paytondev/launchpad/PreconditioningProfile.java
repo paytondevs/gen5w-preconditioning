@@ -31,10 +31,16 @@ final class PreconditioningProfile {
     static final String IONIQ6_CEEV_US_SOFTWARE = "CEEV.USA.0000.V015.012.260507";
     static final String IONIQ6_CEEV_US_FRAMEWORK_SHA256 = "408b426e14b3f8dfdf1926e608e4f02689e89fc386b7f93a97f261ac5b6e4287";
     static final String IONIQ6_CEEV_US_SERVICE_SHA256 = "afbc60509dd8a8fbac842523bf618424c088685d832a125a84d1d11dc1770bd4";
+    // NEEV KR 260902 (KR 2022 Ioniq 5 Prestige): own firmware files, captured on 2026-10-30;
+    // the five HEV/BCM transactions and the cluster contract match the other profiles.
+    static final String IONIQ5_NEEV_KR_DEVICE = "wp_daudioplus_neev_kr";
+    static final String IONIQ5_NEEV_KR_SOFTWARE = "NEEV.KOR.0000.V039.001.260902";
+    static final String IONIQ5_NEEV_KR_FRAMEWORK_SHA256 = "8186fec9601a216e8e3015b77c13b4d18c2fd2dfc2d3a6b7e42dac55b7a22c06";
+    static final String IONIQ5_NEEV_KR_SERVICE_SHA256 = "176e2375ef9e2c8b1df16b600f0434df7e2ce7bb7378779e7180e5c23651f80d";
 
     static boolean supportsDevice(int sdk, String device) {
         return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device)
-            || IONIQ6_CEEV_US_DEVICE.equals(device));
+            || IONIQ6_CEEV_US_DEVICE.equals(device) || IONIQ5_NEEV_KR_DEVICE.equals(device));
     }
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
@@ -45,7 +51,8 @@ final class PreconditioningProfile {
     }
     // Lowest pack reading at which the car is expected not to heat. Ioniq 5 (NEEV23 US
     // and NEEV US): the owner reports a 70°F cutoff; readings are whole °C, so 21°C.
-    // EV6: unconfirmed, so it keeps 20°C / 68°F. Ioniq 6 uses the same.
+    // The NEEV KR Ioniq 5 uses the same. EV6: unconfirmed, so it keeps 20°C / 68°F.
+    // Ioniq 6 uses the same.
     static final int IONIQ5_WARM_THRESHOLD_C = 21;
     static int warmThresholdC(String device) {
         return EV6_DEVICE.equals(device) || IONIQ6_CEEV_US_DEVICE.equals(device)
@@ -70,6 +77,10 @@ final class PreconditioningProfile {
         if (IONIQ6_CEEV_US_DEVICE.equals(device)) {
             return IONIQ6_CEEV_US_SOFTWARE.equals(software) && IONIQ6_CEEV_US_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ6_CEEV_US_SERVICE_SHA256.equals(serviceHash);
+        }
+        if (IONIQ5_NEEV_KR_DEVICE.equals(device)) {
+            return IONIQ5_NEEV_KR_SOFTWARE.equals(software) && IONIQ5_NEEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV_KR_SERVICE_SHA256.equals(serviceHash);
         }
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);
