@@ -157,7 +157,7 @@ The service uses package id `paytondev.launchpad` and registry name
 and passes the existing `from_knob` intent extra. It listens passively, without
 grabbing the input device or injecting events. Its default profile expects the NEEV23 US (Ioniq 5) device name
 `daudio_wp_daudioplus_neev23_us`, key code 17, and an 800 ms hold; the
-NEEV23 US 260206 porting kit report showed the same device and key. On the exact
+NEEV23 US 260206 and 260903 porting kit reports showed the same device and key. On the exact
 EV6 US API 19 / 260507 identity, `knob.conf` selects
 `daudio_wp_daudioplus_cvev_us` with the same key and hold duration, and on the
 exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects

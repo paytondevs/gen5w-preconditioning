@@ -54,6 +54,7 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "19", ev6),
             ("wp_daudioplus_neev23_us", "original", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev23_us", "NEEV23.USA.0000.V015.011.260206", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_neev23_us", "NEEV23.USA.0000.V016.010.260903", "19", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "other", "19", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("other", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),

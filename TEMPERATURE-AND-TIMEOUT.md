@@ -7,12 +7,12 @@ It has no new signed release or public version bump. The
 
 ## Scope
 
-| Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 6 CEEV US exact profile | Ioniq 5 NEEV KR exact profile |
-| --- | --- | --- | --- | --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
-| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F | At 21°C / 70°F |
-| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) |
-| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (the porting kit report recorded no TUNE press) |
+| Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 5 NEEV23 US 260903 exact profile | Ioniq 6 CEEV US exact profile | Ioniq 5 NEEV KR exact profile |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per both porting kit reports | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
+| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F | At 21°C / 70°F |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) |
+| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (the porting kit report recorded no TUNE press) |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
 and an Off indicator. The BMS remains responsible for actual activation. No OBD
@@ -96,9 +96,9 @@ preserves a manual request path; vehicle constraints still apply.
 On the Ioniq 5 NEEV23 US and NEEV US profiles the owner reports that the car
 stops heating at 70°F. Readings are whole degrees Celsius, so the threshold is
 21°C (69.8°F, shown as 70°F). The EV6 keeps 20°C / 68°F until its cutoff is
-confirmed. The Ioniq 6 uses the same 20°C / 68°F. The NEEV23 US 260206 profile runs on
-the same NEEV23 US head unit and uses its 21°C / 70°F. The NEEV KR 260902 profile is
-an Ioniq 5 head unit too and uses the same 21°C / 70°F.
+confirmed. The Ioniq 6 uses the same 20°C / 68°F. The NEEV23 US 260206 and 260903 profiles run
+on the same NEEV23 US head unit and use its 21°C / 70°F.
+The NEEV KR 260902 profile is an Ioniq 5 head unit too and uses the same 21°C / 70°F.
 
 ## Pending-request timeout
 
