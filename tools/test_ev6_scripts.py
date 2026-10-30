@@ -67,6 +67,10 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_ceev_us", "CEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "CEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
             ("wp_daudioplus_ceev_us", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V014.011.251120", "19", ev6),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.S5W_M.V014.011.251120", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V014.011.251120", "20", ioniq5_neev23_us),
+            ("wp_daudioplus_neev23_us", "CVEV.USA.0000.V014.011.251120", "19", ioniq5_neev23_us),
             ("", "", "", ioniq5_neev23_us),
         ]
         with tempfile.TemporaryDirectory(prefix="launchpad-tune-") as tmp:

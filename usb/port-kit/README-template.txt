@@ -26,9 +26,10 @@ IN THE CAR
 4. Required: right after tapping Yes, hold the right-hand knob that changes
    radio stations (TUNE) for about 2 seconds, let go, and keep repeating until
    the result appears. Holding TUNE is how you open Launchpad, and this is the
-   only way to see which button your car uses. Without it, you would have no
-   way to open Launchpad from the car. Only if your car has no such knob, skip
-   this step and say so in the issue.
+   only way to see which button your car uses. Without it, holding TUNE won't
+   open Launchpad on your car, and you would have to open it from NEMESIS every
+   time. Only if your car has no such knob, skip this step and say so in the
+   issue.
 5. Wait for the result. It takes about 30 seconds. No reboot is needed.
 
 SEND IT IN

@@ -7,12 +7,12 @@ It has no new signed release or public version bump. The
 
 ## Scope
 
-| Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 6 CEEV US exact profile |
-| --- | --- | --- | --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
-| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F |
-| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) |
-| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved | Preserved |
+| Behavior | EV6 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 6 CEEV US exact profile | EV6 US 251120 exact profile |
+| --- | --- | --- | --- | --- | --- | --- |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
+| Warm advisory and ten-second reset | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F | At 20°C / 68°F |
+| Cancellation of an unconfirmed request | After five minutes | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After five minutes (shared EV6 deadline) |
+| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved | Preserved | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
 and an Off indicator. The BMS remains responsible for actual activation. No OBD
@@ -97,7 +97,8 @@ On the Ioniq 5 NEEV23 US and NEEV US profiles the owner reports that the car
 stops heating at 70°F. Readings are whole degrees Celsius, so the threshold is
 21°C (69.8°F, shown as 70°F). The EV6 keeps 20°C / 68°F until its cutoff is
 confirmed. The Ioniq 6 uses the same 20°C / 68°F. The NEEV23 US 260206 profile runs on
-the same NEEV23 US head unit and uses its 21°C / 70°F.
+the same NEEV23 US head unit and uses its 21°C / 70°F. The EV6 US 251120 profile runs on
+the same EV6 head unit and uses its 20°C / 68°F.
 
 ## Pending-request timeout
 

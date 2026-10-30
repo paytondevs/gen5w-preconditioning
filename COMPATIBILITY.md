@@ -30,6 +30,15 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 </details>
 
+<details>
+<summary><b>251120</b></summary>
+
+| vehicle | model years | market | head unit | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | ✅ | ✅ | ✅ supported |
+
+</details>
+
 - **NEEV23 on 260507:** Launchpad doesn't check the software version on this head unit and release; it checks the head unit's firmware files instead. On 260206 it checks both.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
@@ -52,7 +61,7 @@ You need [NEMESIS](README.md#1-install-nemesis) installed first, same as for Lau
    ```
    Move any other `NEMESIS.data` or Launchpad installer files off the drive first.
 3. Park, turn the car on, and wait for the screen to finish starting. Plug the drive into the USB **data** port and tap **Yes** when NEMESIS asks.
-4. **Hold TUNE while the kit runs. Don't skip this.** Right after tapping **Yes**, hold the right-hand knob that changes radio stations (TUNE) for about 2 seconds, let go, and repeat until the result appears. Holding TUNE is how you open Launchpad, and this is the only way we can see which button your car uses. Without it, Launchpad can be added for your car but you'll have no way to open it from the car. Only if your car has no such knob, skip this step and say so in the issue.
+4. **Hold TUNE while the kit runs. Don't skip this.** Right after tapping **Yes**, hold the right-hand knob that changes radio stations (TUNE) for about 2 seconds, let go, and repeat until the result appears. Holding TUNE is how you open Launchpad, and this is the only way we can see which button your car uses. Without it, holding TUNE won't open Launchpad on your car, and you'd have to open it from NEMESIS every time. Only if your car has no such knob, skip this step and say so in the issue.
 5. Wait for the result, about 30 seconds. No reboot is needed.
 
 The drive now has **`launchpad-port-report.txt`**. It's plain text, so you can open it and see everything in it. It contains no VIN, serial number or location.
@@ -284,6 +293,48 @@ Closing the app is not Stop. Do not update or uninstall during an active or
 pending request; stop it and confirm Off first. Public APKs should be built and
 signed through the maintainer's release process. Local test keys differ from the
 upstream key and do not establish cross-signed update compatibility.
+
+### EV6 US 251120 profile
+
+Vehicle: **US 2023 Kia EV6 Wind**
+([port request #26](../../issues/26)).
+
+The profile requires Android API 19, the EV6 device `wp_daudioplus_cvev_us`, and
+`ro.build.product=CVEV.USA.0000.V014.011.251120` (build `KVT49L`; the settings
+screen shows `ro.build.product3`, `CV_E.USA.S5W_M.V014.011.251120`), plus both
+fingerprints from a read-only porting kit report (kit 1.5.0) collected on
+2026-10-30:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `6919d451f299c1bf8e3d49aead4fcdcd60e055a32cf107d224e56e5cdd5072c0` |
+| `/system/framework/automotive-service.odex` | `8a3523882752935a2d607101794a0037e1bfda1d6df0082e61ed71706778e41f` |
+
+These framework files differ from the EV6 US 260507 ones. The 260507 check is
+unchanged; this profile is a separate exact match on the same device, and
+neither hash pair can be mixed with the other. `OemVehicleClient` already reads
+`ro.build.product` on the EV6. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as
+the other profiles (94 enabled, 44 ready, 115 failure).
+
+Holding TUNE during the kit run recorded key 17 on the main
+`daudio_wp_daudioplus_cvev_us` input device, the same as on 260507. `knob.conf`
+selects that device on the exact EV6 US API 19 / 251120 identity, with the
+original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. As on the EV6's 260507
+release, the warm notice uses 20°C / 68°F and the pending timeout is five
+minutes.
+
+No report, firmware, raw logs, or disassembly are included.
 
 ### Command profile
 
