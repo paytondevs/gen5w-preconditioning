@@ -52,7 +52,7 @@ You need [NEMESIS](README.md#1-install-nemesis) installed first, same as for Lau
    ```
    Move any other `NEMESIS.data` or Launchpad installer files off the drive first.
 3. Park, turn the car on, and wait for the screen to finish starting. Plug the drive into the USB **data** port and tap **Yes** when NEMESIS asks.
-4. **Optional, but it helps:** right after tapping **Yes**, hold the right-hand knob that changes radio stations (TUNE) for about 2 seconds, let go, and repeat until the result appears. This shows which button can open Launchpad on your car. Skip it if your car has no such knob.
+4. **Hold TUNE while the kit runs. Don't skip this.** Right after tapping **Yes**, hold the right-hand knob that changes radio stations (TUNE) for about 2 seconds, let go, and repeat until the result appears. Holding TUNE is how you open Launchpad, and this is the only way we can see which button your car uses. Without it, Launchpad can be added for your car but you'll have no way to open it from the car. Only if your car has no such knob, skip this step and say so in the issue.
 5. Wait for the result, about 30 seconds. No reboot is needed.
 
 The drive now has **`launchpad-port-report.txt`**. It's plain text, so you can open it and see everything in it. It contains no VIN, serial number or location.

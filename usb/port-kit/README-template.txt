@@ -23,10 +23,12 @@ IN THE CAR
 2. Insert the drive into the USB DATA port used for wired Android Auto/CarPlay.
 3. Accept the NEMESIS USB prompt by tapping Yes. If it expires, reinsert the
    drive.
-4. Optional, but it helps: right after tapping Yes, hold the right-hand knob
-   that changes radio stations (TUNE) for about 2 seconds, let go, and keep
-   repeating until the result appears. This shows which button Launchpad can
-   use to open itself. If your car has no such knob, skip this step.
+4. Required: right after tapping Yes, hold the right-hand knob that changes
+   radio stations (TUNE) for about 2 seconds, let go, and keep repeating until
+   the result appears. Holding TUNE is how you open Launchpad, and this is the
+   only way to see which button your car uses. Without it, you would have no
+   way to open Launchpad from the car. Only if your car has no such knob, skip
+   this step and say so in the issue.
 5. Wait for the result. It takes about 30 seconds. No reboot is needed.
 
 SEND IT IN

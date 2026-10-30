@@ -37,12 +37,13 @@ body:
     id: knob
     attributes:
       label: Did you hold the TUNE knob while the kit was running?
+      description: Holding TUNE is how you open Launchpad, and the kit only learns your car's TUNE button if you hold it while the kit runs. If you didn't, please run the kit again and hold it.
       options:
         - "Yes"
         - "No"
         - My car has no TUNE knob
     validations:
-      required: false
+      required: true
   - type: textarea
     id: notes
     attributes:

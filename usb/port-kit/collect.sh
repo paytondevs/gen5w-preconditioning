@@ -83,7 +83,7 @@ chmod 0644 "$PROBE_DEX"
 
 load_boot_env
 export CLASSPATH="$PROBE_DEX"
-say "Optional: hold the right-hand TUNE knob for about 2 seconds, let go, and repeat until the result appears (about $CAPTURE_SECONDS seconds)."
+say "Now hold the right-hand TUNE knob for about 2 seconds, let go, and repeat until the result appears (about $CAPTURE_SECONDS seconds)."
 run app_process /system/bin --nice-name=launchpad-port-probe com.paytondev.launchpad.PortProbe \
     "$REPORT" "$CAPTURE_SECONDS"
 RC=$?
