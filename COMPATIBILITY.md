@@ -7,11 +7,20 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 **Finding your software version:** the car's settings show the full version, for example `NEEV23.USA.S5W_M.V015.011.260206`. The software version is the **last six digits** (`260206` here). Find the table for that number, then your car in it.
 
 > [!WARNING]
-> **260903 isn't supported yet.** 260507 is the newest software version Launchpad supports. If your car shows 260903, Launchpad leaves preconditioning **Unavailable** and doesn't send anything to the car.
+> **260903 isn't supported yet.** 260902 is the newest software version Launchpad supports. If your car shows 260903, Launchpad leaves preconditioning **Unavailable** and doesn't send anything to the car.
 >
 > **On 260903? You can help add it.** Run the [vehicle porting kit](#car-not-listed-run-the-vehicle-porting-kit) and send in the report. It's read-only, takes about 30 seconds, and gives us what we need to add your car.
 
-### 260507
+### 260902
+
+| vehicle | model years | market | head unit | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Hyundai IONIQ 5 | 2022 | KR | NEEV KR (`wp_daudioplus_neev_kr`) | ✅ | ✅ | ✅ supported |
+
+### older software versions
+
+<details>
+<summary><b>260507</b></summary>
 
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -19,7 +28,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | ✅ | ✅ | ✅ supported |
 | Hyundai IONIQ 6 | 2023 | US | CEEV (`wp_daudioplus_ceev_us`) | ✅ | ✅ | ✅ supported |
 
-### older software versions
+</details>
 
 <details>
 <summary><b>260206</b></summary>
@@ -31,6 +40,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 </details>
 
 - **NEEV23 on 260507:** Launchpad doesn't check the software version on this head unit and release; it checks the head unit's firmware files instead. On 260206 it checks both.
+- **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open Launchpad another way, for example over [ADB](ADVANCED-ADB-INSTALL.md). A porting kit report taken while holding TUNE would let us add the shortcut.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
@@ -71,10 +81,11 @@ A report doesn't guarantee your car can be supported, but it's everything needed
 
 This part is for developers. It covers how each supported head unit is identified, the checks Launchpad makes before it enables **Start**, and what was tested in which car.
 
-Two Ioniq 5 head units are supported, identified by their device codes:
-`wp_daudioplus_neev23_us` (NEEV23 US) and `wp_daudioplus_neev_us` (NEEV US,
-below). The NEEV23 US model year is unconfirmed; the NEEV US profile was
-verified on a US 2022 Ioniq 5 SE AWD.
+Three Ioniq 5 head units are supported, identified by their device codes:
+`wp_daudioplus_neev23_us` (NEEV23 US), `wp_daudioplus_neev_us` (NEEV US,
+below) and `wp_daudioplus_neev_kr` (NEEV KR, below). The NEEV23 US model year
+is unconfirmed; the NEEV US profile was verified on a US 2022 Ioniq 5 SE AWD,
+and the NEEV KR profile comes from a KR 2022 Ioniq 5 Prestige.
 
 The NEEV23 US profile, the first one in this project, targets
 `wp_daudioplus_neev23_us` on Android 4.4/API 19. It validates these firmware files before enabling Start:
@@ -224,6 +235,53 @@ the original 800 ms hold.
 `removeNavigationClusterListener` 38. Launchpad reads it with the same listener
 callback and array layout as the other profiles. The warm notice uses the 20°C /
 68°F default, and the pending timeout is two minutes, the same as the Ioniq 5.
+
+No report, firmware, raw logs, or disassembly are included.
+
+### NEEV KR 260902 profile
+
+Vehicle: **KR 2022 Hyundai Ioniq 5 Prestige**
+([port request #25](../../issues/25)), the first Korean-market head unit in
+this project.
+
+The profile requires Android API 19, device `wp_daudioplus_neev_kr`, and
+`ro.build.product=NEEV.KOR.0000.V039.001.260902` (build `KVT49L`; the settings
+screen shows `ro.build.product2`, `NEEV.KOR.S5W_M.V039.001.260902`), plus both
+fingerprints from a read-only porting kit report (kit 1.5.0) collected on
+2026-10-30:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `8186fec9601a216e8e3015b77c13b4d18c2fd2dfc2d3a6b7e42dac55b7a22c06` |
+| `/system/framework/automotive-service.odex` | `176e2375ef9e2c8b1df16b600f0434df7e2ce7bb7378779e7180e5c23651f80d` |
+
+These framework files differ from every other profile's, and no profile
+accepts another's hashes. `OemVehicleClient` reads `ro.build.product` on this
+device for the software check. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
+
+**TUNE:** no TUNE shortcut on this head unit. The kit's key capture recorded no
+key events (`likely_knob=none`; TUNE wasn't held during the run), so there is
+no record of which input device and key code TUNE uses here. `knob.conf` has no
+entry for this identity, and its default device
+`daudio_wp_daudioplus_neev23_us` isn't among this head unit's input devices
+(`daudio_wp_daudioplus_neev_kr` and its `_can` and `_knob` devices), so holding
+TUNE doesn't open Launchpad. The TUNE service only waits for its device; it
+never starts conditioning. A report collected while holding TUNE would let a
+later change add an exact-identity `knob.conf` entry.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. As on the other Ioniq 5
+profiles, the warm notice uses 21°C / 70°F and the pending timeout is two
+minutes.
 
 No report, firmware, raw logs, or disassembly are included.
 
