@@ -48,8 +48,6 @@ public class Ioniq5Neev23Us260903CompatibilityTest {
         assertFalse(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, PreconditioningProfile.IONIQ5_NEEV23_US_260206_SOFTWARE,
             framework, service));
         assertFalse(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "NEEV23.USA.0000.V015.012.260507", framework, service));
-        assertFalse(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "Ioniq 5 NEEV23 US software not constrained",
-            framework, service));
         // Other head units on their own exact identities.
         assertFalse(neev23(19, PreconditioningProfile.IONIQ5_NEEV_US_DEVICE, PreconditioningProfile.IONIQ5_NEEV_US_SOFTWARE, framework, service));
         assertFalse(neev23(19, PreconditioningProfile.EV6_DEVICE, PreconditioningProfile.EV6_SOFTWARE, framework, service));
@@ -57,8 +55,8 @@ public class Ioniq5Neev23Us260903CompatibilityTest {
             framework, service));
     }
     @Test public void ioniq5Neev23Us260903DoesNotChangeTheOtherProfiles() {
-        // The original NEEV23 US profile still matches its own hashes, with any software.
-        assertTrue(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "Ioniq 5 NEEV23 US software not constrained",
+        // The NEEV23 US 260507 profile still matches its own software and hashes.
+        assertTrue(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, PreconditioningProfile.IONIQ5_NEEV23_US_SOFTWARE,
             PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
         assertTrue(neev23(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, PreconditioningProfile.IONIQ5_NEEV23_US_260206_SOFTWARE,
             PreconditioningProfile.IONIQ5_NEEV23_US_260206_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_260206_SERVICE_SHA256));

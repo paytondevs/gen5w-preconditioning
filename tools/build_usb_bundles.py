@@ -59,8 +59,8 @@ def main():
     # The package version comes from /VERSION, like the APK's versionName.
     descriptor = package / "NEMESIS.data"
     text = descriptor.read_text(encoding="utf-8")
-    if text.count("version=@VERSION@\n") != 1:
-        raise SystemExit("tune-service/NEMESIS.data needs exactly one version=@VERSION@ line")
+    if text.count("\npackage-version=@VERSION@\n") != 1:
+        raise SystemExit("tune-service/NEMESIS.data needs exactly one package-version=@VERSION@ line")
     descriptor.write_bytes(text.replace("@VERSION@", version).encode("utf-8"))
     (package / "app").mkdir()
     shutil.copy2(apk, package / "app/Launchpad.apk")
@@ -70,21 +70,33 @@ def main():
     package_zip = dist / f"{PACKAGE_ID}.zip"
     pack(package, package_zip)
 
-    # install.sh also updates in place; uninstall is NEMESIS Manager's Uninstall
+    # NEMESIS 1.16+: its own type=install prompts, then installs, or offers to update
+    # when the package is already installed. Uninstall is NEMESIS Manager's Uninstall
     # button, which runs the package's preuninstall.
     usb = stage / "install"
-    scripts = usb / "launchpad"
+    (usb / "packages").mkdir(parents=True)
+    copy_lf(ROOT / "usb/README-template.txt", usb / "README.txt")
+    shutil.copy2(package_zip, usb / f"packages/{PACKAGE_ID}.zip")
+    (usb / "NEMESIS.data").write_bytes(
+        f"[nemesis]\nversion=1.0\ntype=install\npath=packages/{PACKAGE_ID}.zip\n".encode("ascii"))
+    out = dist / "Launchpad-install-usb.zip"
+    pack(usb, out)
+
+    # Older NEMESIS: our install.sh runs the same install or update through
+    # type=execute, logs to the drive and checks the result.
+    manual = stage / "manual-install"
+    scripts = manual / "launchpad"
     scripts.mkdir(parents=True)
     copy_lf(ROOT / "tune-service/scripts/common.sh", scripts / "common.sh")
     copy_lf(ROOT / "usb/launchpad/lib.sh", scripts / "lib.sh")
     copy_lf(ROOT / "usb/launchpad/install.sh", scripts / "install.sh")
-    copy_lf(ROOT / "usb/README-template.txt", usb / "README.txt")
-    (usb / "packages").mkdir()
-    shutil.copy2(package_zip, usb / f"packages/{PACKAGE_ID}.zip")
-    (usb / "NEMESIS.data").write_bytes(
+    copy_lf(ROOT / "usb/README-manual-template.txt", manual / "README.txt")
+    (manual / "packages").mkdir()
+    shutil.copy2(package_zip, manual / f"packages/{PACKAGE_ID}.zip")
+    (manual / "NEMESIS.data").write_bytes(
         b"[nemesis]\nversion=1.0\ntype=execute\npath=launchpad/install.sh\n")
-    out = dist / "Launchpad-install-usb.zip"
-    pack(usb, out)
+    manual_out = dist / "Launchpad-manual-install-usb.zip"
+    pack(manual, manual_out)
 
     # The porting kit only reads: no package, so nothing for NEMESIS to install.
     # The same signed APK goes along purely as PortProbe's dex container.
@@ -104,6 +116,7 @@ def main():
     kit_out = dist / "Launchpad-port-kit-usb.zip"
     pack(kit, kit_out)
     print(out)
+    print(manual_out)
     print(kit_out)
     print(package_zip)
 

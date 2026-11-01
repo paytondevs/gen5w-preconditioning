@@ -30,7 +30,7 @@ public class Ioniq5NeevUsCompatibilityTest {
     @Test public void ioniq5NeevUsSoftwareDoesNotChangeTheOtherProfiles() {
         assertFalse(ioniq5Neev(19, PreconditioningProfile.EV6_DEVICE, PreconditioningProfile.IONIQ5_NEEV_US_SOFTWARE,
             PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
-        assertTrue(ioniq5Neev(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, "Ioniq 5 NEEV23 US software not constrained",
+        assertTrue(ioniq5Neev(19, PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE, PreconditioningProfile.IONIQ5_NEEV23_US_SOFTWARE,
             PreconditioningProfile.IONIQ5_NEEV23_US_FRAMEWORK_SHA256, PreconditioningProfile.IONIQ5_NEEV23_US_SERVICE_SHA256));
     }
 }

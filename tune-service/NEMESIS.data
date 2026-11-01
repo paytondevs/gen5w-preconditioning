@@ -1,8 +1,13 @@
 [nemesis]
-version=@VERSION@
+version=1.1
 id=paytondev.launchpad
 name=Launchpad
-types=application,service
+type=application,service
+package-version=@VERSION@
+short-desc="Battery preconditioning and TUNE launcher for IONIQ 5/6 and EV6."
+os="NEEV23.USA.0000.V016.010.260903,NEEV23.USA.0000.V015.011.260206,NEEV23.USA.0000.V015.012.260507,NEEV.USA.0000.V015.012.260507,NEEV.KOR.0000.V039.001.260902,CEEV.USA.0000.V015.012.260507,CVEV.USA.0000.V015.012.260507"
+models="any"
+depends=""
 postinstall=scripts/postinstall.sh
 preuninstall=scripts/preuninstall.sh
 

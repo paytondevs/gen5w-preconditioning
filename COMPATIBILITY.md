@@ -43,7 +43,6 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 </details>
 
-- **NEEV23 on 260507:** Launchpad doesn't check the software version on this head unit and release; it checks the head unit's firmware files instead. On 260206 and 260903 it checks both.
 - **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open Launchpad from the NEMESIS package manager instead. A porting kit report taken while holding TUNE would let us add the shortcut.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
@@ -92,7 +91,9 @@ is unconfirmed; the NEEV US profile was verified on a US 2022 Ioniq 5 SE AWD,
 and the NEEV KR profile comes from a KR 2022 Ioniq 5 Prestige.
 
 The NEEV23 US profile, the first one in this project, targets
-`wp_daudioplus_neev23_us` on Android 4.4/API 19. It validates these firmware files before enabling Start:
+`wp_daudioplus_neev23_us` on Android 4.4/API 19 and
+`ro.build.product=NEEV23.USA.0000.V015.012.260507`, the NEEV US 260507 string
+with `NEEV23` in place of `NEEV`. It validates these firmware files before enabling Start:
 
 | File | SHA-256 |
 | --- | --- |
@@ -177,7 +178,7 @@ porting kit report (kit 1.4.0) collected on 2026-10-29:
 | `/system/framework/automotive-service.odex` | `efb949ec92fff388cbbb78e5bf4e16df3cc8d417dbf5cb5e87e62fb46d542549` |
 
 These framework files differ from the 260507 NEEV23 US ones. The original
-NEEV23 US check (its own hashes, any software) is unchanged; this profile is a
+NEEV23 US check (its own software and hashes) is unchanged; this profile is a
 separate exact match on the same device, and neither hash pair can be mixed
 with the other. `OemVehicleClient` reads `ro.build.product` on NEEV23 US for
 it. The report shows `com.hkmc.micom.hev` / `com.hkmc.hev.IHEVService` and
@@ -223,7 +224,7 @@ porting kit reports (kit 1.5.0) collected on 2026-10-29 and 2026-10-30:
 The two reports came from two cars with different trims and drivetrains, and
 gave the same identity, the same two fingerprints and the same transaction
 tables. These framework files differ from both the 260507 and the 260206
-NEEV23 US ones. The original NEEV23 US check (its own hashes, any software) and
+NEEV23 US ones. The original NEEV23 US check (its own software and hashes) and
 the 260206 check are unchanged; this profile is a separate exact match on the
 same device, and no hash pair can be mixed with another. `OemVehicleClient`
 already reads `ro.build.product` on NEEV23 US. The reports show

@@ -1,14 +1,19 @@
 #!/bin/sh
 # Write a Launchpad USB bundle onto a FAT32/exFAT drive. Runs on your computer;
 # does not connect to the car.
-#   tools/usb/write-usb.sh /Volumes/USB [bundle-dir]
-# bundle-dir holds Launchpad-install-usb.zip (default: ./dist, then the current dir).
+#   tools/usb/write-usb.sh [--manual] /Volumes/USB [bundle-dir]
+# bundle-dir holds Launchpad-install-usb.zip, or Launchpad-manual-install-usb.zip with
+# --manual for NEMESIS older than 1.16 (default: ./dist, then the current dir).
 # The same drive installs or updates Launchpad.
 set -eu
-usage() { echo "usage: $0 <usb-drive-path> [bundle-dir]" >&2; exit 2; }
+usage() { echo "usage: $0 [--manual] <usb-drive-path> [bundle-dir]" >&2; exit 2; }
+NAME=Launchpad-install-usb.zip
+if [ "${1:-}" = --manual ]; then
+    NAME=Launchpad-manual-install-usb.zip
+    shift
+fi
 [ $# -ge 1 ] || usage
 DRIVE=$1
-NAME=Launchpad-install-usb.zip
 ZIP=
 find_zip() { [ -z "$ZIP" ] && [ -f "$1/$NAME" ] && ZIP=$1/$NAME; return 0; }
 [ $# -ge 2 ] && find_zip "$2"
@@ -37,7 +42,9 @@ cat <<EOF
 
 Next:
   1. Eject the drive, insert it into the car's USB data port (car on, parked).
-  2. Tap Yes on the NEMESIS prompt and wait for the result dialog.
+  2. Tap Yes on the NEMESIS install prompt (and on the update prompt, if
+     Launchpad is already installed), then wait for the result dialog.
   3. Reboot the head unit (pinhole button), then remove the drive.
-  The log is written to launchpad-install.log on the drive.
+  If it fails: NEMESIS Manager > Logs > Copy to USB writes NEMESIS-logs to the drive.
+  The manual drive also writes launchpad-install.log.
 EOF

@@ -122,20 +122,29 @@ before editing, and mirror their naming and comment style.
    - If the key code also differs, set `KEY_CODE` inside that block only.
    - If the report shows `likely_knob=none`, leave TUNE out of the port and say so.
      TUNE only opens the screen; it never starts conditioning.
-4. **Battery temperature needs no code.** Every profile reads the cluster minimum
+4. **`tune-service/NEMESIS.data`.** Add the new `<NAME>_SOFTWARE` string to the
+   comma list in `os="..."`. NEMESIS compares `os` with `ro.build.product`, and the
+   Package Store uses the result to show each owner whether the package fits their
+   car. Leave `models="any"`.
+   - The whole `os` value must stay under 256 characters, or NEMESIS refuses the
+     package. If the new string would push it over, replace the strings that share a
+     prefix with one `*` glob (for example `NEEV23.USA.*`), and say so in the PR.
+   - `test_os_lists_every_profile_software` in `tools/test_usb_bundles.py` fails if a
+     `_SOFTWARE` constant isn't covered or the value is too long.
+5. **Battery temperature needs no code.** Every profile reads the cluster minimum
    (`ClusterBatteryTemperatureReader`) once it passes the firmware check. Don't add a
    per-car switch, and don't skip the car's temperature in the docs or the in-car test.
    The battery warm notice (with **Start anyway**) comes with it: allow it on any car
    whose report shows `contract unchanged`. Don't hold it back waiting for an OBD
    comparison.
-5. **Tests.**
+6. **Tests.**
    - Add `app/src/test/java/com/paytondev/launchpad/<Name>CompatibilityTest.java`,
      modelled on `Ioniq5NeevUsCompatibilityTest.java`: the exact identity matches; a
      wrong API, device, software or either hash does not; other profiles are
      unaffected.
    - If you changed `knob.conf`, add the new identity and its near-misses to
      `test_tune_selection_keeps_key_duration_and_target` in `tools/test_ev6_scripts.py`.
-6. **`COMPATIBILITY.md`.**
+7. **`COMPATIBILITY.md`.**
    - The chart has one table per software version, headed `### <six digits>`: the
      last six digits of the full version string (`260507` in
      `CEEV.USA.0000.V015.012.260507`), newest first. Add the car to its version's
@@ -160,7 +169,7 @@ before editing, and mirror their naming and comment style.
    - The status is ✅ supported. Follow "How the docs describe a new car" below.
    - The chart is plain language for owners. Keep hashes and transaction detail in
      the technical section.
-7. **`VERSION`.** Bump the minor version and reset patch, counting from the latest
+8. **`VERSION`.** Bump the minor version and reset patch, counting from the latest
    release (the newest published `v*` release), not from `VERSION` on `main`: with
    `v1.4.0` released, the port is `1.5.0`. If `main` is already at that number or
    higher because of another unreleased change, keep `main`'s value; ports that ship
@@ -206,6 +215,7 @@ python3 tools/test_usb_bundles.py
 Then re-read your diff for these problems:
 - a check loosened for an existing profile
 - a missed `OemVehicleClient` device
+- the new software string missing from `os` in `tune-service/NEMESIS.data`
 - a `knob.conf` block that isn't exact-identity
 - the report file or raw logs staged for commit
 

@@ -59,7 +59,8 @@ BMS cutoff. See [the detailed evidence](TEMPERATURE-AND-TIMEOUT.md).
    and that removal leaves NEMESIS intact. Host packaging and hook tests support
    these checks but do not replace them.
 6. Publish the draft. It carries the APK, NEMESIS package,
-   `Launchpad-install-usb.zip` and `SHA256SUMS.txt`, and targets the source
+   `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`,
+   `Launchpad-port-kit-usb.zip` and `SHA256SUMS.txt`, and targets the source
    commit. The APK's certificate fingerprint is printed by `apksigner verify`
    in that commit's CI log if the release record needs it.
 

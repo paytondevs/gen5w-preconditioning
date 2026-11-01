@@ -9,7 +9,7 @@ The release version is the single line in [`VERSION`](VERSION), e.g. `1.3.0`.
 Gradle uses it as `versionName` and derives `versionCode` as
 `major * 10000 + minor * 100 + patch` (so minor and patch stay below 100).
 `tools/build_usb_bundles.py` writes it into the packaged `NEMESIS.data`, whose
-source keeps a `version=@VERSION@` placeholder, and CI tags the draft release
+source keeps a `package-version=@VERSION@` placeholder, and CI tags the draft release
 `v<VERSION>`. Don't edit the version anywhere else.
 
 ## Requirements
@@ -96,10 +96,15 @@ Outputs in `dist/`:
 
 - `paytondev.launchpad.zip`: the NEMESIS package (`tune-service/` plus
   `app/Launchpad.apk`).
-- `Launchpad-install-usb.zip`: the USB drive root. Its `type=execute`
-  `NEMESIS.data` runs `launchpad/install.sh` (from `usb/launchpad/`, with a copy
-  of `tune-service/scripts/common.sh`) against
-  `packages/paytondev.launchpad.zip`.
+- `Launchpad-install-usb.zip`: the USB drive root. Its `type=install`
+  `NEMESIS.data` points at `packages/paytondev.launchpad.zip`, so NEMESIS prompts,
+  installs it, and offers to update it when it's already installed. There are no
+  scripts of our own on this drive. Needs NEMESIS 1.16 or newer.
+- `Launchpad-manual-install-usb.zip`: the same drive for any NEMESIS. Its
+  `type=execute` `NEMESIS.data` runs `launchpad/install.sh` (from `usb/launchpad/`,
+  with a copy of `tune-service/scripts/common.sh`), which installs or updates
+  `packages/paytondev.launchpad.zip`, writes `launchpad-install.log` and checks
+  the APK and `knobd` afterwards.
 
 - `Launchpad-port-kit-usb.zip`: the read-only vehicle porting kit. Its
   `type=execute` `NEMESIS.data` runs `launchpad-port/collect.sh` (from
@@ -165,7 +170,7 @@ exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
 identity it selects `daudio_wp_daudioplus_ceev_us`. The NEEV KR (Ioniq 5) 260902
 identity has no entry, because its porting kit report recorded no TUNE press.
 
-Publish `Launchpad-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
+Publish `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
 `paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`
 as GitHub release assets. These
 scripts generate local artifacts only and never connect to a car.

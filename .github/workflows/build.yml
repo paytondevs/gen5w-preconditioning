@@ -72,7 +72,7 @@ jobs:
         working-directory: dist
         run: |
           sha256sum Launchpad.apk paytondev.launchpad.zip Launchpad-install-usb.zip \
-            Launchpad-port-kit-usb.zip > SHA256SUMS.txt
+            Launchpad-manual-install-usb.zip Launchpad-port-kit-usb.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v7
@@ -82,6 +82,7 @@ jobs:
             dist/Launchpad.apk
             dist/paytondev.launchpad.zip
             dist/Launchpad-install-usb.zip
+            dist/Launchpad-manual-install-usb.zip
             dist/Launchpad-port-kit-usb.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
@@ -93,7 +94,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           tag="v$VERSION"
-          assets="dist/Launchpad.apk dist/paytondev.launchpad.zip dist/Launchpad-install-usb.zip dist/Launchpad-port-kit-usb.zip dist/SHA256SUMS.txt"
+          assets="dist/Launchpad.apk dist/paytondev.launchpad.zip dist/Launchpad-install-usb.zip dist/Launchpad-manual-install-usb.zip dist/Launchpad-port-kit-usb.zip dist/SHA256SUMS.txt"
           draft=$(gh release list --limit 100 --json tagName,isDraft \
             --jq "[.[] | select(.tagName == \"$tag\") | .isDraft | tostring][0] // empty")
           if [ "$draft" = "false" ]; then

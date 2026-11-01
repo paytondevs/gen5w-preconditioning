@@ -130,11 +130,15 @@ from the pushed commit, the same way CI builds a release.
 4. **Check the build is the port.** `apksigner verify` (run by `build_apk.sh`) must
    pass. The APK's `classes.dex` must contain the new device string. The
    `NEMESIS.data` inside `packages/paytondev.launchpad.zip` must carry the new
-   `VERSION`. Its `knob.conf` must have the new block, if you added one.
-5. **Attach it.** Copy `dist/Launchpad-install-usb.zip` and `dist/Launchpad.apk` into
-   a new scratchpad folder, and add a `SHA256SUMS.txt` for both. Send all three with
+   `VERSION` as `package-version`, and its `os` list must include the new software
+   string. Its `knob.conf` must have the new block, if you added one.
+5. **Attach it.** Copy `dist/Launchpad-install-usb.zip`,
+   `dist/Launchpad-manual-install-usb.zip` and `dist/Launchpad.apk` into a new
+   scratchpad folder, and add a `SHA256SUMS.txt` for all three. Send all four with
    `SendUserFile` (`display: attach`) in the final message, so the user can download
-   them. The USB zip is what goes on the drive; the APK is for manual installs.
+   them. A USB zip is what goes on the drive: `Launchpad-install-usb.zip` for
+   NEMESIS 1.16 or newer, `Launchpad-manual-install-usb.zip` for older NEMESIS. The
+   APK is for manual installs.
    Never commit `dist/` or the keystore. Never upload the build to the issue or the
    PR.
 
