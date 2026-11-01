@@ -99,11 +99,16 @@ Outputs in `dist/`:
 - `Launchpad-install-usb.zip`: the USB drive root. Its `type=install`
   `NEMESIS.data` points at `packages/paytondev.launchpad.zip`, so NEMESIS prompts,
   installs it, and offers to update it when it's already installed. There are no
-  scripts of our own on this drive.
+  scripts of our own on this drive. Needs NEMESIS 1.16 or newer.
+- `Launchpad-manual-install-usb.zip`: the same drive for any NEMESIS. Its
+  `type=execute` `NEMESIS.data` runs `launchpad/install.sh` (from `usb/launchpad/`,
+  with a copy of `tune-service/scripts/common.sh`), which installs or updates
+  `packages/paytondev.launchpad.zip`, writes `launchpad-install.log` and checks
+  the APK and `knobd` afterwards.
 
 - `Launchpad-port-kit-usb.zip`: the read-only vehicle porting kit. Its
   `type=execute` `NEMESIS.data` runs `launchpad-port/collect.sh` (from
-  `usb/port-kit/`, with its `lib.sh` and a copy of `common.sh`). There is no
+  `usb/port-kit/`, with copies of `lib.sh` and `common.sh`). There is no
   `packages/` folder, so it has nothing to install. It writes
   `launchpad-port-report.txt` to the drive. The same signed APK is copied to
   `/data/local/tmp/launchpad-port` only as the dex container for `PortProbe`,
@@ -165,7 +170,7 @@ exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
 identity it selects `daudio_wp_daudioplus_ceev_us`. The NEEV KR (Ioniq 5) 260902
 identity has no entry, because its porting kit report recorded no TUNE press.
 
-Publish `Launchpad-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
+Publish `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
 `paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`
 as GitHub release assets. These
 scripts generate local artifacts only and never connect to a car.

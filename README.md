@@ -45,7 +45,11 @@ once that's done, delete `ota_package.tar` from the drive (or use a different dr
 
 ### 2. put the Launchpad installer on the drive
 
-download **`Launchpad-install-usb.zip`** from the [releases page](../../releases) (the newest one is at the top).
+download **`Launchpad-install-usb.zip`** from the [releases page](../../releases) (the newest one is at the top). it needs NEMESIS 1.16 or newer.
+
+on an older NEMESIS, download **`Launchpad-manual-install-usb.zip`** instead. it works the same way, but its drive also has a `launchpad/` folder with our install script, NEMESIS asks to *run* it instead of *install* it (one prompt, also for updates), and it writes `launchpad-install.log` to the drive.
+
+don't use `paytondev.launchpad.zip` for this: that's the package itself, and extracting it onto the drive gives "Invalid package descriptor".
 
 extract it so its **contents** sit at the **root** of the drive, with nothing else from NEMESIS left on it. the drive should look exactly like this:
 
@@ -108,7 +112,7 @@ press **Stop** to cancel, even while it's still waiting. closing Launchpad does 
 
 ## updating
 
-exactly the same as installing: put **`Launchpad-install-usb.zip`** from the newest release on the drive, run it, and reboot. if Launchpad is already installed, it updates it in place, and the log says so.
+exactly the same as installing: put **`Launchpad-install-usb.zip`** (or **`Launchpad-manual-install-usb.zip`** on NEMESIS older than 1.16) from the newest release on the drive, run it, and reboot. if Launchpad is already installed, it updates it in place.
 
 your favorites and settings are kept. it also works if you installed an older version over ADB. running the drive twice is harmless.
 
@@ -125,8 +129,8 @@ this removes Launchpad and its TUNE shortcut. if you installed an older version 
 | what you see | what to do |
 | --- | --- |
 | nothing happens when you plug in the drive | make sure `NEMESIS.data` is in the **root** of the drive, not in a folder. check the drive is FAT32/exFAT and in a data port. check NEMESIS is installed (press NAV three times; Manager should open). |
-| "Invalid package descriptor" | the files were edited or copied incompletely. extract the zip again onto the drive. |
-| the dialog says it failed | open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. message me with it. |
+| "Invalid package descriptor" | the drive has the wrong files, or they were copied incompletely. check you extracted `Launchpad-install-usb.zip`, not `paytondev.launchpad.zip`, and that the drive looks like the layout above. extract it again onto the drive. |
+| the dialog says it failed | open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. message me with it, plus `launchpad-install.log` if you used the manual drive. |
 | "not enough space on /system" in `NEMESIS-logs` | nothing was changed. message me with the logs. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your car or its software version isn't supported yet, so Launchpad won't send anything to the car. check the [compatibility chart](COMPATIBILITY.md#compatibility-chart). if your car isn't listed, run the [vehicle porting kit](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit). |

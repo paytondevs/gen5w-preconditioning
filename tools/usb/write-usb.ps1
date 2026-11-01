@@ -1,15 +1,17 @@
 # Write a Launchpad USB bundle onto a FAT32/exFAT drive. Runs on your computer;
 # does not connect to the car.
-#   .\tools\usb\write-usb.ps1 E:\ [bundle-dir]
-# bundle-dir holds Launchpad-install-usb.zip (default: .\dist, then the current dir).
+#   .\tools\usb\write-usb.ps1 E:\ [bundle-dir] [-Manual]
+# bundle-dir holds Launchpad-install-usb.zip, or Launchpad-manual-install-usb.zip with
+# -Manual for NEMESIS older than 1.16 (default: .\dist, then the current dir).
 # The same drive installs or updates Launchpad.
 param(
     [Parameter(Mandatory = $true)][string]$Drive,
-    [string]$BundleDir
+    [string]$BundleDir,
+    [switch]$Manual
 )
 $ErrorActionPreference = 'Stop'
 
-$name = 'Launchpad-install-usb.zip'
+$name = if ($Manual) { 'Launchpad-manual-install-usb.zip' } else { 'Launchpad-install-usb.zip' }
 $candidates = @($BundleDir, (Join-Path $PSScriptRoot '..\..\dist'), 'dist', '.') | Where-Object { $_ }
 $zip = $candidates | ForEach-Object { Join-Path $_ $name } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 if (-not $zip) { throw "$name not found; pass the folder you downloaded it to." }
@@ -26,9 +28,10 @@ foreach ($item in 'NEMESIS.data', 'NEMESIS.sh', 'ota_package.tar', 'README.txt',
     }
 }
 
+# Expand-Archive copies bytes as-is, so the manual drive's scripts keep their LF line endings.
 Expand-Archive -LiteralPath $zip -DestinationPath $Drive
 Write-Host "Wrote $name to $Drive"
-Get-ChildItem -LiteralPath $Drive -Name | Where-Object { $_ -in 'README.txt', 'NEMESIS.data', 'packages' }
+Get-ChildItem -LiteralPath $Drive -Name | Where-Object { $_ -in 'README.txt', 'NEMESIS.data', 'launchpad', 'packages' }
 Write-Host @"
 
 Next:
@@ -37,4 +40,5 @@ Next:
      Launchpad is already installed), then wait for the result dialog.
   3. Reboot the head unit (pinhole button), then remove the drive.
   If it fails: NEMESIS Manager > Logs > Copy to USB writes NEMESIS-logs to the drive.
+  The manual drive also writes launchpad-install.log.
 "@
