@@ -23,6 +23,11 @@ final class PreconditioningProfile {
     // captured on 2026-10-27 are byte-identical to NEEV23 US, so it reuses those hashes.
     static final String IONIQ5_NEEV_US_DEVICE = "wp_daudioplus_neev_us";
     static final String IONIQ5_NEEV_US_SOFTWARE = "NEEV.USA.0000.V015.012.260507";
+    // NEEV US 240822 (US 2021 Ioniq 5 AWD): same device, older software with its own
+    // framework files; the porting kit report of 2026-10-31 showed the same transactions.
+    static final String IONIQ5_NEEV_US_240822_SOFTWARE = "NEEV.USA.0000.V012.010.240822";
+    static final String IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256 = "0f6786b9c8c167f09c08c559afea7da1e2137e2a1968b9ab372def65762674f9";
+    static final String IONIQ5_NEEV_US_240822_SERVICE_SHA256 = "2758a413c184855bf92080cfdc6decbfcd6f09775128a982b1eee211993772a1";
     static final String EV6_DEVICE = "wp_daudioplus_cvev_us";
     static final String EV6_SOFTWARE = "CVEV.USA.0000.V015.012.260507";
     static final String EV6_FRAMEWORK_SHA256 = "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a";
@@ -53,7 +58,8 @@ final class PreconditioningProfile {
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
     // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
     // The timeout and warm threshold are keyed on device, so EV6 251120 (same device)
-    // gets the EV6's five minutes and 20°C.
+    // gets the EV6's five minutes and 20°C, and NEEV US 240822 gets the Ioniq 5 two
+    // minutes and 21°C.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
@@ -81,6 +87,9 @@ final class PreconditioningProfile {
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }
         if (IONIQ5_NEEV_US_DEVICE.equals(device)) {
+            if (IONIQ5_NEEV_US_240822_SOFTWARE.equals(software)
+                && IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV_US_240822_SERVICE_SHA256.equals(serviceHash)) return true;
             return IONIQ5_NEEV_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }

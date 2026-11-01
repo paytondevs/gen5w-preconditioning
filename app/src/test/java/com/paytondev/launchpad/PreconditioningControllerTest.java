@@ -68,6 +68,7 @@ public class PreconditioningControllerTest {
     }
     @Test public void eachProfileHasItsOwnActivationTimeout() {
         // Keyed on device: EV6 260507 and EV6 251120 share the EV6 device and its five minutes.
+        // NEEV US 260507 and NEEV US 240822 share the NEEV US device and its two minutes.
         assertEquals(5 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
@@ -76,6 +77,7 @@ public class PreconditioningControllerTest {
     }
     @Test public void eachProfileHasItsOwnWarmThreshold() {
         // EV6 251120 shares the EV6 device, so it gets the same 20°C.
+        // NEEV US 240822 shares the NEEV US device, so it gets the same 21°C.
         assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.EV6_DEVICE));
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV23_US_DEVICE));
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));

@@ -169,7 +169,9 @@ the exact EV6 US API 19 / 251120 identity, and on the
 exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
 `daudio_wp_daudioplus_neev_us`. On the exact CEEV US (Ioniq 6) API 19 / 260507
 identity it selects `daudio_wp_daudioplus_ceev_us`. The NEEV KR (Ioniq 5) 260902
-identity has no entry, because its porting kit report recorded no TUNE press.
+identity has no entry, because its porting kit report recorded no TUNE press,
+and neither does the NEEV US (Ioniq 5) 240822 identity, because its porting kit
+report didn't confirm a TUNE hold.
 
 Publish `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
 `paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`

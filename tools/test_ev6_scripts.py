@@ -66,6 +66,8 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("other", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "NEEV.USA.0000.V015.012.260507", "19", ioniq5_neev_us),
+            # NEEV US 240822 has no TUNE entry: its capture didn't confirm a TUNE hold.
+            ("wp_daudioplus_neev_us", "NEEV.USA.0000.V012.010.240822", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "other", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "NEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "NEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
