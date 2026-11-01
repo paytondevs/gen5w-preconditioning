@@ -4,6 +4,8 @@ package com.paytondev.launchpad;
 final class PreconditioningProfile {
     // Both NEEV profiles are Ioniq 5 head units. NEEV23 US: model year unconfirmed.
     static final String IONIQ5_NEEV23_US_DEVICE = "wp_daudioplus_neev23_us";
+    // NEEV23 US 260507: the NEEV US 260507 string with NEEV23 in place of NEEV.
+    static final String IONIQ5_NEEV23_US_SOFTWARE = "NEEV23.USA.0000.V015.012.260507";
     static final String IONIQ5_NEEV23_US_FRAMEWORK_SHA256 = "dd72e04bce0a2b4bda1506308ac21f91002c1436553b8156c345cc4313661338";
     static final String IONIQ5_NEEV23_US_SERVICE_SHA256 = "3cf40fb00854c63afa49abea1dad18a0afcbc0dd68b17de9ed7ea3f5aeab4222";
     // NEEV23 US 260206 (US 2024 Ioniq 5): same device, older software with its own
@@ -68,7 +70,8 @@ final class PreconditioningProfile {
             if (IONIQ5_NEEV23_US_260903_SOFTWARE.equals(software)
                 && IONIQ5_NEEV23_US_260903_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_260903_SERVICE_SHA256.equals(serviceHash)) return true;
-            return IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash) && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
+            return IONIQ5_NEEV23_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }
         if (IONIQ5_NEEV_US_DEVICE.equals(device)) {
             return IONIQ5_NEEV_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
