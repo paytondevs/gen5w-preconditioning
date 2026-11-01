@@ -27,6 +27,11 @@ final class PreconditioningProfile {
     static final String EV6_SOFTWARE = "CVEV.USA.0000.V015.012.260507";
     static final String EV6_FRAMEWORK_SHA256 = "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a";
     static final String EV6_SERVICE_SHA256 = "8af745b41aa28f490953d61531215cd94e059f104b31f6236a8f6c7af23b8062";
+    // EV6 US 251120 (US 2023 EV6 Wind): same device, older software with its own
+    // framework files; the porting kit report of 2026-10-30 showed the same transactions.
+    static final String EV6_251120_SOFTWARE = "CVEV.USA.0000.V014.011.251120";
+    static final String EV6_251120_FRAMEWORK_SHA256 = "6919d451f299c1bf8e3d49aead4fcdcd60e055a32cf107d224e56e5cdd5072c0";
+    static final String EV6_251120_SERVICE_SHA256 = "8a3523882752935a2d607101794a0037e1bfda1d6df0082e61ed71706778e41f";
     // CEEV US 260507 (US 2023 Ioniq 6 SEL): own firmware files, captured on 2026-10-29;
     // the five HEV/BCM transactions and the cluster contract match the other profiles.
     static final String IONIQ6_CEEV_US_DEVICE = "wp_daudioplus_ceev_us";
@@ -47,6 +52,8 @@ final class PreconditioningProfile {
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
     // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
+    // The timeout and warm threshold are keyed on device, so EV6 251120 (same device)
+    // gets the EV6's five minutes and 20°C.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
@@ -85,6 +92,9 @@ final class PreconditioningProfile {
             return IONIQ5_NEEV_KR_SOFTWARE.equals(software) && IONIQ5_NEEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV_KR_SERVICE_SHA256.equals(serviceHash);
         }
+        if (EV6_251120_SOFTWARE.equals(software)
+            && EV6_251120_FRAMEWORK_SHA256.equals(frameworkHash)
+            && EV6_251120_SERVICE_SHA256.equals(serviceHash)) return true;
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);
     }

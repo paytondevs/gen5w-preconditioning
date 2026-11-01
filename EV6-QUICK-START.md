@@ -11,6 +11,12 @@ a new signed installer.
 Tested vehicle: **US 2023 Kia EV6 Wind RWD**, with **Standard-class Gen5W
 Navigation** and software **`CV_E.USA.S5W_M.V015.012.260507`**.
 
+Software **`CV_E.USA.S5W_M.V014.011.251120`** on the US EV6 head unit is
+supported too, from a US 2023 EV6 Wind's porting kit report
+([port request #26](../../issues/26)); it uses the same five-minute timeout,
+20°C / 68°F warm notice and TUNE hold. See the
+[compatibility chart](COMPATIBILITY.md#compatibility-chart).
+
 **Other model years:** US-market 2022–2024 EV6 vehicles with the same Gen5W
 hardware and exact supported firmware may also be compatible, but have not
 been tested beyond the vehicle above. The app checks device identity, software
