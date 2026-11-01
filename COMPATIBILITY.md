@@ -10,7 +10,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Hyundai IONIQ 5 | 2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2023–2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
 
 ### older software versions
 
@@ -227,8 +227,13 @@ No report, firmware, raw logs, or disassembly are included.
 ### NEEV23 US 260903 profile
 
 Vehicles: **US 2024 Hyundai Ioniq 5 Limited RWD**
-([port request #23](../../issues/23)) and **US 2024 Hyundai Ioniq 5 SEL AWD**
-([port request #24](../../issues/24)).
+([port request #23](../../issues/23)), **US 2024 Hyundai Ioniq 5 SEL AWD**
+([port request #24](../../issues/24)), **US 2023 Hyundai Ioniq 5 SE AWD**
+([port request #30](../../issues/30)) and **US 2023 Hyundai Ioniq 5 SEL AWD**
+([port request #35](../../issues/35)). The reports for #30 and #35 (kit 1.5.0,
+2026-10-30 and 2026-10-31) gave the same identity, the same two fingerprints and
+the same transaction tables as #23 and #24, so the 2023 cars match this profile
+unchanged.
 
 The profile requires Android API 19, the NEEV23 US device
 `wp_daudioplus_neev23_us`, and `ro.build.product=NEEV23.USA.0000.V016.010.260903`
