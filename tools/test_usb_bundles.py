@@ -4,9 +4,11 @@
 The synthetic APK has signature-shaped entries solely to exercise the packager;
 it is not installable and does not verify cryptographic signing or Android use.
 """
+import fnmatch
 import io
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -89,6 +91,20 @@ class UsbBundleTest(unittest.TestCase):
             self.assertIn("launchpad-install.log", readme)
             for name in expected - {"packages/paytondev.launchpad.zip"}:
                 self.assertNotIn(b"\r", bundle.read(name), name)
+
+    def test_os_lists_every_profile_software(self):
+        # The Package Store shows each car's fit from os, matched against ro.build.product.
+        descriptor = (ROOT / "tune-service/NEMESIS.data").read_text(encoding="utf-8")
+        value = re.search(r'^os="([^"]*)"$', descriptor, re.M).group(1)
+        # NEMESIS refuses an os value of 256 characters or more.
+        self.assertLess(len(value), 256)
+        patterns = [item.strip() for item in value.split(",")]
+        profile = (ROOT / "app/src/main/java/com/paytondev/launchpad/PreconditioningProfile.java").read_text()
+        software = re.findall(r'static final String \w+_SOFTWARE = "([^"]+)"', profile)
+        self.assertTrue(software)
+        for name in software:
+            self.assertTrue(any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns),
+                            f"{name} is not in os in tune-service/NEMESIS.data")
 
     def test_port_kit_reads_only_and_carries_the_same_apk(self):
         source = self.root / "usb/port-kit/collect.sh"
