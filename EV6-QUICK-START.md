@@ -17,6 +17,12 @@ supported too, from a US 2023 EV6 Wind's porting kit report
 20°C / 68°F warm notice and TUNE hold. See the
 [compatibility chart](COMPATIBILITY.md#compatibility-chart).
 
+The KR EV6 head unit (`wp_daudioplus_cvev_kr`) on software
+**`CV_E.KOR.S5W_M.V039.001.260902`** is supported too, from a KR 2022 EV6 Long
+Range AWD Earth's porting kit report ([port request #37](../../issues/37)). It
+uses the same TUNE hold, but a two-minute pending timeout and a 21°C / 70°F
+warm notice instead of the five minutes and 20°C / 68°F described below.
+
 **Other model years:** US-market 2022–2024 EV6 vehicles with the same Gen5W
 hardware and exact supported firmware may also be compatible, but have not
 been tested beyond the vehicle above. The app checks device identity, software

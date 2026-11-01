@@ -74,6 +74,8 @@ public class PreconditioningControllerTest {
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ6_CEEV_US_DEVICE));
         assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.IONIQ5_NEEV_KR_DEVICE));
+        // The EV6 CVEV KR is its own device, so it gets the two minutes every new port uses.
+        assertEquals(2 * 60 * 1000L, PreconditioningProfile.activationTimeoutMs(PreconditioningProfile.EV6_CVEV_KR_DEVICE));
     }
     @Test public void eachProfileHasItsOwnWarmThreshold() {
         // EV6 251120 shares the EV6 device, so it gets the same 20°C.
@@ -83,6 +85,8 @@ public class PreconditioningControllerTest {
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_US_DEVICE));
         assertEquals(20, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ6_CEEV_US_DEVICE));
         assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.IONIQ5_NEEV_KR_DEVICE));
+        // The EV6 CVEV KR is its own device, outside the EV6 20°C branch, so it gets 21°C.
+        assertEquals(21, PreconditioningProfile.warmThresholdC(PreconditioningProfile.EV6_CVEV_KR_DEVICE));
         assertEquals(70, BatteryTemperatureReading.fahrenheit(PreconditioningProfile.IONIQ5_WARM_THRESHOLD_C));
     }
     @Test public void timeoutCancelsOnceAndRestoresStartOnlyAfterFreshOff() {

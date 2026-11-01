@@ -20,6 +20,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Hyundai IONIQ 5 | 2022 | KR | NEEV KR (`wp_daudioplus_neev_kr`) | ✅ | ✅ | ✅ supported |
+| Kia EV6 | 2022 | KR | CVEV KR (`wp_daudioplus_cvev_kr`) | ✅ | ✅ | ✅ supported |
 
 </details>
 
@@ -66,7 +67,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
-- **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md).
+- **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md). On the KR EV6 (260902) the pending timeout is two minutes and the warm notice is at 21°C / 70°F.
 
 ## car not listed? run the vehicle porting kit
 
@@ -505,6 +506,53 @@ TUNE would let a later change add an exact-identity `knob.conf` entry.
 callback and array layout as the other profiles. As on the NEEV US device's
 260507 release, the warm notice uses 21°C / 70°F and the pending timeout is two
 minutes.
+
+No report, firmware, raw logs, or disassembly are included.
+
+### EV6 KR 260902 profile
+
+Vehicle: **KR 2022 Kia EV6 Long Range AWD Earth**
+([port request #37](../../issues/37)), the first Korean-market EV6 head unit in
+this project.
+
+The profile requires Android API 19, device `wp_daudioplus_cvev_kr`, and
+`ro.build.product=CVEV.KOR.0000.V039.001.260902` (build `KVT49L`; the settings
+screen shows `ro.build.product3`, `CV_E.KOR.S5W_M.V039.001.260902`, and
+`ro.build.product2` is `CVEV.KOR.S5W_M.V039.001.260902`), plus both
+fingerprints from a read-only porting kit report (kit 1.5.0) collected on
+2026-11-01:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `e9ff63f7b456327b9a1c683dc2bacf4b30679bb8ff08279799918233ad1de25d` |
+| `/system/framework/automotive-service.odex` | `f830984e0401d24156a7101bb6ec03896ce1a70ff7ec732ad9e65072d8b717eb` |
+
+These framework files differ from every other profile's, including the EV6 US
+and NEEV KR 260902 ones, and no profile accepts another's hashes. This is a
+separate device from the US EV6 (`wp_daudioplus_cvev_us`), so the EV6 US checks
+are unchanged. `OemVehicleClient` reads `ro.build.product` on this device for
+the software check. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
+
+**TUNE:** holding TUNE during the kit run recorded three holds of key 17 on the
+main `daudio_wp_daudioplus_cvev_kr` input device, not its `_can` or `_knob`
+devices. `knob.conf` selects that device on this exact identity (API 19,
+`wp_daudioplus_cvev_kr`, `CVEV.KOR.0000.V039.001.260902`), with key 17 and the
+original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. The timeout and warm threshold
+are keyed on device, and this device isn't the US EV6 one: the pending timeout
+is the two minutes every new port uses, and the warm notice uses 21°C / 70°F
+(the US EV6 device uses five minutes and 20°C / 68°F).
 
 No report, firmware, raw logs, or disassembly are included.
 

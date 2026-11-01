@@ -49,17 +49,26 @@ final class PreconditioningProfile {
     static final String IONIQ5_NEEV_KR_SOFTWARE = "NEEV.KOR.0000.V039.001.260902";
     static final String IONIQ5_NEEV_KR_FRAMEWORK_SHA256 = "8186fec9601a216e8e3015b77c13b4d18c2fd2dfc2d3a6b7e42dac55b7a22c06";
     static final String IONIQ5_NEEV_KR_SERVICE_SHA256 = "176e2375ef9e2c8b1df16b600f0434df7e2ce7bb7378779e7180e5c23651f80d";
+    // CVEV KR 260902 (KR 2022 EV6 Long Range AWD Earth): own device and firmware files,
+    // captured on 2026-11-01; the five HEV/BCM transactions and the cluster contract match
+    // the other profiles.
+    static final String EV6_CVEV_KR_DEVICE = "wp_daudioplus_cvev_kr";
+    static final String EV6_CVEV_KR_SOFTWARE = "CVEV.KOR.0000.V039.001.260902";
+    static final String EV6_CVEV_KR_FRAMEWORK_SHA256 = "e9ff63f7b456327b9a1c683dc2bacf4b30679bb8ff08279799918233ad1de25d";
+    static final String EV6_CVEV_KR_SERVICE_SHA256 = "f830984e0401d24156a7101bb6ec03896ce1a70ff7ec732ad9e65072d8b717eb";
 
     static boolean supportsDevice(int sdk, String device) {
         return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device)
-            || IONIQ6_CEEV_US_DEVICE.equals(device) || IONIQ5_NEEV_KR_DEVICE.equals(device));
+            || IONIQ6_CEEV_US_DEVICE.equals(device) || IONIQ5_NEEV_KR_DEVICE.equals(device)
+            || EV6_CVEV_KR_DEVICE.equals(device));
     }
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
     // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
     // The timeout and warm threshold are keyed on device, so EV6 251120 (same device)
     // gets the EV6's five minutes and 20°C, and NEEV US 240822 gets the Ioniq 5 two
-    // minutes and 21°C.
+    // minutes and 21°C. The EV6 CVEV KR is its own device, so as a new port it gets
+    // the two minutes and 21°C.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
@@ -100,6 +109,10 @@ final class PreconditioningProfile {
         if (IONIQ5_NEEV_KR_DEVICE.equals(device)) {
             return IONIQ5_NEEV_KR_SOFTWARE.equals(software) && IONIQ5_NEEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV_KR_SERVICE_SHA256.equals(serviceHash);
+        }
+        if (EV6_CVEV_KR_DEVICE.equals(device)) {
+            return EV6_CVEV_KR_SOFTWARE.equals(software) && EV6_CVEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
+                && EV6_CVEV_KR_SERVICE_SHA256.equals(serviceHash);
         }
         if (EV6_251120_SOFTWARE.equals(software)
             && EV6_251120_FRAMEWORK_SHA256.equals(frameworkHash)
