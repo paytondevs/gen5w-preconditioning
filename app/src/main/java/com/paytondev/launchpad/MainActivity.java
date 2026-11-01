@@ -71,6 +71,7 @@ public final class MainActivity extends Activity {
     private TextView lowestValue, lowestCelsius, highestValue, temperatureAge;
     private View highestColumn, failureRow;
     private TemperatureGauge gauge;
+    private CountdownBar countdown;
     private TemperatureChart chart;
     private final CheckMark[] checkMarks = new CheckMark[6];
     private final TextView[] checkValues = new TextView[6];
@@ -88,6 +89,8 @@ public final class MainActivity extends Activity {
     private BatteryTemperatureReading batteryTemperature = BatteryTemperatureReading.checking();
     private TemperatureHistory.Trace history = TemperatureHistory.Trace.EMPTY;
     private boolean vehicleBound;
+    /** Earliest estimate of when the pending request started; snapshots only ever lag. */
+    private long requestStartedAt = -1;
     private ConnectionSnapshot connection = ConnectionSnapshot.unknown();
     private ScreenFlow.Page page = ScreenFlow.Page.PRECONDITIONING, defaultPage = ScreenFlow.Page.PRECONDITIONING;
     private int tab = TAB_ALL, knobIndex = -1, connectionEpoch, toggleColor;
@@ -276,7 +279,7 @@ public final class MainActivity extends Activity {
         preconditionStatus = null; preconditionDetail = null; preconditionButton = null;
         preconditionElapsed = null; preconditionTemperature = null;
         lowestValue = null; lowestCelsius = null; highestValue = null; temperatureAge = null;
-        highestColumn = null; failureRow = null; gauge = null; chart = null; toggleColor = 0;
+        highestColumn = null; failureRow = null; gauge = null; chart = null; countdown = null; toggleColor = 0;
         Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null);
         Arrays.fill(defaultChips, null); Arrays.fill(appearanceChips, null);
         signalsText = null;
@@ -547,8 +550,12 @@ public final class MainActivity extends Activity {
         preconditionDetail = ui.text("Checking vehicle services", 16, palette.muted, false);
         preconditionDetail.setLineSpacing(0, 1.15f); preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
         preconditionDetail.setMaxLines(6);
-        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, 0, 1); detailParams.topMargin = ui.dp(14);
+        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, -2); detailParams.topMargin = ui.dp(14);
         control.addView(preconditionDetail, detailParams);
+        countdown = new CountdownBar(this); countdown.setPalette(palette); countdown.setVisibility(View.GONE);
+        LinearLayout.LayoutParams countdownParams = new LinearLayout.LayoutParams(-1, ui.dp(16)); countdownParams.topMargin = ui.dp(12);
+        control.addView(countdown, countdownParams);
+        control.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
         preconditionButton = ui.text("Start", 26, palette.onAccent, true); preconditionButton.setGravity(Gravity.CENTER);
         addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
         preconditionButton.setEnabled(false);
@@ -614,7 +621,16 @@ public final class MainActivity extends Activity {
         if (page == ScreenFlow.Page.HOME && preconditioning.requested) status += " · " + preconditioning.elapsed();
         preconditionStatus.setText(status);
         if (preconditionTemperature != null) preconditionTemperature.setText(batteryTemperature.label(now, true));
-        if (preconditionDetail != null) preconditionDetail.setText(preconditioning.detail);
+        if (!preconditioning.requested) requestStartedAt = -1;
+        else if (requestStartedAt < 0 || now - preconditioning.elapsedMs < requestStartedAt)
+            requestStartedAt = now - preconditioning.elapsedMs;
+        boolean waiting = preconditioning.state == PreconditioningSnapshot.State.WAITING;
+        if (preconditionDetail != null) preconditionDetail.setText(waiting
+            ? "Preconditioning initiated. It should start within a minute or so." : preconditioning.detail);
+        if (countdown != null) {
+            countdown.setVisibility(waiting ? View.VISIBLE : View.GONE);
+            countdown.setStartedAt(waiting ? requestStartedAt : -1);
+        }
         if (preconditionElapsed != null) preconditionElapsed.setText("Elapsed: " +
             (preconditioning.requested || preconditioning.state == PreconditioningSnapshot.State.ENDED
                 || preconditioning.state == PreconditioningSnapshot.State.TIMED_OUT ? preconditioning.elapsed() : "—"));

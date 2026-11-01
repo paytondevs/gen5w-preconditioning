@@ -52,6 +52,13 @@ public class PreconditioningScreenTest {
         assertEquals(110f, TemperatureChart.y(15, 10, 20, 10, 200), 0f);
         assertEquals(10f, TemperatureChart.y(99, 10, 20, 10, 200), 0f);
     }
+    @Test public void countdownDrainsOverNinetySecondsAndClamps() {
+        assertEquals(1f, CountdownBar.remaining(1000, 1000), 0f);
+        assertEquals(1f, CountdownBar.remaining(1000, 0), 0f);
+        assertEquals(0.5f, CountdownBar.remaining(1000, 46_000), 1e-6f);
+        assertEquals(0f, CountdownBar.remaining(1000, 91_000), 0f);
+        assertEquals(0f, CountdownBar.remaining(1000, 500_000), 0f);
+    }
     @Test public void fahrenheitRoundsLikeTheExistingLabels() {
         assertEquals(68, BatteryTemperatureReading.fahrenheit(20));
         assertEquals(14, BatteryTemperatureReading.fahrenheit(-10));
