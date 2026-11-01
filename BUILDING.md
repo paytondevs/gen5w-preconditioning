@@ -9,7 +9,7 @@ The release version is the single line in [`VERSION`](VERSION), e.g. `1.3.0`.
 Gradle uses it as `versionName` and derives `versionCode` as
 `major * 10000 + minor * 100 + patch` (so minor and patch stay below 100).
 `tools/build_usb_bundles.py` writes it into the packaged `NEMESIS.data`, whose
-source keeps a `version=@VERSION@` placeholder, and CI tags the draft release
+source keeps a `package-version=@VERSION@` placeholder, and CI tags the draft release
 `v<VERSION>`. Don't edit the version anywhere else.
 
 ## Requirements

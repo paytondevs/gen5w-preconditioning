@@ -55,7 +55,8 @@ class UsbBundleTest(unittest.TestCase):
             for name in expected:
                 self.assertNotIn(b"\r", package.read(name), name)
             descriptor = package.read("NEMESIS.data").decode()
-            self.assertIn("\nversion=4.5.6\n", descriptor)
+            self.assertIn("\nversion=1.1\n", descriptor)
+            self.assertIn("\npackage-version=4.5.6\n", descriptor)
             self.assertNotIn("@VERSION@", descriptor)
         # One bundle installs or updates; uninstall is NEMESIS Manager's button.
         # The other is the read-only porting kit.

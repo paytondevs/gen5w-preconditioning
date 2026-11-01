@@ -59,8 +59,8 @@ def main():
     # The package version comes from /VERSION, like the APK's versionName.
     descriptor = package / "NEMESIS.data"
     text = descriptor.read_text(encoding="utf-8")
-    if text.count("version=@VERSION@\n") != 1:
-        raise SystemExit("tune-service/NEMESIS.data needs exactly one version=@VERSION@ line")
+    if text.count("\npackage-version=@VERSION@\n") != 1:
+        raise SystemExit("tune-service/NEMESIS.data needs exactly one package-version=@VERSION@ line")
     descriptor.write_bytes(text.replace("@VERSION@", version).encode("utf-8"))
     (package / "app").mkdir()
     shutil.copy2(apk, package / "app/Launchpad.apk")
