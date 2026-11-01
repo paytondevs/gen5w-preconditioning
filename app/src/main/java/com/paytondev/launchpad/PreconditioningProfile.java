@@ -97,7 +97,7 @@ final class PreconditioningProfile {
             if (IONIQ5_NEEV23_US_260903_SOFTWARE.equals(software)
                 && IONIQ5_NEEV23_US_260903_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_260903_SERVICE_SHA256.equals(serviceHash)) return true;
-            IF (IONIQ5_NEEV23_US_251120_SOFTWARE.equals(software)
+            if (IONIQ5_NEEV23_US_251120_SOFTWARE.equals(software)
                 && IONIQ5_NEEV23_US_251120_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_251120_SERVICE_SHA256.equals(serviceHash)) return true;
             return IONIQ5_NEEV23_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
