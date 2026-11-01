@@ -26,15 +26,15 @@ foreach ($item in 'NEMESIS.data', 'NEMESIS.sh', 'ota_package.tar', 'README.txt',
     }
 }
 
-# Expand-Archive copies bytes as-is, so the scripts keep their LF line endings.
 Expand-Archive -LiteralPath $zip -DestinationPath $Drive
 Write-Host "Wrote $name to $Drive"
-Get-ChildItem -LiteralPath $Drive -Name | Where-Object { $_ -in 'README.txt', 'NEMESIS.data', 'launchpad', 'packages' }
+Get-ChildItem -LiteralPath $Drive -Name | Where-Object { $_ -in 'README.txt', 'NEMESIS.data', 'packages' }
 Write-Host @"
 
 Next:
   1. Eject the drive, insert it into the car's USB data port (car on, parked).
-  2. Tap Yes on the NEMESIS prompt and wait for the result dialog.
+  2. Tap Yes on the NEMESIS install prompt (and on the update prompt, if
+     Launchpad is already installed), then wait for the result dialog.
   3. Reboot the head unit (pinhole button), then remove the drive.
-  The log is written to launchpad-install.log on the drive.
+  If it fails: NEMESIS Manager > Logs > Copy to USB writes NEMESIS-logs to the drive.
 "@

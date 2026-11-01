@@ -32,12 +32,13 @@ done
 unzip -q "$ZIP" -d "$DRIVE"
 sync
 echo "Wrote $(basename "$ZIP") to $DRIVE:"
-(cd "$DRIVE" && ls -1d README.txt NEMESIS.data launchpad packages 2>/dev/null) || true
+(cd "$DRIVE" && ls -1d README.txt NEMESIS.data packages 2>/dev/null) || true
 cat <<EOF
 
 Next:
   1. Eject the drive, insert it into the car's USB data port (car on, parked).
-  2. Tap Yes on the NEMESIS prompt and wait for the result dialog.
+  2. Tap Yes on the NEMESIS install prompt (and on the update prompt, if
+     Launchpad is already installed), then wait for the result dialog.
   3. Reboot the head unit (pinhole button), then remove the drive.
-  The log is written to launchpad-install.log on the drive.
+  If it fails: NEMESIS Manager > Logs > Copy to USB writes NEMESIS-logs to the drive.
 EOF

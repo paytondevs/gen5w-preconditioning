@@ -53,10 +53,6 @@ extract it so its **contents** sit at the **root** of the drive, with nothing el
 USB drive/
 ├── README.txt
 ├── NEMESIS.data
-├── launchpad/
-│   ├── common.sh
-│   ├── install.sh
-│   └── lib.sh
 └── packages/
     └── paytondev.launchpad.zip
 ```
@@ -87,10 +83,10 @@ the last argument is the folder you downloaded the zip to.
 
 1. park, turn the car on, and wait for the headunit to finish starting.
 2. plug the drive into a USB **data** port (the one you'd use for music or CarPlay, not a charge-only port).
-3. NEMESIS asks whether to run the item on the USB drive. tap **Yes**. you have 60 seconds. if you miss it, unplug the drive and plug it back in.
+3. NEMESIS asks whether to install the package on the USB drive. tap **Yes**. if Launchpad is already installed, it then asks whether to update it; tap **Yes** again. you have 60 seconds for each. if you miss one, unplug the drive and plug it back in.
 4. wait for the result dialog. it usually takes a few seconds and can take up to about 20.
 
-the installer writes **`launchpad-install.log`** to the drive. if the dialog says it failed, that file says why. please include it if you ask me for help.
+if the dialog says it failed, open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. please include it if you ask me for help.
 
 ### 4. reboot and open it
 
@@ -130,8 +126,8 @@ this removes Launchpad and its TUNE shortcut. if you installed an older version 
 | --- | --- |
 | nothing happens when you plug in the drive | make sure `NEMESIS.data` is in the **root** of the drive, not in a folder. check the drive is FAT32/exFAT and in a data port. check NEMESIS is installed (press NAV three times; Manager should open). |
 | "Invalid package descriptor" | the files were edited or copied incompletely. extract the zip again onto the drive. |
-| the dialog says it failed | open `launchpad-install.log` on the drive. for more detail, open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. |
-| "not enough space on /system" in the log | nothing was changed. message me with the log. |
+| the dialog says it failed | open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. message me with it. |
+| "not enough space on /system" in `NEMESIS-logs` | nothing was changed. message me with the logs. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your car or its software version isn't supported yet, so Launchpad won't send anything to the car. check the [compatibility chart](COMPATIBILITY.md#compatibility-chart). if your car isn't listed, run the [vehicle porting kit](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit). |
 | it stays **Request sent** | the car hasn't confirmed yet. press **Stop**, or wait: Launchpad cancels it after five minutes on the EV6 (two on the IONIQ 5). **Start** comes back once the car reports Off. |

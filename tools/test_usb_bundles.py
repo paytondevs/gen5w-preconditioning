@@ -42,7 +42,7 @@ class UsbBundleTest(unittest.TestCase):
 
     def test_bundle_matches_descriptor_and_payload(self):
         # Exercise LF conversion as well as normal Windows source checkouts.
-        source = self.root / "usb/launchpad/install.sh"
+        source = self.root / "usb/README-template.txt"
         source.write_bytes(source.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
         result = self.build({"classes.dex": b"fixture-not-dex", "META-INF/TEST.RSA": b"not-a-signature"})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -63,16 +63,15 @@ class UsbBundleTest(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in (self.root / "dist").glob("Launchpad-*-usb.zip")),
                          ["Launchpad-install-usb.zip", "Launchpad-port-kit-usb.zip"])
         with zipfile.ZipFile(self.root / "dist/Launchpad-install-usb.zip") as bundle:
-            expected = {"README.txt", "NEMESIS.data", "launchpad/common.sh",
-                        "launchpad/lib.sh", "launchpad/install.sh",
-                        "packages/paytondev.launchpad.zip"}
+            # No scripts of our own: NEMESIS installs or updates the package itself.
+            expected = {"README.txt", "NEMESIS.data", "packages/paytondev.launchpad.zip"}
             self.assertEqual(set(bundle.namelist()), expected)
             self.assertEqual(bundle.read("packages/paytondev.launchpad.zip"), package_bytes)
             self.assertEqual(bundle.read("NEMESIS.data").decode(),
-                             "[nemesis]\nversion=1.0\ntype=execute\npath=launchpad/install.sh\n")
+                             "[nemesis]\nversion=1.0\ntype=install\npath=packages/paytondev.launchpad.zip\n")
             readme = bundle.read("README.txt").decode("utf-8")
             self.assertIn("Launchpad - install/update USB", readme)
-            self.assertIn("launchpad-install.log", readme)
+            self.assertNotIn("launchpad-install.log", readme)
             for name in expected - {"packages/paytondev.launchpad.zip"}:
                 self.assertNotIn(b"\r", bundle.read(name), name)
 

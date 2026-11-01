@@ -60,10 +60,6 @@ Launchpad after installation. These are separate shortcuts.
 USB drive/
   README.txt
   NEMESIS.data
-  launchpad/
-    common.sh
-    install.sh
-    lib.sh
   packages/
     paytondev.launchpad.zip
 ```
@@ -168,9 +164,9 @@ it continues waiting instead of claiming success. Keep the logs if this happens.
 
 Use **`Launchpad-install-usb.zip`** from a newer release and follow the
 installation steps above, starting with stopping any pending or active session.
-When Launchpad is already installed, the installer updates it in place and keeps
-its settings; `launchpad-install.log` says it updated. Do not clear app data to
-force an update.
+When Launchpad is already installed, NEMESIS asks whether to update it; accept,
+and it updates in place and keeps its settings. Do not clear app data to force
+an update.
 
 ## Removing Launchpad
 
@@ -185,7 +181,7 @@ NEMESIS installed. If it fails, use **Logs -> Copy to USB** and keep
 | What you see | What to do |
 | --- | --- |
 | Only "No supported files" and no NEMESIS prompt | Check NEMESIS is installed, the drive uses a data port, and `NEMESIS.data` is at the drive's top level. The media-player message alone does not diagnose NEMESIS. |
-| Install/update reports failure | Keep the USB inserted. Open NEMESIS Manager, then **Logs -> Copy to USB**. Bring it back to the computer and keep `launchpad-install.log` and `NEMESIS-logs`. |
+| Install/update reports failure | Keep the USB inserted. Open NEMESIS Manager, then **Logs -> Copy to USB**. Bring it back to the computer and keep `NEMESIS-logs`. |
 | Holding TUNE does nothing | Confirm you restarted infotainment after installation. In NEMESIS **Services**, check `paytondev.launchpad/knobd`. Report its status along with your software version. |
 | Preconditioning is Unavailable | Read the reason shown in Advanced. Confirm READY and Battery conditioning mode; a firmware mismatch needs investigation, not disabled compatibility checks. |
 | It stays Request sent | The car has not confirmed activation. Tap Stop, or let the five-minute pending timeout request cancellation. Do not assume warmth from this message. |

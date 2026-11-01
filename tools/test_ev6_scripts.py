@@ -148,34 +148,6 @@ cmp() {
                 else:
                     self.assertEqual(remounts.read_text().splitlines(), ["rw", "ro"])
 
-    def test_usb_verification_rejects_different_or_missing_apk(self):
-        with tempfile.TemporaryDirectory(prefix="launchpad-verify-") as tmp:
-            folder = Path(tmp)
-            expected, system = folder / "expected.apk", folder / "system.apk"
-            expected.write_bytes(b"expected")
-            # Source the real helper and real USB verification function. Stop
-            # before the USB library's top-level initialization/log redirection.
-            common = (ROOT / "tune-service/scripts/common.sh").read_text()
-            library = (ROOT / "usb/launchpad/lib.sh").read_text()
-            start = library.index("verify_installed() {")
-            end = library.index("\n}", start) + 2
-            script = folder / "verify.sh"
-            script.write_text(common + '\nexport PATH=/usr/bin:/bin\n' + library[start:end] + '''
-say() { :; }
-pkg_installed() { return 0; }
-knobd_state() { echo running; }
-sleep() { :; }
-cmp() { case "$1" in -*) return 2 ;; esac; command cmp "$@"; }
-''' + "\nDEX=" + quote(expected) + "\nSYSAPK=" + quote(system) + "\nverify_installed\n", newline="\n")
-            for value in (b"expected", b"different", None):
-                with self.subTest(value=value):
-                    if value is None:
-                        system.unlink()
-                    else:
-                        system.write_bytes(value)
-                    result = run(script)
-                    self.assertEqual(result.returncode == 0, value == b"expected", result.stderr)
-
     def run_port_kit(self, folder, probe_rc="0"):
         """Run the real collect.sh from a fixture USB with every car command mocked."""
         usb = folder / "usb"
@@ -204,7 +176,7 @@ cmp() { case "$1" in -*) return 2 ;; esac; command cmp "$@"; }
                 self.assertIn(name, collect)
                 collect = collect.replace(name, name.split("=")[0] + "=" + quote(value))
             (kit / "collect.sh").write_text(collect, newline="\n")
-            (kit / "lib.sh").write_text((ROOT / "usb/launchpad/lib.sh").read_text(), newline="\n")
+            (kit / "lib.sh").write_text((ROOT / "usb/port-kit/lib.sh").read_text(), newline="\n")
             common = (ROOT / "tune-service/scripts/common.sh").read_text()
             common = common.replace("NEMESIS=/system/xbin/nemesis", "NEMESIS=" + quote(nemesis))
             common = common.replace("BOOT_ENV=/init.environ.rc", "BOOT_ENV=" + quote(folder / "environ.rc"))

@@ -96,14 +96,14 @@ Outputs in `dist/`:
 
 - `paytondev.launchpad.zip`: the NEMESIS package (`tune-service/` plus
   `app/Launchpad.apk`).
-- `Launchpad-install-usb.zip`: the USB drive root. Its `type=execute`
-  `NEMESIS.data` runs `launchpad/install.sh` (from `usb/launchpad/`, with a copy
-  of `tune-service/scripts/common.sh`) against
-  `packages/paytondev.launchpad.zip`.
+- `Launchpad-install-usb.zip`: the USB drive root. Its `type=install`
+  `NEMESIS.data` points at `packages/paytondev.launchpad.zip`, so NEMESIS prompts,
+  installs it, and offers to update it when it's already installed. There are no
+  scripts of our own on this drive.
 
 - `Launchpad-port-kit-usb.zip`: the read-only vehicle porting kit. Its
   `type=execute` `NEMESIS.data` runs `launchpad-port/collect.sh` (from
-  `usb/port-kit/`, with copies of `lib.sh` and `common.sh`). There is no
+  `usb/port-kit/`, with its `lib.sh` and a copy of `common.sh`). There is no
   `packages/` folder, so it has nothing to install. It writes
   `launchpad-port-report.txt` to the drive. The same signed APK is copied to
   `/data/local/tmp/launchpad-port` only as the dex container for `PortProbe`,

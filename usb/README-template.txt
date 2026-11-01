@@ -12,7 +12,7 @@ CV_E.USA.S5W_M.V015.012.260507. Ioniq 5 NEEV US support was tested on a US
 2022 Ioniq 5 SE AWD, software NEEV.USA.0000.V015.012.260507. Other matching
 cars and model years are untested.
 NEMESIS must already be installed. Engineering Mode is not needed for this step.
-Each release is signed with its own key. The installer replaces
+Each release is signed with its own key. The package replaces
 /system/app/Launchpad.apk directly, so a different key does not block an
 update. Do not clear app data or change verifier settings.
 
@@ -30,9 +30,11 @@ IN THE CAR
 2. Before updating or uninstalling, Stop any pending or active manual session
    and confirm Advanced shows Car indicator: Off. Closing Launchpad is not Stop.
 3. Insert the drive into the USB DATA port used for wired Android Auto/CarPlay.
-4. Accept the NEMESIS USB execution prompt. If it expires, reinsert the drive.
-   Do not use Engineering Mode or Run USB NEMESIS.sh for this bundle.
-5. Wait for success. On failure, keep the log and follow the instructions below.
+4. Accept the NEMESIS install prompt. If Launchpad is already installed,
+   NEMESIS then asks whether to update it; accept that too. If a prompt
+   expires, reinsert the drive. Do not use Engineering Mode or Run USB
+   NEMESIS.sh for this bundle.
+5. Wait for NEMESIS's result. On failure, follow the instructions below.
 6. After success, remove the drive and restart infotainment with its recessed
    reset button. This is not a factory reset.
 7. After install/update, hold the right-hand TUNE knob for about one second to
@@ -54,9 +56,9 @@ stays stale, reopen Launchpad. A stale value does not establish whether the
 battery is warm or conditioning is active.
 
 IF IT FAILS
-Keep launchpad-install.log from this drive. Open NEMESIS Manager with three
-quick NAV presses, or three SETUP presses if you configured that shortcut.
-Use Logs -> Copy to USB. Retain NEMESIS-logs as well. Do not repeatedly reinstall
+Open NEMESIS Manager with three quick NAV presses, or three SETUP presses if
+you configured that shortcut. Use Logs -> Copy to USB and keep the NEMESIS-logs
+folder it writes to the drive. Do not repeatedly reinstall
 or clear app data. Report the release, model/year/market, full software version,
 action and error. Remove personal information before posting logs publicly.
 "No supported files" alone is a media-player message, not an installation result.

@@ -70,19 +70,15 @@ def main():
     package_zip = dist / f"{PACKAGE_ID}.zip"
     pack(package, package_zip)
 
-    # install.sh also updates in place; uninstall is NEMESIS Manager's Uninstall
-    # button, which runs the package's preuninstall.
+    # NEMESIS's own type=install prompts, then installs, or offers to update when the
+    # package is already installed. Uninstall is NEMESIS Manager's Uninstall button,
+    # which runs the package's preuninstall.
     usb = stage / "install"
-    scripts = usb / "launchpad"
-    scripts.mkdir(parents=True)
-    copy_lf(ROOT / "tune-service/scripts/common.sh", scripts / "common.sh")
-    copy_lf(ROOT / "usb/launchpad/lib.sh", scripts / "lib.sh")
-    copy_lf(ROOT / "usb/launchpad/install.sh", scripts / "install.sh")
+    (usb / "packages").mkdir(parents=True)
     copy_lf(ROOT / "usb/README-template.txt", usb / "README.txt")
-    (usb / "packages").mkdir()
     shutil.copy2(package_zip, usb / f"packages/{PACKAGE_ID}.zip")
     (usb / "NEMESIS.data").write_bytes(
-        b"[nemesis]\nversion=1.0\ntype=execute\npath=launchpad/install.sh\n")
+        f"[nemesis]\nversion=1.0\ntype=install\npath=packages/{PACKAGE_ID}.zip\n".encode("ascii"))
     out = dist / "Launchpad-install-usb.zip"
     pack(usb, out)
 
@@ -96,7 +92,7 @@ def main():
         raise SystemExit("usb/port-kit/collect.sh needs exactly one KIT_VERSION=@VERSION@ line")
     (kit_scripts / "collect.sh").write_bytes(collect.replace(b"@VERSION@", version.encode("ascii")))
     copy_lf(ROOT / "tune-service/scripts/common.sh", kit_scripts / "common.sh")
-    copy_lf(ROOT / "usb/launchpad/lib.sh", kit_scripts / "lib.sh")
+    copy_lf(ROOT / "usb/port-kit/lib.sh", kit_scripts / "lib.sh")
     shutil.copy2(apk, kit_scripts / "Launchpad.apk")
     copy_lf(ROOT / "usb/port-kit/README-template.txt", kit / "README.txt")
     (kit / "NEMESIS.data").write_bytes(
