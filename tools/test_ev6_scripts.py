@@ -50,8 +50,16 @@ class Ev6ScriptsTest(unittest.TestCase):
         ev6, ioniq5_neev_us, ioniq5_neev23_us = ("daudio_wp_daudioplus_cvev_us", "daudio_wp_daudioplus_neev_us",
                                "daudio_wp_daudioplus_neev23_us")
         ioniq6_ceev_us = "daudio_wp_daudioplus_ceev_us"
+        ev6_cvev_kr = "daudio_wp_daudioplus_cvev_kr"
         cases = [
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "19", ev6),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V014.011.251120", "19", ev6),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.S5W_M.V014.011.251120", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CV_E.USA.S5W_M.V014.011.251120", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V014.011.251120", "20", ioniq5_neev23_us),
+            ("wp_daudioplus_neev23_us", "CVEV.USA.0000.V014.011.251120", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_ceev_us", "CVEV.USA.0000.V014.011.251120", "19", ioniq5_neev23_us),
+            ("other", "CVEV.USA.0000.V014.011.251120", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev23_us", "original", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev23_us", "NEEV23.USA.0000.V015.011.260206", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev23_us", "NEEV23.USA.0000.V016.010.260903", "19", ioniq5_neev23_us),
@@ -59,6 +67,8 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_cvev_us", "CVEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("other", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "NEEV.USA.0000.V015.012.260507", "19", ioniq5_neev_us),
+            # NEEV US 240822 has no TUNE entry: its capture didn't confirm a TUNE hold.
+            ("wp_daudioplus_neev_us", "NEEV.USA.0000.V012.010.240822", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "other", "19", ioniq5_neev23_us),
             ("wp_daudioplus_neev_us", "NEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "NEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
@@ -68,6 +78,16 @@ class Ev6ScriptsTest(unittest.TestCase):
             ("wp_daudioplus_ceev_us", "CEEV.USA.0000.V015.012.260507", "20", ioniq5_neev23_us),
             ("wp_daudioplus_cvev_us", "CEEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
             ("wp_daudioplus_ceev_us", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr", "CVEV.KOR.0000.V039.001.260902", "19", ev6_cvev_kr),
+            ("wp_daudioplus_cvev_kr", "CVEV.KOR.S5W_M.V039.001.260902", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr", "CV_E.KOR.S5W_M.V039.001.260902", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr", "CVEV.KOR.0000.V039.001.260902", "20", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr", "CVEV.USA.0000.V015.012.260507", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr", "other", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_us", "CVEV.KOR.0000.V039.001.260902", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_neev_kr", "CVEV.KOR.0000.V039.001.260902", "19", ioniq5_neev23_us),
+            ("wp_daudioplus_cvev_kr_knob", "CVEV.KOR.0000.V039.001.260902", "19", ioniq5_neev23_us),
+            ("other", "CVEV.KOR.0000.V039.001.260902", "19", ioniq5_neev23_us),
             ("", "", "", ioniq5_neev23_us),
         ]
         with tempfile.TemporaryDirectory(prefix="launchpad-tune-") as tmp:

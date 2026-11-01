@@ -10,7 +10,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Hyundai IONIQ 5 | 2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2023–2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
 
 ### older software versions
 
@@ -20,6 +20,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Hyundai IONIQ 5 | 2022 | KR | NEEV KR (`wp_daudioplus_neev_kr`) | ✅ | ✅ | ✅ supported |
+| Kia EV6 | 2022 | KR | CVEV KR (`wp_daudioplus_cvev_kr`) | ✅ | ✅ | ✅ supported |
 
 </details>
 
@@ -43,11 +44,30 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 </details>
 
+<details>
+<summary><b>251120</b></summary>
+
+| vehicle | model years | market | head unit | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | ✅ | ✅ | ✅ supported |
+
+</details>
+
+<details>
+<summary><b>240822</b></summary>
+
+| vehicle | model years | market | head unit | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Hyundai IONIQ 5 | 2021 | US | NEEV (`wp_daudioplus_neev_us`) | ✅ | ✅ | ✅ supported |
+
+</details>
+
 - **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open Launchpad from the NEMESIS package manager instead. A porting kit report taken while holding TUNE would let us add the shortcut.
+- **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open Launchpad from the NEMESIS package manager instead.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
-- **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md).
+- **EV6 owners** can follow the [EV6 guide](EV6-QUICK-START.md). On the KR EV6 (260902) the pending timeout is two minutes and the warm notice is at 21°C / 70°F.
 
 ## car not listed? run the vehicle porting kit
 
@@ -207,8 +227,13 @@ No report, firmware, raw logs, or disassembly are included.
 ### NEEV23 US 260903 profile
 
 Vehicles: **US 2024 Hyundai Ioniq 5 Limited RWD**
-([port request #23](../../issues/23)) and **US 2024 Hyundai Ioniq 5 SEL AWD**
-([port request #24](../../issues/24)).
+([port request #23](../../issues/23)), **US 2024 Hyundai Ioniq 5 SEL AWD**
+([port request #24](../../issues/24)), **US 2023 Hyundai Ioniq 5 SE AWD**
+([port request #30](../../issues/30)) and **US 2023 Hyundai Ioniq 5 SEL AWD**
+([port request #35](../../issues/35)). The reports for #30 and #35 (kit 1.5.0,
+2026-10-30 and 2026-10-31) gave the same identity, the same two fingerprints and
+the same transaction tables as #23 and #24, so the 2023 cars match this profile
+unchanged.
 
 The profile requires Android API 19, the NEEV23 US device
 `wp_daudioplus_neev23_us`, and `ro.build.product=NEEV23.USA.0000.V016.010.260903`
@@ -394,6 +419,147 @@ Closing the app is not Stop. Do not update or uninstall during an active or
 pending request; stop it and confirm Off first. Public APKs should be built and
 signed through the maintainer's release process. Local test keys differ from the
 upstream key and do not establish cross-signed update compatibility.
+
+### EV6 US 251120 profile
+
+Vehicle: **US 2023 Kia EV6 Wind**
+([port request #26](../../issues/26)).
+
+The profile requires Android API 19, the EV6 device `wp_daudioplus_cvev_us`,
+and `ro.build.product=CVEV.USA.0000.V014.011.251120` (build `KVT49L`; the
+settings screen shows `ro.build.product3`, `CV_E.USA.S5W_M.V014.011.251120`),
+plus both fingerprints from a read-only porting kit report (kit 1.5.0)
+collected on 2026-10-30:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `6919d451f299c1bf8e3d49aead4fcdcd60e055a32cf107d224e56e5cdd5072c0` |
+| `/system/framework/automotive-service.odex` | `8a3523882752935a2d607101794a0037e1bfda1d6df0082e61ed71706778e41f` |
+
+These framework files differ from the EV6 260507 ones and from every other
+profile's. The EV6 260507 check (its own software and hashes) is unchanged;
+this profile is a separate exact match on the same device, and neither hash
+pair can be mixed with the other. `OemVehicleClient` already reads
+`ro.build.product` on the EV6 device. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
+
+Holding TUNE during the kit run recorded key 17 on the main
+`daudio_wp_daudioplus_cvev_us` input device, as on EV6 260507. `knob.conf`
+selects that device on this exact identity (API 19, `wp_daudioplus_cvev_us`,
+`CVEV.USA.0000.V014.011.251120`), with key 17 and the original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. As on the EV6 device's 260507
+release, the warm notice uses 20°C / 68°F and the pending timeout is five
+minutes.
+
+No report, firmware, raw logs, or disassembly are included.
+
+### NEEV US 240822 profile
+
+Vehicle: **US 2021 Hyundai Ioniq 5 AWD**
+([port request #34](../../issues/34)).
+
+The profile requires Android API 19, the NEEV US device `wp_daudioplus_neev_us`,
+and `ro.build.product=NEEV.USA.0000.V012.010.240822` (build `KVT49L`; the
+settings screen shows `ro.build.product3`, `NEEV.USA.S5W_M.V012.010.240822`),
+plus both fingerprints from a read-only porting kit report (kit 1.5.0)
+collected on 2026-10-31:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `0f6786b9c8c167f09c08c559afea7da1e2137e2a1968b9ab372def65762674f9` |
+| `/system/framework/automotive-service.odex` | `2758a413c184855bf92080cfdc6decbfcd6f09775128a982b1eee211993772a1` |
+
+These framework files differ from the NEEV US 260507 ones (which are the NEEV23
+US files) and from every other profile's. The NEEV US 260507 check (its own
+software and the NEEV23 US hashes) is unchanged; this profile is a separate
+exact match on the same device, and neither hash pair can be mixed with the
+other. `OemVehicleClient` already reads `ro.build.product` on the NEEV US
+device. The report shows `com.hkmc.micom.hev` / `com.hkmc.hev.IHEVService` and
+`com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService` present, and every
+transaction Launchpad uses keeps its code: HEV 3 `getHEVStatus`, 62
+`setBattCondEvStation`, 65 `setBattCondRouteDis`, 66 `setBattCondRemainTime`,
+and BCM 109 `getBattCondIndSta`. No command or enum remapping was made. Status
+reads use the same `getHEVStatus` ID arguments as the other profiles (94
+enabled, 44 ready, 115 failure).
+
+**TUNE:** the TUNE shortcut isn't set up for this software, because the capture
+didn't confirm a TUNE hold. The owner's port request says TUNE was not held
+during the kit run; the key capture recorded one 5.5-second hold of key 23 on
+the main `daudio_wp_daudioplus_neev_us` input device, while TUNE on the NEEV US
+260507 release is key 17 on that same device. `knob.conf` has no entry for
+this identity (its NEEV US entry matches only `NEEV.USA.0000.V015.012.260507`),
+and its default device `daudio_wp_daudioplus_neev23_us` isn't among this head
+unit's input devices (`daudio_wp_daudioplus_neev_us` and its `_can` and `_knob`
+devices), so holding TUNE doesn't open Launchpad. The TUNE service only waits
+for its device; it never starts conditioning. A report collected while holding
+TUNE would let a later change add an exact-identity `knob.conf` entry.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. As on the NEEV US device's
+260507 release, the warm notice uses 21°C / 70°F and the pending timeout is two
+minutes.
+
+No report, firmware, raw logs, or disassembly are included.
+
+### EV6 KR 260902 profile
+
+Vehicle: **KR 2022 Kia EV6 Long Range AWD Earth**
+([port request #37](../../issues/37)), the first Korean-market EV6 head unit in
+this project.
+
+The profile requires Android API 19, device `wp_daudioplus_cvev_kr`, and
+`ro.build.product=CVEV.KOR.0000.V039.001.260902` (build `KVT49L`; the settings
+screen shows `ro.build.product3`, `CV_E.KOR.S5W_M.V039.001.260902`, and
+`ro.build.product2` is `CVEV.KOR.S5W_M.V039.001.260902`), plus both
+fingerprints from a read-only porting kit report (kit 1.5.0) collected on
+2026-11-01:
+
+| File | SHA-256 |
+| --- | --- |
+| `/system/framework/automotive.odex` | `e9ff63f7b456327b9a1c683dc2bacf4b30679bb8ff08279799918233ad1de25d` |
+| `/system/framework/automotive-service.odex` | `f830984e0401d24156a7101bb6ec03896ce1a70ff7ec732ad9e65072d8b717eb` |
+
+These framework files differ from every other profile's, including the EV6 US
+and NEEV KR 260902 ones, and no profile accepts another's hashes. This is a
+separate device from the US EV6 (`wp_daudioplus_cvev_us`), so the EV6 US checks
+are unchanged. `OemVehicleClient` reads `ro.build.product` on this device for
+the software check. The report shows `com.hkmc.micom.hev` /
+`com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm` / `com.hkmc.bcm.IBCMService`
+present, and every transaction Launchpad uses keeps its code: HEV 3
+`getHEVStatus`, 62 `setBattCondEvStation`, 65 `setBattCondRouteDis`, 66
+`setBattCondRemainTime`, and BCM 109 `getBattCondIndSta`. No command or enum
+remapping was made. Status reads use the same `getHEVStatus` ID arguments as the
+other profiles (94 enabled, 44 ready, 115 failure).
+
+**TUNE:** holding TUNE during the kit run recorded three holds of key 17 on the
+main `daudio_wp_daudioplus_cvev_kr` input device, not its `_can` or `_knob`
+devices. `knob.conf` selects that device on this exact identity (API 19,
+`wp_daudioplus_cvev_kr`, `CVEV.KOR.0000.V039.001.260902`), with key 17 and the
+original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. The timeout and warm threshold
+are keyed on device, and this device isn't the US EV6 one: the pending timeout
+is the two minutes every new port uses, and the warm notice uses 21°C / 70°F
+(the US EV6 device uses five minutes and 20°C / 68°F).
+
+No report, firmware, raw logs, or disassembly are included.
 
 ### Command profile
 

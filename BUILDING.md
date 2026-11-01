@@ -164,11 +164,16 @@ grabbing the input device or injecting events. Its default profile expects the N
 `daudio_wp_daudioplus_neev23_us`, key code 17, and an 800 ms hold; the
 NEEV23 US 260206 and 260903 porting kit reports showed the same device and key. On the exact
 EV6 US API 19 / 260507 identity, `knob.conf` selects
-`daudio_wp_daudioplus_cvev_us` with the same key and hold duration, and on the
+`daudio_wp_daudioplus_cvev_us` with the same key and hold duration, as it does on
+the exact EV6 US API 19 / 251120 identity, and on the
 exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
 `daudio_wp_daudioplus_neev_us`. On the exact CEEV US (Ioniq 6) API 19 / 260507
-identity it selects `daudio_wp_daudioplus_ceev_us`. The NEEV KR (Ioniq 5) 260902
-identity has no entry, because its porting kit report recorded no TUNE press.
+identity it selects `daudio_wp_daudioplus_ceev_us`. On the exact EV6 KR API 19 /
+260902 identity it selects `daudio_wp_daudioplus_cvev_kr`, with the same key and
+hold duration. The NEEV KR (Ioniq 5) 260902
+identity has no entry, because its porting kit report recorded no TUNE press,
+and neither does the NEEV US (Ioniq 5) 240822 identity, because its porting kit
+report didn't confirm a TUNE hold.
 
 Publish `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`, `Launchpad-port-kit-usb.zip`,
 `paytondev.launchpad.zip` (for manual ADB installs) and `dist/Launchpad.apk`

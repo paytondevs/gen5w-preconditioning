@@ -23,10 +23,20 @@ final class PreconditioningProfile {
     // captured on 2026-10-27 are byte-identical to NEEV23 US, so it reuses those hashes.
     static final String IONIQ5_NEEV_US_DEVICE = "wp_daudioplus_neev_us";
     static final String IONIQ5_NEEV_US_SOFTWARE = "NEEV.USA.0000.V015.012.260507";
+    // NEEV US 240822 (US 2021 Ioniq 5 AWD): same device, older software with its own
+    // framework files; the porting kit report of 2026-10-31 showed the same transactions.
+    static final String IONIQ5_NEEV_US_240822_SOFTWARE = "NEEV.USA.0000.V012.010.240822";
+    static final String IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256 = "0f6786b9c8c167f09c08c559afea7da1e2137e2a1968b9ab372def65762674f9";
+    static final String IONIQ5_NEEV_US_240822_SERVICE_SHA256 = "2758a413c184855bf92080cfdc6decbfcd6f09775128a982b1eee211993772a1";
     static final String EV6_DEVICE = "wp_daudioplus_cvev_us";
     static final String EV6_SOFTWARE = "CVEV.USA.0000.V015.012.260507";
     static final String EV6_FRAMEWORK_SHA256 = "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a";
     static final String EV6_SERVICE_SHA256 = "8af745b41aa28f490953d61531215cd94e059f104b31f6236a8f6c7af23b8062";
+    // EV6 US 251120 (US 2023 EV6 Wind): same device, older software with its own
+    // framework files; the porting kit report of 2026-10-30 showed the same transactions.
+    static final String EV6_251120_SOFTWARE = "CVEV.USA.0000.V014.011.251120";
+    static final String EV6_251120_FRAMEWORK_SHA256 = "6919d451f299c1bf8e3d49aead4fcdcd60e055a32cf107d224e56e5cdd5072c0";
+    static final String EV6_251120_SERVICE_SHA256 = "8a3523882752935a2d607101794a0037e1bfda1d6df0082e61ed71706778e41f";
     // CEEV US 260507 (US 2023 Ioniq 6 SEL): own firmware files, captured on 2026-10-29;
     // the five HEV/BCM transactions and the cluster contract match the other profiles.
     static final String IONIQ6_CEEV_US_DEVICE = "wp_daudioplus_ceev_us";
@@ -39,14 +49,26 @@ final class PreconditioningProfile {
     static final String IONIQ5_NEEV_KR_SOFTWARE = "NEEV.KOR.0000.V039.001.260902";
     static final String IONIQ5_NEEV_KR_FRAMEWORK_SHA256 = "8186fec9601a216e8e3015b77c13b4d18c2fd2dfc2d3a6b7e42dac55b7a22c06";
     static final String IONIQ5_NEEV_KR_SERVICE_SHA256 = "176e2375ef9e2c8b1df16b600f0434df7e2ce7bb7378779e7180e5c23651f80d";
+    // CVEV KR 260902 (KR 2022 EV6 Long Range AWD Earth): own device and firmware files,
+    // captured on 2026-11-01; the five HEV/BCM transactions and the cluster contract match
+    // the other profiles.
+    static final String EV6_CVEV_KR_DEVICE = "wp_daudioplus_cvev_kr";
+    static final String EV6_CVEV_KR_SOFTWARE = "CVEV.KOR.0000.V039.001.260902";
+    static final String EV6_CVEV_KR_FRAMEWORK_SHA256 = "e9ff63f7b456327b9a1c683dc2bacf4b30679bb8ff08279799918233ad1de25d";
+    static final String EV6_CVEV_KR_SERVICE_SHA256 = "f830984e0401d24156a7101bb6ec03896ce1a70ff7ec732ad9e65072d8b717eb";
 
     static boolean supportsDevice(int sdk, String device) {
         return sdk == 19 && (IONIQ5_NEEV23_US_DEVICE.equals(device) || IONIQ5_NEEV_US_DEVICE.equals(device) || EV6_DEVICE.equals(device)
-            || IONIQ6_CEEV_US_DEVICE.equals(device) || IONIQ5_NEEV_KR_DEVICE.equals(device));
+            || IONIQ6_CEEV_US_DEVICE.equals(device) || IONIQ5_NEEV_KR_DEVICE.equals(device)
+            || EV6_CVEV_KR_DEVICE.equals(device));
     }
     // Cancel an unconfirmed request after this long. EV6: five minutes, field-validated.
     // Ioniq 5: activation normally follows in about 60–70 seconds, so two minutes.
     // Ioniq 6 and every newer port use the Ioniq 5 two minutes.
+    // The timeout and warm threshold are keyed on device, so EV6 251120 (same device)
+    // gets the EV6's five minutes and 20°C, and NEEV US 240822 gets the Ioniq 5 two
+    // minutes and 21°C. The EV6 CVEV KR is its own device, so as a new port it gets
+    // the two minutes and 21°C.
     static final long IONIQ5_ACTIVATION_TIMEOUT_MS = 2 * 60 * 1000L;
     static long activationTimeoutMs(String device) {
         return EV6_DEVICE.equals(device) ? PreconditioningController.ACTIVATION_TIMEOUT_MS : IONIQ5_ACTIVATION_TIMEOUT_MS;
@@ -74,6 +96,9 @@ final class PreconditioningProfile {
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }
         if (IONIQ5_NEEV_US_DEVICE.equals(device)) {
+            if (IONIQ5_NEEV_US_240822_SOFTWARE.equals(software)
+                && IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV_US_240822_SERVICE_SHA256.equals(serviceHash)) return true;
             return IONIQ5_NEEV_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }
@@ -85,6 +110,13 @@ final class PreconditioningProfile {
             return IONIQ5_NEEV_KR_SOFTWARE.equals(software) && IONIQ5_NEEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV_KR_SERVICE_SHA256.equals(serviceHash);
         }
+        if (EV6_CVEV_KR_DEVICE.equals(device)) {
+            return EV6_CVEV_KR_SOFTWARE.equals(software) && EV6_CVEV_KR_FRAMEWORK_SHA256.equals(frameworkHash)
+                && EV6_CVEV_KR_SERVICE_SHA256.equals(serviceHash);
+        }
+        if (EV6_251120_SOFTWARE.equals(software)
+            && EV6_251120_FRAMEWORK_SHA256.equals(frameworkHash)
+            && EV6_251120_SERVICE_SHA256.equals(serviceHash)) return true;
         return EV6_SOFTWARE.equals(software) && EV6_FRAMEWORK_SHA256.equals(frameworkHash)
             && EV6_SERVICE_SHA256.equals(serviceHash);
     }
