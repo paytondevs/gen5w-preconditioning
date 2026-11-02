@@ -140,7 +140,7 @@ nothing extra to do: run the drive the same way. if Launchpad 1.x is on the car,
 ## uninstalling
 
 1. if preconditioning is running, press **Stop** and wait for it to end.
-2. open NEMESIS Manager (press NAV three times) → **Packages** → **Launchpad** → **Uninstall**.
+2. open NEMESIS Manager (press NAV three times) → **Packages** → **Precondition** → **Uninstall**.
 3. reboot the headunit.
 
 this removes Launchpad and its TUNE shortcut. if you still have Launchpad 1.x and it isn't in the Packages list (for example, you installed it over ADB), install 2.0 first, which removes 1.x, then uninstall. NEMESIS stays installed. if you want that gone too, use **Wipe NEMESIS** in NEMESIS Manager. see the [NEMESIS docs](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe).
@@ -152,14 +152,14 @@ this removes Launchpad and its TUNE shortcut. if you still have Launchpad 1.x an
 | nothing happens when you plug in the drive | make sure `NEMESIS.data` is in the **root** of the drive, not in a folder. check the drive is FAT32/exFAT and in a data port. check NEMESIS is installed (press NAV three times; Manager should open). |
 | "Invalid package descriptor" | the drive has the wrong files, or they were copied incompletely. check you extracted `Launchpad-install-usb.zip`, not `paytondev.launchpad.zip`, and that the drive looks like the layout above. extract it again onto the drive. |
 | the dialog says it failed | open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. message me with it, plus `launchpad-install.log` if you used the manual drive. |
-| Precondition isn't on NEMESIS Manager's home screen | that screen needs NEMESIS 1.16 or newer. close Manager and open it again. if it's still missing, check that **Packages** lists Launchpad, and run the install drive again. |
+| Precondition isn't on NEMESIS Manager's home screen | that screen needs NEMESIS 1.16 or newer. close Manager and open it again. if it's still missing, check that **Packages** lists Precondition, and run the install drive again. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your car or its software version isn't supported yet, so Launchpad won't send anything to the car. check the [compatibility chart](COMPATIBILITY.md#compatibility-chart). if your car isn't listed, run the [vehicle porting kit](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit). |
 | it stays **Request sent** | the car hasn't confirmed yet. press **Stop**, or wait: Launchpad cancels it after five minutes on the EV6 (two on the IONIQ 5). **Start** comes back once the car reports Off. |
 
 ## what this changes on your car
 
-- Launchpad is installed as a normal NEMESIS package, so it shows up in NEMESIS Manager → **Packages**, and uninstalling it from there removes everything.
+- Launchpad is installed as a normal NEMESIS package, so it shows up in NEMESIS Manager → **Packages** as **Precondition**, and uninstalling it from there removes everything.
 - NEMESIS installs the app the normal Android way, like an app you'd install yourself, so it also shows up on NEMESIS Manager's home screen. nothing is written to the car's system area, and no Hyundai or Kia files are changed.
 - updates keep your settings: they're copied to NEMESIS's backup folder while the old version is swapped for the new one, then put back.
 - if an update fails partway, run the drive again. your settings stay in the backup folder until an install puts them back.

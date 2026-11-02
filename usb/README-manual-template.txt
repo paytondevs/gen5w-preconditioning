@@ -4,7 +4,7 @@ This drive installs Launchpad, or updates it in place if it is already
 installed. It works with any NEMESIS version: its own script runs the install,
 writes launchpad-install.log to the drive and checks the result. On NEMESIS
 1.16 or newer you can use Launchpad-install-usb.zip instead. To remove Launchpad and its TUNE shortcut, use NEMESIS Manager ->
-Packages -> Launchpad -> Uninstall; NEMESIS stays installed. There is no
+Packages -> Precondition -> Uninstall; NEMESIS stays installed. There is no
 uninstall drive.
 
 BEFORE YOU BEGIN
