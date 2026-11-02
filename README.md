@@ -108,6 +108,21 @@ if the car hasn't confirmed after five minutes on the EV6 (two on the IONIQ 5), 
 
 press **Stop** to cancel, even while it's still waiting. closing Launchpad does **not** stop a request that's already running.
 
+### scheduling it
+
+the round **clock** button next to **Start** lets you pick a time instead. there are two modes:
+
+- **Start by:** conditioning should be running by that time. the car takes about a minute to react, so Launchpad sends the request 70 seconds early: pick 1:30 and it goes out at 1:28:50.
+- **Arrive by:** the battery should be warm when you get there, for example at a fast charger. Launchpad works out when to start from the battery temperature and the car's outside temperature sensor, and keeps adjusting the plan while it waits. the car stops a session after about 30 minutes, so that's the most it plans for. the heating rates it uses are estimates from owner reports, not measurements, so treat the start time as a best guess.
+
+once it's scheduled, the card shows a countdown to the start, and for **Arrive by** the battery and outside temperatures it's planning with. press **Cancel schedule** to drop it, or the clock button to change it. pressing **Start** yourself also cancels the schedule.
+
+you can close Launchpad; the schedule keeps running in the background and survives a head unit restart. a few things to know:
+
+- the car has to be on and READY when the request goes out, same as pressing Start. if it isn't, Launchpad keeps trying until 5 minutes after the time you picked, then gives up and logs it as **missed**. it never sends late.
+- if the battery is already warm at that point, nothing is sent and the log says so.
+- the outcome is also posted as a notification, but the head unit may not show those.
+
 **dark mode:** go to **Advanced → Appearance**. **Follow car** (the default) matches the head unit's day/night display, or pick **Light** or **Dark** to keep one. Follow car uses the head unit's Day/Night display setting, including Auto. if it doesn't switch on your car, the **Appearance signals** panel at the bottom of Advanced shows what the head unit reports.
 
 ## updating

@@ -65,6 +65,15 @@ final class FocusUi {
         states.addState(new int[]{}, rounded(fill, radius, 0));
         return states;
     }
+    /** Circular secondary control: card fill with a hairline; accent outline when pressed or knob-selected. */
+    Drawable circle(int sizeDp) {
+        int radius = sizeDp / 2;
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_pressed}, rounded(p.pressed, radius, p.accent));
+        states.addState(new int[]{android.R.attr.state_activated}, rounded(p.activated, radius, p.accent));
+        states.addState(new int[]{}, rounded(p.card, radius, p.line));
+        return states;
+    }
     private Drawable ring(int fill, int radius) {
         LayerDrawable ring = new LayerDrawable(new Drawable[]{rounded(p.background, radius, p.accent),
             rounded(fill, radius - 4, 0)});
