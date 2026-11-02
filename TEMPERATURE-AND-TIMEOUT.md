@@ -164,7 +164,7 @@ closed. An `AlarmManager.setExact` alarm at the send time restarts the service i
 its process was killed, and `BootReceiver` restores a stored schedule after a
 head-unit restart; it does nothing when none is stored. Pressing Start or Start
 anyway cancels an armed schedule first. Every decision is kept in a 24-entry log
-that survives process death and is shown on the card; outcomes are also posted
+that survives process death (not shown on the card); outcomes are also posted
 as notifications, which may not be visible on the head unit.
 
 Not yet verified in a car: the outside-temperature scale, the heating rates,

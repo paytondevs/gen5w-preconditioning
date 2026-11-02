@@ -33,14 +33,13 @@ public class ArriveByPlannerTest {
         assertEquals(T - 14 * MIN - 70_000L, plan.sendAt);
         assertEquals(14, plan.heatMinutes);
         assertFalse(plan.alreadyWarm || plan.capped || plan.lateStart);
-        assertTrue(plan.reason, plan.reason.contains("14 min of heat + 70 s"));
-        assertTrue(plan.reason, plan.reason.contains("59°F (15°C)"));
+        assertEquals("About 14 min to warm the battery from 59°F to 70°F.", plan.reason);
     }
     @Test public void capsAtTheCarsThirtyMinuteSession() {
         ArriveByPlanner.Plan plan = ArriveByPlanner.plan(T, 9, 0, 21, NOW);
         assertEquals(T - 30 * MIN - 70_000L, plan.sendAt);
         assertTrue(plan.capped);
-        assertTrue(plan.reason, plan.reason.contains("may not be warm by arrival"));
+        assertTrue(plan.reason, plan.reason.endsWith("It may not be fully warm in time."));
         plan = ArriveByPlanner.plan(T, -15, -20, 21, NOW);
         assertEquals(30, plan.heatMinutes);
         assertTrue(plan.capped);
@@ -49,19 +48,19 @@ public class ArriveByPlannerTest {
         ArriveByPlanner.Plan plan = ArriveByPlanner.plan(T, null, null, 21, NOW);
         assertEquals(T - 30 * MIN - 70_000L, plan.sendAt);
         assertFalse(plan.capped);
-        assertTrue(plan.reason, plan.reason.contains("unknown"));
+        assertTrue(plan.reason, plan.reason.startsWith("Battery temperature unknown"));
     }
     @Test public void tooLateSendsNow() {
         ArriveByPlanner.Plan plan = ArriveByPlanner.plan(NOW + 5 * MIN, 15, 10, 21, NOW);
         assertEquals(NOW, plan.sendAt);
         assertTrue(plan.lateStart);
-        assertTrue(plan.reason, plan.reason.contains("sending now"));
+        assertTrue(plan.reason, plan.reason.contains("starts right away"));
     }
     @Test public void warmPackSendsNothing() {
         ArriveByPlanner.Plan plan = ArriveByPlanner.plan(T, 21, 0, 21, NOW);
         assertTrue(plan.alreadyWarm);
         assertEquals(PreconditioningSchedule.NONE, plan.sendAt);
-        assertTrue(plan.reason, plan.reason.contains("already"));
+        assertTrue(plan.reason, plan.reason.startsWith("Battery is already warm"));
         assertFalse(ArriveByPlanner.plan(T, 20, 0, 21, NOW).alreadyWarm);
     }
 }

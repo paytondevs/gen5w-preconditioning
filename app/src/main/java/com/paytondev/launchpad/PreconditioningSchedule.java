@@ -38,7 +38,7 @@ final class PreconditioningSchedule {
 
     static PreconditioningSchedule startBy(long targetAt, long now) {
         return new PreconditioningSchedule(Mode.START_BY, targetAt, now, targetAt - SEND_LEAD_MS, null, null,
-            "Start sent 70 s before the target so conditioning is active by then");
+            "Launchpad asks the car a minute early so it's running on time.");
     }
     static PreconditioningSchedule arriveBy(long targetAt, long now, Integer minimumC, Integer outsideC, int thresholdC) {
         ArriveByPlanner.Plan plan = ArriveByPlanner.plan(targetAt, minimumC, outsideC, thresholdC, now);

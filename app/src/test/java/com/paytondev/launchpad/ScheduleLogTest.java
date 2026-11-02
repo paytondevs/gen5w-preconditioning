@@ -49,6 +49,7 @@ public class ScheduleLogTest {
         assertTrue(ScheduleLog.Kind.FIRED.outcome());
         assertTrue(ScheduleLog.Kind.MISSED.outcome());
         assertFalse(ScheduleLog.Kind.DEFERRED.outcome());
-        assertEquals("replanned", ScheduleLog.Kind.REPLANNED.label());
+        assertEquals("Updated", ScheduleLog.Kind.REPLANNED.label());
+        assertEquals("Started", ScheduleLog.Kind.FIRED.label());
     }
 }

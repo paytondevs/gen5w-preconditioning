@@ -1,7 +1,5 @@
 package com.paytondev.launchpad;
 
-import java.util.Locale;
-
 /**
  * Chooses when to send Start so the pack minimum reaches the warm threshold by arrival.
  *
@@ -52,29 +50,21 @@ final class ArriveByPlanner {
     }
 
     static Plan plan(long arriveAt, Integer minimumC, Integer outsideC, int thresholdC, long now) {
-        String warm = ScheduleFormat.temperature(thresholdC);
         if (BatteryTemperature.isWarm(minimumC, thresholdC))
             return new Plan(PreconditioningSchedule.NONE, 0, true, false, false,
-                "Pack " + ScheduleFormat.temperature(minimumC) + " is already at " + warm
-                    + "; nothing to send unless it cools");
+                "Battery is already warm. It only starts if it cools down.");
         int minutes = uncappedHeatMinutes(minimumC, outsideC, thresholdC);
         boolean capped = minutes > SESSION_CAP_MIN;
         if (capped) minutes = SESSION_CAP_MIN;
         long sendAt = arriveAt - minutes * 60_000L - PreconditioningSchedule.SEND_LEAD_MS;
         boolean late = sendAt < now;
         if (late) sendAt = now;
-        StringBuilder reason = new StringBuilder();
-        if (minimumC == null) {
-            reason.append("Pack temperature unknown: planning the full ").append(minutes).append(" min + 70 s");
-        } else {
-            reason.append("Pack ").append(ScheduleFormat.temperature(minimumC)).append(" to ")
-                .append(BatteryTemperatureReading.fahrenheit(thresholdC)).append("°F at ~")
-                .append(String.format(Locale.US, "%.2f", rateCPerMin(outsideC))).append("°C/min (outside ")
-                .append(outsideC == null ? "unknown" : ScheduleFormat.temperature(outsideC)).append("): ")
-                .append(minutes).append(" min of heat + 70 s");
-        }
-        if (capped) reason.append(" · capped at the car's 30 min session, may not be warm by arrival");
-        if (late) reason.append(" · not enough time left, sending now");
-        return new Plan(sendAt, minutes, false, capped, late, reason.toString());
+        String reason;
+        if (late) reason = "Not enough time to fully warm the battery, so it starts right away.";
+        else if (minimumC == null) reason = "Battery temperature unknown, so it allows the full 30 min.";
+        else reason = "About " + minutes + " min to warm the battery from "
+            + BatteryTemperatureReading.fahrenheit(minimumC) + "°F to " + BatteryTemperatureReading.fahrenheit(thresholdC) + "°F"
+            + (capped ? ". It may not be fully warm in time." : ".");
+        return new Plan(sendAt, minutes, false, capped, late, reason);
     }
 }

@@ -92,7 +92,7 @@ public final class PreconditioningService extends Service {
     private final Runnable attach = new Runnable() {
         @Override public void run() {
             bound = true; worker.removeCallbacks(tick);
-            noteRestored("Restored when Launchpad opened");
+            noteRestored("after Launchpad restarted");
             tick.run();
             temperatureVisible = true; startTemperaturePoll();
         }
@@ -138,7 +138,7 @@ public final class PreconditioningService extends Service {
             if (schedule != null) {
                 restoredSchedule = true;
                 if (pending) log(ScheduleLog.Kind.RECOVERED,
-                    "Launchpad restarted during a request; cancelling it before the scheduled send");
+                    "Launchpad restarted mid-request, so it cancelled that first");
                 armAlarm();            // Alarms do not survive a reboot.
                 startTemperaturePoll();
             }
@@ -166,11 +166,11 @@ public final class PreconditioningService extends Service {
             if (intent == null) return;
             String action = intent.getAction();
             if (START.equals(action)) {
-                if (schedule != null) cancelSchedule("Cancelled: Start pressed");
+                if (schedule != null) cancelSchedule("Start was pressed");
                 startNow();
             }
             else if (START_ANYWAY.equals(action)) {
-                if (schedule != null) cancelSchedule("Cancelled: Start anyway pressed");
+                if (schedule != null) cancelSchedule("Start anyway was pressed");
                 controller.refresh(SystemClock.elapsedRealtime());
                 if (controller.snapshot(SystemClock.elapsedRealtime()).state == PreconditioningSnapshot.State.WARM) {
                     promote("Sending manual request", false);
@@ -180,9 +180,9 @@ public final class PreconditioningService extends Service {
             }
             else if (STOP.equals(action)) controller.stop(SystemClock.elapsedRealtime());
             else if (SCHEDULE_SET.equals(action)) arm(intent.getStringExtra(EXTRA_MODE), intent.getLongExtra(EXTRA_TARGET, -1));
-            else if (SCHEDULE_CANCEL.equals(action)) { if (schedule != null) cancelSchedule("Cancelled"); }
-            else if (SCHEDULE_FIRE.equals(action)) noteRestored("Restored by the send-time alarm");
-            else if (SCHEDULE_RESTORE.equals(action)) noteRestored("Restored after the head unit started");
+            else if (SCHEDULE_CANCEL.equals(action)) { if (schedule != null) cancelSchedule("By you"); }
+            else if (SCHEDULE_FIRE.equals(action)) noteRestored("after Launchpad restarted");
+            else if (SCHEDULE_RESTORE.equals(action)) noteRestored("after the head unit restarted");
             evaluateSchedule();
             publish(); worker.removeCallbacks(tick);
             if (keepAlive()) worker.postDelayed(tick, 1000); else stopSelf();
@@ -215,13 +215,13 @@ public final class PreconditioningService extends Service {
         long now = WallClock.now();
         PreconditioningSchedule.Mode mode;
         try { mode = PreconditioningSchedule.Mode.valueOf(modeName); }
-        catch (RuntimeException e) { log(ScheduleLog.Kind.REJECTED, "Not armed: unknown schedule mode"); return; }
+        catch (RuntimeException e) { log(ScheduleLog.Kind.REJECTED, "Unknown schedule type"); return; }
         if (!PreconditioningSchedule.acceptable(target, now)) {
-            log(ScheduleLog.Kind.REJECTED, "Not armed: pick a time between 2 minutes and 24 hours from now");
+            log(ScheduleLog.Kind.REJECTED, "Pick a time 2 minutes to 24 hours away");
             return;
         }
         PreconditioningSchedule next = PreconditioningSchedule.create(mode, target, now, freshMinimumC(), outsideC, warmThresholdC);
-        if (!persist(next)) { log(ScheduleLog.Kind.REJECTED, "Not armed: the schedule could not be saved"); return; }
+        if (!persist(next)) { log(ScheduleLog.Kind.REJECTED, "Couldn't save the schedule"); return; }
         if (schedule != null) log(ScheduleLog.Kind.CANCELLED, "Replaced by a new schedule");
         schedule = next; restoredSchedule = false;
         log(ScheduleLog.Kind.ARMED, describe(next));
@@ -234,8 +234,8 @@ public final class PreconditioningService extends Service {
         PreconditioningSchedule next = current.replanned(WallClock.now(), freshMinimumC(), outsideC, warmThresholdC);
         if (next == current || !next.materiallyDifferent(current) || !persist(next)) return;
         schedule = next;
-        log(ScheduleLog.Kind.REPLANNED, next.plannedSendAt == PreconditioningSchedule.NONE ? next.reason
-            : "Sends at " + clockSeconds(next.plannedSendAt) + " · " + next.reason);
+        log(ScheduleLog.Kind.REPLANNED, next.plannedSendAt == PreconditioningSchedule.NONE ? "Battery is already warm"
+            : "Now starting at " + clock(next.plannedSendAt));
         armAlarm();
     }
     /** Fire, defer or expire the armed schedule. Worker thread, every tick and command. */
@@ -247,12 +247,12 @@ public final class PreconditioningService extends Service {
         if (due == PreconditioningSchedule.Due.WAIT) return;
         if (due == PreconditioningSchedule.Due.EXPIRED) {
             if (current.plannedSendAt == PreconditioningSchedule.NONE)
-                finish(ScheduleLog.Kind.SKIPPED, "Arrival time reached and the pack stayed warm; nothing sent");
+                finish(ScheduleLog.Kind.SKIPPED, "Battery stayed warm, so it didn't need to start");
             else {
                 ScheduleLog.Event last = scheduleLog.latest();
                 finish(ScheduleLog.Kind.MISSED, last != null && last.kind == ScheduleLog.Kind.DEFERRED
-                    ? "Not sent: the car never accepted Start. Last reason: " + last.text
-                    : "Not sent: the head unit was off or Launchpad was not running at " + clock(current.plannedSendAt));
+                    ? "The car wasn't ready in time"
+                    : "The head unit was off at " + clock(current.plannedSendAt));
             }
             return;
         }
@@ -260,7 +260,7 @@ public final class PreconditioningService extends Service {
         controller.refresh(elapsed);
         PreconditioningSnapshot s = controller.snapshot(elapsed);
         if (!s.requested && s.indicator == 1) {
-            finish(ScheduleLog.Kind.SKIPPED, "The car is already conditioning the battery; no request sent");
+            finish(ScheduleLog.Kind.SKIPPED, "The car was already warming the battery");
             return;
         }
         if (s.state != PreconditioningSnapshot.State.WARM && !s.canStart) { defer(s.detail, current); return; }
@@ -269,17 +269,14 @@ public final class PreconditioningService extends Service {
         if (!persist(null)) { defer("The schedule could not be updated before sending.", current); return; }
         switch (startNow()) {
             case STARTED:
-                finish(ScheduleLog.Kind.FIRED, "Start sent · pack " + ScheduleFormat.temperature(lastStartMinimumC)
-                    + " · outside " + ScheduleFormat.temperature(outsideC));
+                finish(ScheduleLog.Kind.FIRED, "Asked the car to start warming the battery");
                 return;
             case UNCERTAIN:
-                finish(ScheduleLog.Kind.FIRED, "Start attempted but not confirmed: "
-                    + controller.snapshot(SystemClock.elapsedRealtime()).detail);
+                finish(ScheduleLog.Kind.FIRED, "Tried to start, but the car didn't confirm. Stop is still available.");
                 return;
             case WARM:
-                finish(ScheduleLog.Kind.SKIPPED, (lastStartMinimumC == null ? "Pack is"
-                    : "Pack " + ScheduleFormat.temperature(lastStartMinimumC) + " is") + " at or above "
-                    + BatteryTemperatureReading.fahrenheit(warmThresholdC) + "°F; no request sent");
+                finish(ScheduleLog.Kind.SKIPPED, "Battery was already warm"
+                    + (lastStartMinimumC == null ? "" : " (" + BatteryTemperatureReading.fahrenheit(lastStartMinimumC) + "°F)"));
                 return;
             default:
                 persist(current);   // Nothing was sent; keep trying until the grace deadline.
@@ -287,7 +284,7 @@ public final class PreconditioningService extends Service {
         }
     }
     private void defer(String reason, PreconditioningSchedule current) {
-        String text = reason.trim() + " Retrying until " + clock(current.deadline()) + ".";
+        String text = reason.trim() + " Trying until " + clock(current.deadline()) + ".";
         ScheduleLog.Event last = scheduleLog.latest();
         if (last != null && last.kind == ScheduleLog.Kind.DEFERRED
             && (last.text.equals(text) || WallClock.now() - last.at < DEFER_LOG_MS)) return;
@@ -310,7 +307,7 @@ public final class PreconditioningService extends Service {
     private void noteRestored(String how) {
         if (!restoredSchedule || schedule == null) return;
         restoredSchedule = false;
-        log(ScheduleLog.Kind.RESTORED, how + " · " + describe(schedule));
+        log(ScheduleLog.Kind.RESTORED, describe(schedule) + ", " + how);
     }
     private boolean persist(PreconditioningSchedule value) {
         SharedPreferences.Editor edit = journal.edit();
@@ -327,15 +324,12 @@ public final class PreconditioningService extends Service {
     }
     private String describe(PreconditioningSchedule s) {
         String head = s.title() + " " + clock(s.targetAt);
-        if (s.plannedSendAt == PreconditioningSchedule.NONE) return head + " · " + s.reason;
-        String sends = head + " · sends at " + clockSeconds(s.plannedSendAt);
-        return s.mode == PreconditioningSchedule.Mode.ARRIVE_BY ? sends + " · " + s.reason : sends;
+        if (s.mode == PreconditioningSchedule.Mode.START_BY) return head;
+        if (s.plannedSendAt == PreconditioningSchedule.NONE) return head + ", battery already warm";
+        return head + ", starting at " + clock(s.plannedSendAt);
     }
     private String clock(long epochMs) {
         return ScheduleFormat.time(epochMs, DateFormat.is24HourFormat(this), TimeZone.getDefault());
-    }
-    private String clockSeconds(long epochMs) {
-        return ScheduleFormat.timeWithSeconds(epochMs, DateFormat.is24HourFormat(this), TimeZone.getDefault());
     }
 
     private AlarmManager alarms() { return (AlarmManager) getSystemService(ALARM_SERVICE); }
@@ -361,9 +355,7 @@ public final class PreconditioningService extends Service {
         if (snapshot.requested) {
             promote(snapshot.title() + " · " + snapshot.elapsed(), false);
         } else if (current != null) {
-            promote("Scheduled · " + current.title() + " " + clock(current.targetAt)
-                + (current.plannedSendAt == PreconditioningSchedule.NONE ? " · pack already warm"
-                    : " · sends at " + clock(current.plannedSendAt)), true);
+            promote("Scheduled: " + current.title().toLowerCase(java.util.Locale.US) + " " + clock(current.targetAt), true);
         } else if (foreground) { stopForeground(true); foreground = false; lastNotification = null; }
     }
     private void promote(String message, boolean armed) {
@@ -385,8 +377,8 @@ public final class PreconditioningService extends Service {
     private void notifyOutcome(ScheduleLog.Kind kind, String text) {
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager == null) return;
-        String title = kind == ScheduleLog.Kind.FIRED ? "Scheduled preconditioning sent"
-            : kind == ScheduleLog.Kind.SKIPPED ? "Scheduled preconditioning skipped" : "Scheduled preconditioning missed";
+        String title = kind == ScheduleLog.Kind.FIRED ? "Preconditioning started"
+            : kind == ScheduleLog.Kind.SKIPPED ? "Preconditioning skipped" : "Preconditioning didn't start";
         PendingIntent content = PendingIntent.getActivity(this, OUTCOME_NOTIFICATION,
             new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
         manager.notify(OUTCOME_NOTIFICATION, new Notification.Builder(this)

@@ -9,7 +9,20 @@ final class ScheduleLog {
     static final int CAPACITY = 24;
     enum Kind {
         ARMED, REPLANNED, DEFERRED, FIRED, SKIPPED, MISSED, CANCELLED, RESTORED, RECOVERED, REJECTED;
-        String label() { return name().toLowerCase(java.util.Locale.US); }
+        String label() {
+            switch (this) {
+                case ARMED: return "Scheduled";
+                case REPLANNED: return "Updated";
+                case DEFERRED: return "Waiting";
+                case FIRED: return "Started";
+                case SKIPPED: return "Skipped";
+                case MISSED: return "Missed";
+                case CANCELLED: return "Cancelled";
+                case RESTORED: return "Resumed";
+                case RECOVERED: return "Recovered";
+                default: return "Not scheduled";
+            }
+        }
         /** A final result the user should see after coming back. */
         boolean outcome() { return this == FIRED || this == SKIPPED || this == MISSED || this == REJECTED; }
     }

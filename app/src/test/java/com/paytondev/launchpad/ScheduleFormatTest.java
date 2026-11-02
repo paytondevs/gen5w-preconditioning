@@ -44,16 +44,14 @@ public class ScheduleFormatTest {
     }
     @Test public void sendLineCountsDownThenWaits() {
         PreconditioningSchedule s = PreconditioningSchedule.startBy(TEN + 3 * 60 * MIN + 30 * MIN, TEN);
-        assertEquals("Sends at 1:28:50 PM · in 3:28:50", ScheduleFormat.sendLine(s, TEN, false, UTC));
-        assertEquals("Send time reached · waiting for the car", ScheduleFormat.sendLine(s, s.plannedSendAt, false, UTC));
-        PreconditioningSchedule tomorrow = PreconditioningSchedule.startBy(TEN + 20 * 60 * MIN, TEN);
-        assertTrue(ScheduleFormat.sendLine(tomorrow, TEN, true, UTC).startsWith("Sends tomorrow at 5:58:50"));
+        assertEquals("Starting in 3:28:50", ScheduleFormat.sendLine(s, TEN));
+        assertEquals("Waiting for the car", ScheduleFormat.sendLine(s, s.plannedSendAt));
         PreconditioningSchedule warm = PreconditioningSchedule.arriveBy(TEN + 60 * MIN, TEN, 25, 10, 21);
-        assertEquals("Pack already warm · rechecking until 11:00", ScheduleFormat.sendLine(warm, TEN, true, UTC));
+        assertEquals("Battery already warm", ScheduleFormat.sendLine(warm, TEN));
     }
     @Test public void eventLineLeadsWithTimeAndKind() {
-        ScheduleLog.Event e = ScheduleLog.EMPTY.add(TEN, ScheduleLog.Kind.FIRED, "Start sent").latest();
-        assertEquals("10:00 AM  Fired · Start sent", ScheduleFormat.event(e, TEN + MIN, false, UTC));
+        ScheduleLog.Event e = ScheduleLog.EMPTY.add(TEN, ScheduleLog.Kind.ARMED, "Start by 10:30 AM").latest();
+        assertEquals("10:00 AM  Scheduled · Start by 10:30 AM", ScheduleFormat.event(e, TEN + MIN, false, UTC));
     }
     @Test public void temperatureShowsFahrenheitFirst() {
         assertEquals("48°F (9°C)", ScheduleFormat.temperature(9));

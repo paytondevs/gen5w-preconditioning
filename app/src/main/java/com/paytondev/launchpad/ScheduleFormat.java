@@ -63,19 +63,15 @@ final class ScheduleFormat {
     /** Minute of the day in 0..1439 for any whole-minute offset (Math.floorMod is API 24). */
     static int wrapDay(int minutes) { int day = 24 * 60; return ((minutes % day) + day) % day; }
     /** The monitor's countdown line for an armed schedule. */
-    static String sendLine(PreconditioningSchedule schedule, long nowEpochMs, boolean twentyFourHour, TimeZone zone) {
-        if (schedule.plannedSendAt == PreconditioningSchedule.NONE)
-            return "Pack already warm · rechecking until " + time(schedule.targetAt, twentyFourHour, zone);
-        if (nowEpochMs >= schedule.plannedSendAt) return "Send time reached · waiting for the car";
-        return "Sends" + dayHint(schedule.plannedSendAt, nowEpochMs, zone) + " at "
-            + timeWithSeconds(schedule.plannedSendAt, twentyFourHour, zone)
-            + " · in " + countdown(schedule.plannedSendAt - nowEpochMs);
+    static String sendLine(PreconditioningSchedule schedule, long nowEpochMs) {
+        if (schedule.plannedSendAt == PreconditioningSchedule.NONE) return "Battery already warm";
+        if (nowEpochMs >= schedule.plannedSendAt) return "Waiting for the car";
+        return "Starting in " + countdown(schedule.plannedSendAt - nowEpochMs);
     }
-    /** "1:02 PM  Armed · Start by 1:30 PM · sends at 1:28:50 PM" */
+    /** "1:02 PM  Scheduled · Start by 1:30 PM" */
     static String event(ScheduleLog.Event event, long nowEpochMs, boolean twentyFourHour, TimeZone zone) {
-        String label = event.kind.label();
         return time(event.at, twentyFourHour, zone) + dayHint(event.at, nowEpochMs, zone) + "  "
-            + Character.toUpperCase(label.charAt(0)) + label.substring(1) + " · " + event.text;
+            + event.kind.label() + " · " + event.text;
     }
     /** "48°F (9°C)" or "—". */
     static String temperature(Integer celsius) {
