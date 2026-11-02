@@ -12,17 +12,23 @@ import java.util.concurrent.TimeUnit;
 final class ClusterBatteryTemperatureReader {
     private static final String SERVICE = "com.hkmc.cluster.IClusterService";
     private static final String LISTENER = "com.hkmc.cluster.INavigationClusterListener";
-    private static FutureTask<Integer> pending;
+    private static FutureTask<int[]> pending;
     private static long deadlineNanos;
 
     // Keep even a hung Binder transaction off the controller worker. At most one
     // helper is in flight across service recreation. Timeouts are never reused.
-    static Integer read() {
-        final FutureTask<Integer> task;
+    static Integer read() { return BatteryTemperature.decode(readRaw()); }
+    /** The same single round trip, with the outside-air field too. */
+    static BatteryTemperature.Sample readAll() {
+        int[] raw = readRaw();
+        return new BatteryTemperature.Sample(BatteryTemperature.decode(raw), null, BatteryTemperature.decodeOutside(raw));
+    }
+    private static int[] readRaw() {
+        final FutureTask<int[]> task;
         final long deadline;
         synchronized (ClusterBatteryTemperatureReader.class) {
             if (pending == null || pending.isDone()) {
-                pending = new FutureTask<Integer>(() -> collect());
+                pending = new FutureTask<int[]>(() -> collect());
                 deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(1800);
                 Thread helper = new Thread(pending, "launchpad-battery-precheck");
                 helper.setDaemon(true);
@@ -36,13 +42,13 @@ final class ClusterBatteryTemperatureReader {
         long remaining = deadline - System.nanoTime();
         if (remaining <= 0) return null;
         try {
-            Integer value = task.get(remaining, TimeUnit.NANOSECONDS);
+            int[] value = task.get(remaining, TimeUnit.NANOSECONDS);
             return System.nanoTime() <= deadline ? value : null;
         }
         catch (InterruptedException e) { Thread.currentThread().interrupt(); return null; }
         catch (Exception e) { return null; }
     }
-    private static Integer collect() throws Exception {
+    private static int[] collect() throws Exception {
         IBinder remote = (IBinder) Class.forName("android.os.ServiceManager")
             .getMethod("getService", String.class).invoke(null, "com.hkmc.micom.cluster");
         if (remote == null || !remote.isBinderAlive() || !SERVICE.equals(remote.getInterfaceDescriptor())) return null;
@@ -51,7 +57,7 @@ final class ClusterBatteryTemperatureReader {
             call(remote, 37, listener);
             listener.armed = true;
             call(remote, 109, null);
-            return listener.response.await(1000, TimeUnit.MILLISECONDS) ? listener.temperature : null;
+            return listener.response.await(1000, TimeUnit.MILLISECONDS) ? listener.values : null;
         } finally {
             listener.armed = false;
             // Also remove after uncertain registration; never retain a subscription.
@@ -61,7 +67,7 @@ final class ClusterBatteryTemperatureReader {
     private static final class Listener extends Binder {
         final CountDownLatch response = new CountDownLatch(1);
         volatile boolean armed;
-        volatile Integer temperature;
+        volatile int[] values;
         Listener() { attachInterface(null, LISTENER); }
         @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
             if (code == INTERFACE_TRANSACTION) {
@@ -71,8 +77,8 @@ final class ClusterBatteryTemperatureReader {
             if (code >= 1 && code <= 16) {
                 data.enforceInterface(LISTENER);
                 if (code == 16 && armed && response.getCount() != 0) {
-                    int[] values = data.createIntArray();
-                    temperature = data.dataAvail() == 0 ? BatteryTemperature.decode(values) : null;
+                    int[] array = data.createIntArray();
+                    values = data.dataAvail() == 0 ? array : null;
                     response.countDown();
                 }
                 if (reply != null) reply.writeNoException();

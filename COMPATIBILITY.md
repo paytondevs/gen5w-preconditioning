@@ -424,7 +424,9 @@ of temperature, charge, and other operating constraints.
 
 A foreground service owns a requested session after the activity closes. Stop
 is available while waiting. Recovery cancels uncertain ownership and never
-automatically starts conditioning. A successful Binder call or elapsed 60–120
+automatically starts conditioning. The only automatic Start is a schedule the
+user armed, sent once through the same checks as the Start button (see
+[scheduled preconditioning](TEMPERATURE-AND-TIMEOUT.md#scheduled-preconditioning)). A successful Binder call or elapsed 60–120
 seconds does not establish activation; only vehicle feedback can show Active.
 
 The source includes unit tests for the request/feedback distinction, cancellation,

@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Only used to show the head unit's current Wi-Fi address on the Wi-Fi shortcut. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Only used to restore a preconditioning schedule the user armed before a restart. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
@@ -8,6 +10,12 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <service android:name=".PreconditioningService" android:exported="false" />
+        <!-- BOOT_COMPLETED is a protected system broadcast; does nothing unless a schedule is stored. -->
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         <!-- MAIN/LAUNCHER only (no HOME category): Hyundai's launcher remains the home screen. -->
         <activity
             android:name=".MainActivity"

@@ -27,6 +27,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 /** APK-contained touch and TUNE launcher; the external hold service is unchanged. */
 public final class MainActivity extends Activity {
@@ -54,6 +56,8 @@ public final class MainActivity extends Activity {
     private static final int KEY_TUNE_ENTER = keyCode("KEYCODE_TUNE_ENTER", 243);
     private static final String[] TAB_TITLES = {"Preconditioning", "Home", "Advanced"};
     private static final int STOP_RED = 0xffe5484d;
+    /** After a schedule ends, its last events stay on the card this long. */
+    private static final long RECENT_SCHEDULE_MS = 60 * 60_000L;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Target> targets = new ArrayList<>();
     private final List<Target> headerTargets = new ArrayList<>();
@@ -68,6 +72,22 @@ public final class MainActivity extends Activity {
     private View statusDot, copyButton;
     private TextView preconditionStatus, preconditionDetail, preconditionElapsed, preconditionButton;
     private TextView preconditionTemperature;
+    /** Scheduled preconditioning: the control panel's caption, monitor lines, and clock button. */
+    private TextView preconditionCaption, scheduleInputs;
+    private final TextView[] scheduleEvents = new TextView[4];
+    private View scheduleButton;
+    private PreconditioningSchedule schedule;
+    private ScheduleLog scheduleLog = ScheduleLog.EMPTY;
+    private Integer outsideC;
+    /** The schedule sheet, drawn over the page; it borrows the TUNE targets while open. */
+    private FrameLayout modal;
+    private List<Target> savedTargets;
+    private int savedKnob;
+    private boolean savedKnobOnToggle;
+    private PreconditioningSchedule.Mode modalMode = PreconditioningSchedule.Mode.START_BY;
+    private int modalMinute;
+    private TextView modalTime, modalDay, modalPreview, modalConfirm;
+    private final TextView[] modeChips = new TextView[2];
     private TextView lowestValue, lowestCelsius, highestValue, temperatureAge;
     private View highestColumn, failureRow;
     private TemperatureGauge gauge;
@@ -143,6 +163,7 @@ public final class MainActivity extends Activity {
             vehicleService = null; preconditioning = PreconditioningSnapshot.checking();
             batteryTemperature = BatteryTemperatureReading.checking().update(null, SystemClock.elapsedRealtime());
             history = TemperatureHistory.Trace.EMPTY;
+            schedule = null; scheduleLog = ScheduleLog.EMPTY; outsideC = null;
             updatePreconditioningViews();
         }
     };
@@ -153,6 +174,9 @@ public final class MainActivity extends Activity {
                 preconditioning = vehicleService.snapshot();
                 batteryTemperature = vehicleService.temperature();
                 history = vehicleService.history();
+                schedule = vehicleService.schedule();
+                scheduleLog = vehicleService.scheduleLog();
+                outsideC = vehicleService.outsideC();
             }
             updatePreconditioningViews(); main.postDelayed(this, 1000);
         }
@@ -236,6 +260,7 @@ public final class MainActivity extends Activity {
         rebuildPage();
     }
     private void rebuildPage() {
+        if (modal != null) closeScheduleModal();
         int knob = knobIndex; showPage(page);
         if (knob >= 0 && knob < targets.size() && targets.get(knob).enabled()) { knobIndex = knob; applyKnob(); }
     }
@@ -266,6 +291,7 @@ public final class MainActivity extends Activity {
             && SystemClock.uptimeMillis() - resumedAt > 700) finish();
     }
     @Override public void onBackPressed() {
+        if (modal != null) { closeScheduleModal(); return; }
         ScreenFlow.Page previous = ScreenFlow.back(page, defaultPage);
         if (previous == null) finish(); else showPage(previous);
     }
@@ -280,6 +306,9 @@ public final class MainActivity extends Activity {
         preconditionElapsed = null; preconditionTemperature = null;
         lowestValue = null; lowestCelsius = null; highestValue = null; temperatureAge = null;
         highestColumn = null; failureRow = null; gauge = null; chart = null; countdown = null; toggleColor = 0;
+        preconditionCaption = null; scheduleInputs = null; scheduleButton = null; Arrays.fill(scheduleEvents, null);
+        modal = null; savedTargets = null; modalTime = null; modalDay = null; modalPreview = null; modalConfirm = null;
+        Arrays.fill(modeChips, null);
         Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null);
         Arrays.fill(defaultChips, null); Arrays.fill(appearanceChips, null);
         signalsText = null;
@@ -528,7 +557,17 @@ public final class MainActivity extends Activity {
         addTarget(button, new Runnable() { @Override public void run() { preconditioningAction(); } });
         button.setEnabled(false); return button;
     }
+    /** The Preconditioning tab's card is a schedule monitor while one is armed (Home never is). */
+    private boolean scheduleArmedHere() {
+        return page == ScreenFlow.Page.PRECONDITIONING && schedule != null && !preconditioning.requested;
+    }
     private void preconditioningAction() {
+        if (scheduleArmedHere()) {
+            startService(new Intent(this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_CANCEL));
+            if (preconditionButton != null) preconditionButton.setEnabled(false);
+            return;
+        }
+        // Start from Home while a schedule is armed: the service cancels the schedule first.
         if (!preconditioning.canStop && !preconditioning.canStart) return;
         String action = preconditioning.canStop ? PreconditioningService.STOP
             : preconditioning.state == PreconditioningSnapshot.State.WARM
@@ -542,7 +581,8 @@ public final class MainActivity extends Activity {
         LinearLayout body = ui.row();
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout control = panel(body, 0.34f, 0);
-        control.addView(caption("BATTERY PRECONDITIONING"));
+        preconditionCaption = caption("BATTERY PRECONDITIONING");
+        control.addView(preconditionCaption);
         preconditionStatus = ui.text("Checking", 34, palette.ink, true); preconditionStatus.setMaxLines(2);
         control.addView(preconditionStatus, below(10));
         preconditionElapsed = ui.text("Elapsed: —", 18, palette.ink, false);
@@ -555,11 +595,40 @@ public final class MainActivity extends Activity {
         countdown = new CountdownBar(this); countdown.setPalette(palette); countdown.setVisibility(View.GONE);
         LinearLayout.LayoutParams countdownParams = new LinearLayout.LayoutParams(-1, ui.dp(16)); countdownParams.topMargin = ui.dp(12);
         control.addView(countdown, countdownParams);
-        control.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
+        scheduleInputs = ui.text("", 16, palette.ink, false); scheduleInputs.setVisibility(View.GONE);
+        scheduleInputs.setMaxLines(2); scheduleInputs.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams inputsParams = new LinearLayout.LayoutParams(-1, -2); inputsParams.topMargin = ui.dp(10);
+        control.addView(scheduleInputs, inputsParams);
+        // The schedule log takes the flexible space above the buttons and clips its oldest
+        // lines, so a long log can never push Start/Cancel off the card.
+        LinearLayout events = ui.column();
+        LinearLayout.LayoutParams eventsParams = new LinearLayout.LayoutParams(-1, 0, 1); eventsParams.topMargin = ui.dp(8);
+        control.addView(events, eventsParams);
+        for (int i = 0; i < scheduleEvents.length; i++) {
+            scheduleEvents[i] = ui.text("", 14, palette.muted, false);
+            scheduleEvents[i].setSingleLine(true); scheduleEvents[i].setEllipsize(TextUtils.TruncateAt.END);
+            scheduleEvents[i].setVisibility(View.GONE);
+            events.addView(scheduleEvents[i], below(i == 0 ? 0 : 5));
+        }
+        LinearLayout actions = ui.row(); actions.setGravity(Gravity.CENTER_VERTICAL);
         preconditionButton = ui.text("Start", 26, palette.onAccent, true); preconditionButton.setGravity(Gravity.CENTER);
         addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
         preconditionButton.setEnabled(false);
-        control.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(compact ? 220 : 260), ui.dp(72)));
+        // Split screen leaves about 230 dp; the Start pill takes what the clock button doesn't.
+        actions.addView(preconditionButton, compact ? new LinearLayout.LayoutParams(0, ui.dp(72), 1)
+            : new LinearLayout.LayoutParams(ui.dp(260), ui.dp(72)));
+        int clockSize = compact ? 64 : 72;
+        FrameLayout clock = new FrameLayout(this);
+        ui.background(clock, ui.circle(clockSize));
+        ClockGlyph glyph = new ClockGlyph(this); glyph.setColor(palette.secondary);
+        clock.addView(glyph, new FrameLayout.LayoutParams(ui.dp(32), ui.dp(32), Gravity.CENTER));
+        clock.setContentDescription("Schedule preconditioning"); clock.setEnabled(false);
+        // Target 1, right after the toggle, so the toggle stays target 0 for knobOnToggle.
+        addTarget(clock, new Runnable() { @Override public void run() { openScheduleModal(); } });
+        scheduleButton = clock;
+        LinearLayout.LayoutParams clockParams = new LinearLayout.LayoutParams(ui.dp(clockSize), ui.dp(clockSize));
+        clockParams.leftMargin = ui.dp(12); actions.addView(clock, clockParams);
+        control.addView(actions, new LinearLayout.LayoutParams(compact ? -1 : -2, -2));
 
         LinearLayout temperature = panel(body, 0.40f, 16);
         LinearLayout readings = ui.row();
@@ -617,38 +686,217 @@ public final class MainActivity extends Activity {
     private void updatePreconditioningViews() {
         if (preconditionStatus == null) return;
         long now = SystemClock.elapsedRealtime();
-        String status = preconditioning.title();
+        boolean armed = scheduleArmedHere();
+        long wall = WallClock.now();
+        boolean twentyFourHour = DateFormat.is24HourFormat(this);
+        TimeZone zone = TimeZone.getDefault();
+        String status = armed ? schedule.title() + " " + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone)
+            : preconditioning.title();
         if (page == ScreenFlow.Page.HOME && preconditioning.requested) status += " · " + preconditioning.elapsed();
         preconditionStatus.setText(status);
+        if (preconditionCaption != null) preconditionCaption.setText(armed ? "SCHEDULED PRECONDITIONING" : "BATTERY PRECONDITIONING");
         if (preconditionTemperature != null) preconditionTemperature.setText(batteryTemperature.label(now, true));
         if (!preconditioning.requested) requestStartedAt = -1;
         else if (requestStartedAt < 0 || now - preconditioning.elapsedMs < requestStartedAt)
             requestStartedAt = now - preconditioning.elapsedMs;
         boolean waiting = preconditioning.state == PreconditioningSnapshot.State.WAITING;
-        if (preconditionDetail != null) preconditionDetail.setText(waiting
-            ? "Preconditioning initiated. It should start within a minute or so." : preconditioning.detail);
+        if (preconditionDetail != null) {
+            ScheduleLog.Event last = scheduleLog.latest();
+            // Past the send time the newest "car not ready" line explains the wait better than the plan.
+            boolean deferred = armed && schedule.plannedSendAt != PreconditioningSchedule.NONE && wall >= schedule.plannedSendAt
+                && last != null && last.kind == ScheduleLog.Kind.DEFERRED;
+            preconditionDetail.setText(armed ? deferred ? last.text : schedule.reason : waiting
+                ? "Preconditioning initiated. It should start within a minute or so." : preconditioning.detail);
+            preconditionDetail.setMaxLines(armed ? 3 : 6);
+        }
         if (countdown != null) {
             countdown.setVisibility(waiting ? View.VISIBLE : View.GONE);
             countdown.setStartedAt(waiting ? requestStartedAt : -1);
         }
-        if (preconditionElapsed != null) preconditionElapsed.setText("Elapsed: " +
+        if (preconditionElapsed != null) preconditionElapsed.setText(armed
+            ? ScheduleFormat.sendLine(schedule, wall, twentyFourHour, zone) : "Elapsed: " +
             (preconditioning.requested || preconditioning.state == PreconditioningSnapshot.State.ENDED
                 || preconditioning.state == PreconditioningSnapshot.State.TIMED_OUT ? preconditioning.elapsed() : "—"));
+        if (scheduleInputs != null) updateScheduleViews(armed, wall, twentyFourHour, zone);
+        if (modal != null) renderScheduleModal();
         if (lowestValue != null) updateTemperatureViews(now);
         if (preconditionButton != null) {
-            boolean warm = preconditioning.state == PreconditioningSnapshot.State.WARM;
+            boolean warm = !armed && preconditioning.state == PreconditioningSnapshot.State.WARM;
             boolean toggle = page == ScreenFlow.Page.PRECONDITIONING;
-            preconditionButton.setText(warm ? toggle ? "Start anyway" : "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
-            preconditionButton.setTextSize(toggle ? warm ? 22 : 26 : warm ? 14 : 18);
-            preconditionButton.setContentDescription(warm ? "Start preconditioning anyway" : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
-            int color = preconditioning.requested ? STOP_RED : warm ? TemperatureGauge.WARM : palette.accent;
+            preconditionButton.setText(armed ? compact ? "Cancel" : "Cancel schedule"
+                : warm ? toggle ? "Start anyway" : "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
+            preconditionButton.setTextSize(toggle ? warm || armed ? 22 : 26 : warm ? 14 : 18);
+            preconditionButton.setContentDescription(armed ? "Cancel scheduled preconditioning"
+                : warm ? "Start preconditioning anyway" : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
+            int color = preconditioning.requested || armed ? STOP_RED : warm ? TemperatureGauge.WARM : palette.accent;
             if (toggle && color != toggleColor) { toggleColor = color; ui.background(preconditionButton, ui.pill(color, 36)); }
-            boolean enabled = preconditioning.canStart || preconditioning.canStop;
+            boolean enabled = armed || preconditioning.canStart || preconditioning.canStop;
             preconditionButton.setEnabled(enabled); preconditionButton.setAlpha(enabled ? 1f : 0.4f);
+            if (scheduleButton != null) {
+                // Scheduling for later is fine while the car isn't READY; not during a request.
+                boolean schedulable = vehicleService != null && !preconditioning.requested;
+                scheduleButton.setEnabled(schedulable); scheduleButton.setAlpha(schedulable ? 1f : 0.4f);
+                scheduleButton.setContentDescription(armed ? "Change scheduled preconditioning" : "Schedule preconditioning");
+            }
             if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
             // The toggle is the first target on its tab.
             if (toggle && enabled && knobOnToggle && knobIndex != 0) { knobIndex = 0; applyKnob(); }
         }
+    }
+    private int warmThreshold() {
+        return vehicleService == null ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : vehicleService.warmThresholdC();
+    }
+    private Integer freshMinimumC() {
+        return batteryTemperature.stale(SystemClock.elapsedRealtime()) ? null : batteryTemperature.minimumC;
+    }
+    private void updateScheduleViews(boolean armed, long wall, boolean twentyFourHour, TimeZone zone) {
+        if (armed) {
+            scheduleInputs.setText("Pack " + ScheduleFormat.temperature(freshMinimumC()) + " · Outside "
+                + ScheduleFormat.temperature(outsideC) + " · Warm at " + BatteryTemperatureReading.fahrenheit(warmThreshold()) + "°F");
+        }
+        scheduleInputs.setVisibility(armed ? View.VISIBLE : View.GONE);
+        // Armed: the newest events. Otherwise only what happened recently, e.g. "Fired · Start sent".
+        ScheduleLog.Event last = scheduleLog.latest();
+        boolean recent = last != null && Math.abs(wall - last.at) <= RECENT_SCHEDULE_MS;
+        List<ScheduleLog.Event> shown = armed ? scheduleLog.latest(scheduleEvents.length)
+            : recent ? scheduleLog.latest(2) : java.util.Collections.<ScheduleLog.Event>emptyList();
+        for (int i = 0; i < scheduleEvents.length; i++) {
+            boolean visible = i < shown.size();
+            if (visible) scheduleEvents[i].setText(ScheduleFormat.event(shown.get(i), wall, twentyFourHour, zone));
+            scheduleEvents[i].setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /** Opens the schedule sheet; it takes over the TUNE targets until it closes. */
+    private void openScheduleModal() {
+        if (modal != null || page != ScreenFlow.Page.PRECONDITIONING || vehicleService == null) return;
+        TimeZone zone = TimeZone.getDefault();
+        if (schedule != null) {
+            modalMode = schedule.mode; modalMinute = ScheduleFormat.minuteOfDay(schedule.targetAt, zone);
+        } else modalMinute = ScheduleFormat.roundUpToFive(ScheduleFormat.minuteOfDay(WallClock.now() + 30 * 60_000L, zone));
+        for (Target target : targets) if (target.view != null) { target.view.setActivated(false); target.view.setSelected(false); }
+        savedTargets = new ArrayList<>(targets); savedKnob = knobIndex; savedKnobOnToggle = knobOnToggle;
+        // Without this the 1 s refresh would snap the knob back to target 0 every second.
+        targets.clear(); knobOnToggle = false;
+        final Runnable close = new Runnable() { @Override public void run() { closeScheduleModal(); } };
+
+        modal = new FrameLayout(this);
+        modal.setBackgroundColor(palette.dark ? 0xb3000000 : 0x66000000);
+        clickable(modal, close);   // Tapping outside the card closes it.
+        LinearLayout card = ui.column(); card.setClickable(true);
+        card.setPadding(ui.dp(28), ui.dp(20), ui.dp(28), ui.dp(20));
+        ui.background(card, ui.rounded(palette.background, 24, palette.line));
+        modal.addView(card, new FrameLayout.LayoutParams(ui.dp(compact ? 540 : 640), -2, Gravity.CENTER));
+
+        LinearLayout header = ui.row(); header.setGravity(Gravity.CENTER_VERTICAL);
+        card.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        header.addView(ui.text(schedule != null ? "Change schedule" : "Schedule", 24, palette.ink, true),
+            new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout modes = ui.row(); modes.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
+        ui.background(modes, ui.rounded(palette.surface, 28, 0));
+        header.addView(modes);
+        String[] labels = {"Start by", "Arrive by"};
+        for (int i = 0; i < modeChips.length; i++) {
+            final PreconditioningSchedule.Mode mode = PreconditioningSchedule.Mode.values()[i];
+            modeChips[i] = chip(labels[i], mode == modalMode, palette.surface);
+            modes.addView(modeChips[i], new LinearLayout.LayoutParams(ui.dp(compact ? 120 : 136), ui.dp(44)));
+            addTarget(modeChips[i], new Runnable() { @Override public void run() {
+                modalMode = mode;
+                for (int j = 0; j < modeChips.length; j++)
+                    styleChip(modeChips[j], PreconditioningSchedule.Mode.values()[j] == modalMode, palette.surface);
+                renderScheduleModal();
+            } });
+        }
+
+        LinearLayout time = ui.row(); time.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(-1, -2); timeParams.topMargin = ui.dp(18);
+        card.addView(time, timeParams);
+        stepper(time, "−1 h", -60); stepper(time, "+1 h", 60);
+        LinearLayout clockColumn = ui.column(); clockColumn.setGravity(Gravity.CENTER_HORIZONTAL);
+        modalTime = ui.text("", compact ? 30 : 44, palette.ink, true); modalTime.setSingleLine(true);
+        clockColumn.addView(modalTime);
+        modalDay = ui.text("", 14, palette.muted, false); clockColumn.addView(modalDay, below(4));
+        time.addView(clockColumn, new LinearLayout.LayoutParams(0, -2, 1));
+        stepper(time, "−5 min", -5); stepper(time, "+5 min", 5);
+
+        modalPreview = ui.text("", 16, palette.muted, false);
+        modalPreview.setLineSpacing(0, 1.15f); modalPreview.setMaxLines(3); modalPreview.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(-1, -2); previewParams.topMargin = ui.dp(16);
+        card.addView(modalPreview, previewParams);
+
+        LinearLayout buttons = ui.row(); buttons.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams buttonsParams = new LinearLayout.LayoutParams(-1, -2); buttonsParams.topMargin = ui.dp(18);
+        card.addView(buttons, buttonsParams);
+        TextView cancel = ui.text("Cancel", 20, palette.ink, false); cancel.setGravity(Gravity.CENTER);
+        ui.background(cancel, ui.control(palette.surface, 28));
+        buttons.addView(cancel, new LinearLayout.LayoutParams(ui.dp(150), ui.dp(56)));
+        addTarget(cancel, close);
+        modalConfirm = ui.text(schedule != null ? "Update" : "Schedule", 22, palette.onAccent, true);
+        modalConfirm.setGravity(Gravity.CENTER); ui.background(modalConfirm, ui.pill(palette.accent, 28));
+        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(ui.dp(200), ui.dp(56));
+        confirmParams.leftMargin = ui.dp(12); buttons.addView(modalConfirm, confirmParams);
+        addTarget(modalConfirm, new Runnable() { @Override public void run() { confirmSchedule(); } });
+
+        content.addView(modal, new FrameLayout.LayoutParams(-1, -1));
+        knobIndex = targets.size() - 1;   // Schedule
+        renderScheduleModal(); applyKnob();
+    }
+    private void stepper(LinearLayout row, String label, final int minutes) {
+        TextView button = ui.text(label, 17, palette.ink, false); button.setGravity(Gravity.CENTER);
+        ui.background(button, ui.control(palette.surface, 18));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(compact ? 76 : 84), ui.dp(52));
+        params.leftMargin = ui.dp(4); params.rightMargin = ui.dp(4);
+        row.addView(button, params);
+        button.setContentDescription((minutes < 0 ? "Earlier by " : "Later by ") + Math.abs(minutes) + " minutes");
+        addTarget(button, new Runnable() { @Override public void run() {
+            modalMinute = ScheduleFormat.wrapDay(modalMinute + minutes); renderScheduleModal();
+        } });
+    }
+    private void renderScheduleModal() {
+        if (modal == null || modalTime == null) return;
+        long wall = WallClock.now(); TimeZone zone = TimeZone.getDefault();
+        boolean twentyFourHour = DateFormat.is24HourFormat(this);
+        long target = ScheduleFormat.nextOccurrence(modalMinute, wall, zone);
+        modalTime.setText(ScheduleFormat.time(target, twentyFourHour, zone));
+        String day = ScheduleFormat.dayHint(target, wall, zone).trim();
+        modalDay.setText(day.isEmpty() ? "Today" : Character.toUpperCase(day.charAt(0)) + day.substring(1));
+        boolean acceptable = PreconditioningSchedule.acceptable(target, wall);
+        modalConfirm.setEnabled(acceptable); modalConfirm.setAlpha(acceptable ? 1f : 0.4f);
+        modalPreview.setText(schedulePreview(target, wall, twentyFourHour, zone, acceptable));
+        if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(-1);
+    }
+    private String schedulePreview(long target, long wall, boolean twentyFourHour, TimeZone zone, boolean acceptable) {
+        if (!acceptable) return "Pick a time at least 2 minutes from now.";
+        String text;
+        if (modalMode == PreconditioningSchedule.Mode.START_BY) {
+            text = "Sends Start at " + ScheduleFormat.timeWithSeconds(target - PreconditioningSchedule.SEND_LEAD_MS, twentyFourHour, zone)
+                + ", 70 s early, so conditioning is running by " + ScheduleFormat.time(target, twentyFourHour, zone) + ".";
+        } else {
+            ArriveByPlanner.Plan plan = ArriveByPlanner.plan(target, freshMinimumC(), outsideC, warmThreshold(), wall);
+            text = plan.alreadyWarm ? plan.reason + "."
+                : "Sends Start at " + ScheduleFormat.timeWithSeconds(plan.sendAt, twentyFourHour, zone) + ". " + plan.reason + ".";
+        }
+        if (!preconditioning.canStart) text += " The car must be on and READY then.";
+        return text;
+    }
+    private void confirmSchedule() {
+        long wall = WallClock.now();
+        long target = ScheduleFormat.nextOccurrence(modalMinute, wall, TimeZone.getDefault());
+        if (!PreconditioningSchedule.acceptable(target, wall)) return;
+        startService(new Intent(this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_SET)
+            .putExtra(PreconditioningService.EXTRA_MODE, modalMode.name())
+            .putExtra(PreconditioningService.EXTRA_TARGET, target));
+        closeScheduleModal();
+    }
+    private void closeScheduleModal() {
+        if (modal == null) return;
+        content.removeView(modal); modal = null;
+        modalTime = null; modalDay = null; modalPreview = null; modalConfirm = null; Arrays.fill(modeChips, null);
+        targets.clear(); if (savedTargets != null) targets.addAll(savedTargets); savedTargets = null;
+        knobIndex = savedKnob; knobOnToggle = savedKnobOnToggle;
+        if (knobIndex >= targets.size() || (knobIndex >= 0 && !targets.get(knobIndex).enabled()))
+            knobIndex = KnobFocus.next(-1, 1, enabledTargets());
+        applyKnob();
     }
     private void updateTemperatureViews(long now) {
         Integer minimum = batteryTemperature.minimumC;
