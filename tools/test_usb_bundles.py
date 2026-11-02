@@ -65,6 +65,8 @@ class UsbBundleTest(unittest.TestCase):
             self.assertIn("\n[app.0]\nkind=apk\npath=app/Launchpad.apk\npackage=com.paytondev.precondition\n"
                           "component=com.paytondev.precondition/com.paytondev.launchpad.MainActivity\n", descriptor)
             self.assertIn("\npreinstall=scripts/preinstall.sh\n", descriptor)
+            # Shown in NEMESIS Manager; the id stays so updates from 1.x still match.
+            self.assertIn("\nid=paytondev.launchpad\nname=Precondition\n", descriptor)
             self.assertIn("scripts/preinstall.sh", package.namelist())
             self.assertNotIn("bin/open.sh", package.namelist())
         # Two bundles install or update (NEMESIS 1.16+, and manual for any NEMESIS);

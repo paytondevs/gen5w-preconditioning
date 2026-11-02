@@ -193,7 +193,7 @@ along if infotainment has not restarted since.
 ## Removing Launchpad
 
 Stop any pending or active session and confirm **Off**. Open NEMESIS Manager,
-then **Packages -> Launchpad -> Uninstall**, and restart infotainment. This
+then **Packages -> Precondition -> Uninstall**, and restart infotainment. This
 removes Launchpad, its TUNE service and its saved settings; it leaves NEMESIS
 installed. If it fails, use **Logs -> Copy to USB** and keep
 `NEMESIS-logs`.
