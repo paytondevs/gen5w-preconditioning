@@ -1,73 +1,35 @@
 #!/system/bin/sh
-# NEMESIS postinstall (root, cwd = package dir). Places the bundled Launchpad APK at
-# /system/app/Launchpad.apk -- the only /system file this package touches. All
-# staging, verification and rollback copies live in $WORK (/data/local/tmp).
-# svcmgr starts the knobd service after this returns.
+# NEMESIS postinstall (root, cwd = package dir). NEMESIS has already installed
+# app/Launchpad.apk as a normal Android app ([app.0] kind=apk, pm install), and
+# svcmgr starts the knobd service after this returns. Puts back the settings the
+# previous version's preuninstall (update) or preinstall (1.x migration) saved,
+# then starts the app's service once. Never fails the install: the app works
+# without old settings, and a backup that could not be restored is kept.
 . /data/nemesis/apps/paytondev.launchpad/scripts/common.sh
 
-fail() {
-    log "postinstall: FAILED: $*"
-    rm -rf "$WORK"
-    exit 1
-}
+rm -rf "$WORK"    # leftovers from 1.x's /system staging
 
-[ -f "$DEX" ] || fail "missing $DEX"
-
-if [ -f "$SYSAPK" ] && files_equal "$DEX" "$SYSAPK"; then
-    log "postinstall: $SYSAPK already current; /system not touched"
+if ! android_up; then
+    # NEMESIS installs the APK on first launch when Android is not running yet.
+    log "postinstall: Android is not running; settings restore skipped"
     exit 0
 fi
 
-# Prepare and verify everything in tmp first.
-rm -rf "$WORK"
-mkdir -p "$WORK" || fail "cannot create $WORK"
-cat "$DEX" > "$WORK/Launchpad.apk" && files_equal "$DEX" "$WORK/Launchpad.apk" \
-    || fail "cannot stage APK in $WORK"
-HAD_PREVIOUS=0
-if [ -f "$SYSAPK" ]; then
-    cat "$SYSAPK" > "$WORK/Launchpad-previous.apk" && files_equal "$SYSAPK" "$WORK/Launchpad-previous.apk" \
-        || fail "cannot back up current $SYSAPK to $WORK"
-    HAD_PREVIOUS=1
+APK=$(app_path)
+case "$APK" in
+    /data/*) log "postinstall: Android has $APP_PACKAGE installed at $APK" ;;
+    *) log "postinstall: WARN: pm path shows '${APK:-nothing}' for $APP_PACKAGE, expected /data/app" ;;
+esac
+
+if prefs_backed_up; then
+    restore_prefs || log "postinstall: WARN: settings not restored; the backup stays in $PREFS_BACKUP"
 fi
 
-NEW_SIZE=$(file_size "$WORK/Launchpad.apk")
-OLD_SIZE=0
-[ "$HAD_PREVIOUS" = 1 ] && OLD_SIZE=$(file_size "$SYSAPK")
-FREE=$(system_free)
-if [ -n "$FREE" ]; then
-    # Overwriting truncates the old file first, so its blocks count as free. Keep 1 MiB spare.
-    if [ $(( FREE + OLD_SIZE )) -lt $(( NEW_SIZE + 1048576 )) ]; then
-        fail "not enough space on /system (free=$FREE old=$OLD_SIZE new=$NEW_SIZE); nothing changed"
-    fi
-else
-    log "postinstall: WARN: could not read free space on /system; relying on verify/rollback"
-fi
-
-# The single /system write.
-stop_app
-system_rw || fail "nemesis remount rw failed; nothing changed"
-if cat "$WORK/Launchpad.apk" > "$SYSAPK" && chown 0:0 "$SYSAPK" && chmod 0644 "$SYSAPK" \
-    && sync && files_equal "$WORK/Launchpad.apk" "$SYSAPK"; then
-    system_restore
-    rm -rf "$WORK"
-    log "postinstall: installed $SYSAPK ($NEW_SIZE bytes)"
-    exit 0
-fi
-
-log "postinstall: write to $SYSAPK failed or did not verify; rolling back"
-if [ "$HAD_PREVIOUS" = 1 ]; then
-    if cat "$WORK/Launchpad-previous.apk" > "$SYSAPK" && chown 0:0 "$SYSAPK" && chmod 0644 "$SYSAPK" \
-        && sync && files_equal "$WORK/Launchpad-previous.apk" "$SYSAPK"; then
-        log "postinstall: previous $SYSAPK restored"
-    else
-        # Keep the backup for manual recovery; it survives until reboot.
-        system_restore
-        log "postinstall: FAILED: could not restore previous APK; backup kept at $WORK/Launchpad-previous.apk (cleared on reboot)"
-        exit 1
-    fi
-else
-    rm -f "$SYSAPK"
-    sync
-fi
-system_restore
-fail "APK not installed"
+# Last step: a force-stop after this would undo it (see SERVICE_COMPONENT).
+load_boot_env
+OUT=$(am startservice -n "$SERVICE_COMPONENT" 2>&1)
+case "$OUT" in
+    *Error*) log "postinstall: WARN: could not start $SERVICE_COMPONENT: $OUT" ;;
+    *) log "postinstall: started $SERVICE_COMPONENT" ;;
+esac
+exit 0

@@ -95,7 +95,7 @@ these steps need ADB over Wi-Fi. in my testing, an iPhone hotspot is too modern 
 
 5. **Install, update or uninstall the package.**
 
-   Download **`paytondev.launchpad.zip`** from the [releases page](../../releases). It's the same NEMESIS package the USB drives install, with the same `/system` rule. Don't extract it.
+   Download **`paytondev.launchpad.zip`** from the [releases page](../../releases). It's the same NEMESIS package the USB drives install, and NEMESIS installs the app inside it with `pm install`. Don't extract it.
 
    ```sh
    adb -s CAR_IP:5555 push "/path/to/paytondev.launchpad.zip" /data/local/tmp/paytondev.launchpad.zip
@@ -106,10 +106,12 @@ these steps need ADB over Wi-Fi. in my testing, an iPhone hotspot is too modern 
    ```sh
    adb -s CAR_IP:5555 shell "nemesis pkg-list"
    adb -s CAR_IP:5555 shell "nemesis service status paytondev.launchpad/knobd"
-   adb -s CAR_IP:5555 shell "ls -l /system/app/Launchpad.apk"
+   adb -s CAR_IP:5555 shell "pm path com.paytondev.precondition"
    ```
 
-   `nemesis install` prints the install hook's output. NEMESIS's own log is at `/data/nemesis/nemesis.log`. Do not use `adb install`, and do not disable package-verification settings to work around an error.
+   `pm path` should print a `package:/data/app/...` line. `nemesis install` prints the install hook's output. NEMESIS's own log is at `/data/nemesis/nemesis.log`. Do not use `adb install`, and do not disable package-verification settings to work around an error.
+
+   **Coming from Launchpad 1.x?** Nothing extra: `nemesis install` (or `install --update`) moves its settings over and removes `/system/app/Launchpad.apk` in the same run. 2.0 is a different Android package (`com.paytondev.precondition`), so the old one never blocks it.
 
 6. **Reboot and open Launchpad.**
 
@@ -119,7 +121,7 @@ these steps need ADB over Wi-Fi. in my testing, an iPhone hotspot is too modern 
 
    Wait for the head unit to finish starting, then hold TUNE for roughly one second. If Launchpad doesn't open, try opening it directly:
    ```sh
-   adb -s CAR_IP:5555 shell "am start -n com.paytondev.launchpad/.MainActivity"
+   adb -s CAR_IP:5555 shell "am start -n com.paytondev.precondition/com.paytondev.launchpad.MainActivity"
    ```
 
    If that works, check the TUNE service:

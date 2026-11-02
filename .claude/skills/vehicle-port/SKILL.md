@@ -264,4 +264,6 @@ evidence: update the docs to say what failed.
   The docs show the temperature as ✅ and don't add an OBD caveat. Only a reading
   shown to be wrong changes that.
 - **Car-side scripts** (`tune-service/`, `usb/`) stay toolbox-only KitKat `sh` with LF
-  endings, and nothing may write under `/system` except `/system/app/Launchpad.apk`.
+  endings, and nothing may write under `/system` (the only `/system` operation is
+  removing the 1.x file `/system/app/Launchpad.apk`; NEMESIS installs the app with
+  `pm install`).

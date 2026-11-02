@@ -21,7 +21,7 @@ def require_signed(apk):
     if "classes.dex" not in names:
         raise SystemExit(f"{apk} has no classes.dex")
     if not any(n.startswith("META-INF/") and n.upper().endswith((".RSA", ".DSA", ".EC")) for n in names):
-        raise SystemExit(f"{apk} is not signed; build it with tools/build_apk.sh (it goes into /system/app)")
+        raise SystemExit(f"{apk} is not signed; build it with tools/build_apk.sh (NEMESIS installs it with pm install)")
 
 def read_version():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()

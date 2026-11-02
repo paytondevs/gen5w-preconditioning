@@ -52,8 +52,8 @@ jobs:
       - name: Read version
         run: echo "VERSION=$(tr -d ' \r\n' < VERSION)" >> "$GITHUB_ENV"
 
-      # The package writes /system/app/Launchpad.apk directly instead of going
-      # through pm install, so each build can be signed with a fresh key.
+      # NEMESIS uninstalls the old APK before it installs the new one on every
+      # update, so each build can be signed with a fresh key.
       - name: Build APK signed with a throwaway key
         run: |
           LAUNCHPAD_KEYSTORE="$RUNNER_TEMP/launchpad.p12"

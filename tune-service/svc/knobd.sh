@@ -6,7 +6,7 @@
 DEVICE_NAME=daudio_wp_daudioplus_neev23_us
 KEY_CODE=17
 HOLD_MS=800
-TARGET_COMPONENT=com.paytondev.launchpad/.MainActivity
+TARGET_COMPONENT=com.paytondev.precondition/com.paytondev.launchpad.MainActivity
 [ -r "$HERE/knob.conf" ] && . "$HERE/knob.conf"
 
 load_boot_env
