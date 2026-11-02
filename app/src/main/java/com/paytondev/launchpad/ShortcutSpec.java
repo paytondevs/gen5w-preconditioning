@@ -2,34 +2,16 @@ package com.paytondev.launchpad;
 
 final class ShortcutSpec {
     final String title;
-    final String subtitle;
     final String component;
     final String action;
-    final boolean launcher;
 
-    private ShortcutSpec(String title, String subtitle, String component, String action, boolean launcher) {
-        this.title = title; this.subtitle = subtitle; this.component = component;
-        this.action = action; this.launcher = launcher;
+    private ShortcutSpec(String title, String component, String action) {
+        this.title = title; this.component = component; this.action = action;
     }
 
-    static final ShortcutSpec NAVIGATION = component("Navigation", "Choose a destination",
-        "com.mnsoft.navi/.NaviApp");
-    static final ShortcutSpec MUSIC = component("Music", "Open media",
-        "com.hkmc.av.app.mediagate/.MediaGateActivity");
-    static final ShortcutSpec PHONE = component("Phone", "Calls and contacts",
-        "com.hkmc.bluetooth/com.android.contacts.DialtactsActivity");
-    static final ShortcutSpec PROJECTION = component("Projection", "Connect your phone",
-        "com.daudio.app.phoneprojection/.settings.ui.DeviceConnectionSettings");
-    static final ShortcutSpec NEMESIS = new ShortcutSpec("NEMESIS", "Open NEMESIS Manager",
-        "com.nemesis.manager/.MainActivity", "android.intent.action.MAIN", false);
-    static final ShortcutSpec WIFI = new ShortcutSpec("Wi-Fi settings", "Manage wireless connections",
-        null, "android.settings.WIFI_SETTINGS", false);
-    static final ShortcutSpec CAR_HOME = new ShortcutSpec("Car home", "", null,
-        "android.intent.action.MAIN", false);
-
-    private static ShortcutSpec component(String title, String subtitle, String component) {
-        return new ShortcutSpec(title, subtitle, component, "android.intent.action.MAIN", true);
-    }
+    static final ShortcutSpec NEMESIS = new ShortcutSpec("NEMESIS",
+        "com.nemesis.manager/.MainActivity", "android.intent.action.MAIN");
+    static final ShortcutSpec WIFI = new ShortcutSpec("Wi-Fi settings", null, "android.settings.WIFI_SETTINGS");
 
     static boolean mayLaunch(boolean exists, boolean exported, boolean enabled,
                              boolean appEnabled, boolean permitted) {

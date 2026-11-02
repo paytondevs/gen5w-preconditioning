@@ -4,17 +4,4 @@
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:colorBackground">@color/bg</item>
     </style>
-    <style name="Tab">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">match_parent</item>
-        <item name="android:layout_marginRight">10dp</item>
-        <item name="android:minWidth">150dp</item>
-        <item name="android:paddingLeft">22dp</item>
-        <item name="android:paddingRight">22dp</item>
-        <item name="android:gravity">center</item>
-        <item name="android:textSize">19sp</item>
-        <item name="android:textColor">@color/tab_text</item>
-        <item name="android:background">@drawable/tab_bg</item>
-        <item name="android:clickable">true</item>
-    </style>
 </resources>

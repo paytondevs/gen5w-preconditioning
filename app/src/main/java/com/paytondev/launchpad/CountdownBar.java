@@ -14,7 +14,7 @@ final class CountdownBar extends View {
     private final RectF track = new RectF();
     private final float dp;
     private long startedAt = -1;
-    private Palette palette = Palette.LIGHT;
+    private Palette palette = Palette.DARK;
 
     CountdownBar(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
@@ -28,9 +28,9 @@ final class CountdownBar extends View {
     }
 
     @Override protected void onDraw(Canvas canvas) {
-        float height = 8 * dp, top = (getHeight() - height) / 2, radius = height / 2;
+        float height = 6 * dp, top = (getHeight() - height) / 2, radius = height / 2;
         track.set(0, top, getWidth(), top + height);
-        paint.setColor(palette.line); canvas.drawRoundRect(track, radius, radius, paint);
+        paint.setColor(palette.raised); canvas.drawRoundRect(track, radius, radius, paint);
         if (startedAt < 0) return;
         float fraction = remaining(startedAt, SystemClock.elapsedRealtime());
         if (fraction <= 0) return;
