@@ -62,7 +62,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 </details>
 
-- **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Launchpad → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
+- **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Precondition → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
 - **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, as above.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**

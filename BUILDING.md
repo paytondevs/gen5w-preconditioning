@@ -96,7 +96,8 @@ visible app and the daemon always come from one build.
 Outputs in `dist/`:
 
 - `paytondev.launchpad.zip`: the NEMESIS package (`tune-service/` plus
-  `app/Launchpad.apk`).
+  `app/Launchpad.apk`). NEMESIS Manager lists it as Precondition; its package
+  ID stays `paytondev.launchpad`, so installs and updates match 1.x's package.
 - `Launchpad-install-usb.zip`: the USB drive root. Its `type=install`
   `NEMESIS.data` points at `packages/paytondev.launchpad.zip`, so NEMESIS prompts,
   installs it, and offers to update it when it's already installed. There are no
