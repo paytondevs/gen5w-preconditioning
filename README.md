@@ -96,6 +96,8 @@ if the dialog says it failed, open NEMESIS Manager → **Logs** → **Copy to US
 
 reboot the headunit with the pinhole button and remove the drive. once it's back up, **hold the TUNE knob for about a second** and Launchpad should open.
 
+you can also open it from NEMESIS Manager: it's on Manager's home screen as **Precondition**, after Manager's own tiles.
+
 you only need the USB drive again to update.
 
 ## using it
@@ -129,7 +131,11 @@ you can close Launchpad; the schedule keeps running in the background and surviv
 
 exactly the same as installing: put **`Launchpad-install-usb.zip`** (or **`Launchpad-manual-install-usb.zip`** on NEMESIS older than 1.16) from the newest release on the drive, run it, and reboot. if Launchpad is already installed, it updates it in place.
 
-your favorites and settings are kept. it also works if you installed an older version over ADB. running the drive twice is harmless.
+your favorites and settings are kept. running the drive twice is harmless.
+
+### coming from 1.x
+
+nothing extra to do: run the drive the same way. if Launchpad 1.x is on the car, the drive moves your favorites and settings over and removes the old copy in the same run. if you already removed 1.x with NEMESIS Manager, it still installs, and your settings come along as long as the headunit hasn't restarted since. this also works if you installed 1.x over ADB.
 
 ## uninstalling
 
@@ -137,7 +143,7 @@ your favorites and settings are kept. it also works if you installed an older ve
 2. open NEMESIS Manager (press NAV three times) → **Packages** → **Launchpad** → **Uninstall**.
 3. reboot the headunit.
 
-this removes Launchpad and its TUNE shortcut. if you installed an older version over ADB and Launchpad isn't in the Packages list, run the USB installer once first, then uninstall. NEMESIS stays installed. if you want that gone too, use **Wipe NEMESIS** in NEMESIS Manager. see the [NEMESIS docs](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe).
+this removes Launchpad and its TUNE shortcut. if you still have Launchpad 1.x and it isn't in the Packages list (for example, you installed it over ADB), install 2.0 first, which removes 1.x, then uninstall. NEMESIS stays installed. if you want that gone too, use **Wipe NEMESIS** in NEMESIS Manager. see the [NEMESIS docs](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe).
 
 ## troubleshooting
 
@@ -146,7 +152,7 @@ this removes Launchpad and its TUNE shortcut. if you installed an older version 
 | nothing happens when you plug in the drive | make sure `NEMESIS.data` is in the **root** of the drive, not in a folder. check the drive is FAT32/exFAT and in a data port. check NEMESIS is installed (press NAV three times; Manager should open). |
 | "Invalid package descriptor" | the drive has the wrong files, or they were copied incompletely. check you extracted `Launchpad-install-usb.zip`, not `paytondev.launchpad.zip`, and that the drive looks like the layout above. extract it again onto the drive. |
 | the dialog says it failed | open NEMESIS Manager → **Logs** → **Copy to USB**, which writes a `NEMESIS-logs` folder to the drive. message me with it, plus `launchpad-install.log` if you used the manual drive. |
-| "not enough space on /system" in `NEMESIS-logs` | nothing was changed. message me with the logs. |
+| Precondition isn't on NEMESIS Manager's home screen | that screen needs NEMESIS 1.16 or newer. close Manager and open it again. if it's still missing, check that **Packages** lists Launchpad, and run the install drive again. |
 | holding TUNE doesn't open Launchpad | reboot once more. in NEMESIS Manager → **Services**, `paytondev.launchpad/knobd` should be running. a different headunit may need a different TUNE profile; message me. |
 | preconditioning says **Unavailable** | your car or its software version isn't supported yet, so Launchpad won't send anything to the car. check the [compatibility chart](COMPATIBILITY.md#compatibility-chart). if your car isn't listed, run the [vehicle porting kit](COMPATIBILITY.md#car-not-listed-run-the-vehicle-porting-kit). |
 | it stays **Request sent** | the car hasn't confirmed yet. press **Stop**, or wait: Launchpad cancels it after five minutes on the EV6 (two on the IONIQ 5). **Start** comes back once the car reports Off. |
@@ -154,15 +160,18 @@ this removes Launchpad and its TUNE shortcut. if you installed an older version 
 ## what this changes on your car
 
 - Launchpad is installed as a normal NEMESIS package, so it shows up in NEMESIS Manager → **Packages**, and uninstalling it from there removes everything.
-- it adds **one** file to the car's system area, `/system/app/Launchpad.apk`, because that's the only way Android will show the app. no Hyundai or Kia files are changed.
-- the installer checks everything first and puts the previous version back if anything goes wrong.
+- NEMESIS installs the app the normal Android way, like an app you'd install yourself, so it also shows up on NEMESIS Manager's home screen. nothing is written to the car's system area, and no Hyundai or Kia files are changed.
+- updates keep your settings: they're copied to NEMESIS's backup folder while the old version is swapped for the new one, then put back.
+- if an update fails partway, run the drive again. your settings stay in the backup folder until an install puts them back.
 
 <details>
 <summary>more detail</summary>
 
 - the TUNE-hold service and a copy of the app live in `/data/nemesis/apps/paytondev.launchpad/`.
-- before writing `/system/app/Launchpad.apk`, the installer copies and checks everything in `/data/local/tmp` (cleared on reboot) and checks there's enough space. `/system` is made writable only for that one write and is set back to read-only right after. if the written file doesn't match, the previous version is put back.
-- uninstalling removes both.
+- NEMESIS installs the app from there with `pm install` and removes it with `pm uninstall`. each release is signed with its own key, which works because NEMESIS removes the old version before installing the new one.
+- during an update, the settings files are copied to `/data/nemesis/backup/paytondev.launchpad/` and put back into the new install. uninstalling deletes that folder along with everything else.
+- Launchpad 1.x copied itself to `/system/app/Launchpad.apk`. the only thing 2.0 does in `/system` is remove that file, once, when it finds 1.x. `/system` is made writable only for that and is set back to read-only right after.
+- 2.0's Android package is `com.paytondev.precondition`; 1.x was `com.paytondev.launchpad`. Android keeps the old name reserved until the headunit restarts, even once 1.x is removed, so the new name lets 2.0 install right away.
 </details>
 
 already use ADB with your car? there are [manual ADB install steps](ADVANCED-ADB-INSTALL.md), but you don't need them.

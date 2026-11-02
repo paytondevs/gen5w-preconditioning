@@ -60,6 +60,13 @@ class UsbBundleTest(unittest.TestCase):
             self.assertIn("\nversion=1.1\n", descriptor)
             self.assertIn("\npackage-version=4.5.6\n", descriptor)
             self.assertNotIn("@VERSION@", descriptor)
+            # NEMESIS installs the APK with pm install, so Android and NEMESIS
+            # Manager's app grid see a normal app; preinstall moves 1.x out of the way.
+            self.assertIn("\n[app.0]\nkind=apk\npath=app/Launchpad.apk\npackage=com.paytondev.precondition\n"
+                          "component=com.paytondev.precondition/com.paytondev.launchpad.MainActivity\n", descriptor)
+            self.assertIn("\npreinstall=scripts/preinstall.sh\n", descriptor)
+            self.assertIn("scripts/preinstall.sh", package.namelist())
+            self.assertNotIn("bin/open.sh", package.namelist())
         # Two bundles install or update (NEMESIS 1.16+, and manual for any NEMESIS);
         # uninstall is NEMESIS Manager's button. The third is the read-only porting kit.
         self.assertEqual(sorted(p.name for p in (self.root / "dist").glob("Launchpad-*-usb.zip")),

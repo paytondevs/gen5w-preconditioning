@@ -67,7 +67,7 @@ CI runs the Gradle checks on every PR too. you don't need a signing key, since C
 
 if you touch anything that runs on the car (`tune-service/` or `usb/`):
 
-- the only file under `/system` anything may write or remove is `/system/app/Launchpad.apk`. everything else goes in `/data/local/tmp` or the package's own folder.
+- nothing writes under `/system`. NEMESIS installs the app with `pm install`. the only `/system` operation is removing the 1.x file `/system/app/Launchpad.apk`, once. persistent state goes in `/data/nemesis/backup/paytondev.launchpad`, temporary files in `/data/local/tmp`, everything else in the package's own folder.
 - scripts run under KitKat's `/system/bin/sh` with toolbox only: no `grep`, `awk`, `cp` or busybox, and toolbox commands have fewer flags than you'd expect (`cmp` has no `-s`). check before you use one.
 - keep LF line endings.
 

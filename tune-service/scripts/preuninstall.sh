@@ -1,31 +1,25 @@
 #!/system/bin/sh
-# NEMESIS preuninstall (root; services already stopped). Also runs on the OLD
-# package during `nemesis install --update`, after the new package has been
-# extracted to $STAGE.
+# NEMESIS preuninstall (root; services already stopped). Runs before NEMESIS's
+# pm uninstall, which deletes the app and its data. Also runs on the OLD package
+# during `nemesis install --update`, after the new package has been extracted to
+# $STAGE; NEMESIS then uninstalls the old APK and installs the new one.
 . /data/nemesis/apps/paytondev.launchpad/scripts/common.sh
 
 log "preuninstall: removing daemon dalvik cache"
 rm -f "$DEXCACHE"
 
 if [ -f "$STAGE/NEMESIS.data" ]; then
-    # Update: leave /system alone. The new postinstall rewrites the APK in place,
-    # so Android keeps the app's data (favorites, settings).
-    log "preuninstall: update in progress; leaving $SYSAPK for the new postinstall"
+    # Update: save the settings for the new version's postinstall to restore.
+    log "preuninstall: update in progress; saving settings"
+    force_stop_app
+    backup_prefs || log "preuninstall: WARN: settings not saved; the new version starts with defaults"
     exit 0
 fi
 
-[ -f "$SYSAPK" ] || { log "preuninstall: $SYSAPK not present"; exit 0; }
-stop_app
-if ! system_rw; then
-    log "preuninstall: FAILED: nemesis remount rw failed; $SYSAPK left in place"
-    exit 1
-fi
-rm -f "$SYSAPK"
-sync
-system_restore
-if [ -f "$SYSAPK" ]; then
-    log "preuninstall: FAILED: could not remove $SYSAPK"
-    exit 1
-fi
-log "preuninstall: removed $SYSAPK"
+force_stop_app
+# Only if a 1.x copy is somehow still there (2.x never writes /system).
+remove_legacy_sysapk || exit 1
+remove_backup
+rm -rf "$WORK"
+log "preuninstall: done; NEMESIS removes the app next"
 exit 0

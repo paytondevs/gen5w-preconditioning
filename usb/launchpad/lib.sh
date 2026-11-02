@@ -43,13 +43,18 @@ knobd_state() {
     }
 }
 
-# Package registered, /system/app copy matches the package's APK, knobd running.
+# Package registered, Android has the app as a normal /data/app app (the kind
+# NEMESIS Manager's app grid lists), no 1.x copy left in /system/app, knobd running.
 verify_installed() {
     OK=0
     if pkg_installed; then say "ok: package $PKG_ID registered"
     else say "FAIL: package $PKG_ID not registered"; OK=1; fi
-    if [ -f "$SYSAPK" ] && files_equal "$DEX" "$SYSAPK"; then say "ok: $SYSAPK matches the package APK"
-    else say "FAIL: $SYSAPK missing or does not match $DEX"; OK=1; fi
+    APK=$(app_path)
+    case "$APK" in
+        /data/*) say "ok: $APP_PACKAGE installed at $APK" ;;
+        *) say "FAIL: $APP_PACKAGE is not installed as an app (pm path: '${APK:-nothing}')"; OK=1 ;;
+    esac
+    if [ -f "$SYSAPK" ]; then say "FAIL: $SYSAPK from Launchpad 1.x is still there"; OK=1; fi
     N=0
     STATE=$(knobd_state)
     while [ "$STATE" != running ] && [ $N -lt 10 ]; do

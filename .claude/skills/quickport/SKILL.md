@@ -125,8 +125,8 @@ from the pushed commit, the same way CI builds a release.
    rm -f "$LAUNCHPAD_KEYSTORE"
    python3 tools/build_usb_bundles.py
    ```
-   A different key is fine. The NEMESIS package writes `/system/app/Launchpad.apk`
-   directly, so builds don't have to share a certificate.
+   A different key is fine. NEMESIS uninstalls the old APK before it installs the
+   new one, so builds don't have to share a certificate.
 4. **Check the build is the port.** `apksigner verify` (run by `build_apk.sh`) must
    pass. The APK's `classes.dex` must contain the new device string. The
    `NEMESIS.data` inside `packages/paytondev.launchpad.zip` must carry the new
