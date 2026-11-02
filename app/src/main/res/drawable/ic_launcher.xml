@@ -1,7 +1,7 @@
+<!-- A battery on the night palette's accent: the app is for battery preconditioning. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape><solid android:color="#93DCC0"/><corners android:radius="16dp"/><size android:width="64dp" android:height="64dp"/></shape></item>
-    <item android:left="15dp" android:top="15dp" android:right="35dp" android:bottom="35dp"><shape><solid android:color="#172A24"/><corners android:radius="4dp"/></shape></item>
-    <item android:left="35dp" android:top="15dp" android:right="15dp" android:bottom="35dp"><shape><solid android:color="#172A24"/><corners android:radius="4dp"/></shape></item>
-    <item android:left="15dp" android:top="35dp" android:right="35dp" android:bottom="15dp"><shape><solid android:color="#172A24"/><corners android:radius="4dp"/></shape></item>
-    <item android:left="35dp" android:top="35dp" android:right="15dp" android:bottom="15dp"><shape><solid android:color="#172A24"/><corners android:radius="4dp"/></shape></item>
+    <item><shape><solid android:color="#3FB3EA"/><corners android:radius="16dp"/><size android:width="64dp" android:height="64dp"/></shape></item>
+    <item android:left="27dp" android:top="11dp" android:right="27dp" android:bottom="49dp"><shape><solid android:color="#001520"/><corners android:radius="1.5dp"/></shape></item>
+    <item android:left="21dp" android:top="15dp" android:right="21dp" android:bottom="11dp"><shape><stroke android:width="3.5dp" android:color="#001520"/><corners android:radius="4dp"/></shape></item>
+    <item android:left="27dp" android:top="31dp" android:right="27dp" android:bottom="17dp"><shape><solid android:color="#001520"/><corners android:radius="1dp"/></shape></item>
 </layer-list>

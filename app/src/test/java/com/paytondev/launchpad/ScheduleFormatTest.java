@@ -57,4 +57,31 @@ public class ScheduleFormatTest {
         assertEquals("48°F (9°C)", ScheduleFormat.temperature(9));
         assertEquals("—", ScheduleFormat.temperature(null));
     }
+    @Test public void hourWheelKeepsMinutesAndWrapsTheDay() {
+        assertEquals(8 * 60 + 45, ScheduleFormat.stepHour(7 * 60 + 45, 1));
+        assertEquals(23 * 60 + 45, ScheduleFormat.stepHour(45, -1));
+        assertEquals(10, ScheduleFormat.stepHour(23 * 60 + 10, 1));
+    }
+    @Test public void minuteWheelStepsFiveMinuteMarksWithinTheHour() {
+        assertEquals(7 * 60 + 50, ScheduleFormat.stepMinute(7 * 60 + 45, 1));
+        assertEquals(7 * 60, ScheduleFormat.stepMinute(7 * 60 + 55, 1));
+        assertEquals(7 * 60 + 55, ScheduleFormat.stepMinute(7 * 60, -1));
+        // An armed time off the five-minute grid snaps to the next mark down, then steps.
+        assertEquals(7 * 60 + 50, ScheduleFormat.stepMinute(7 * 60 + 47, 1));
+        assertEquals(7 * 60 + 45, ScheduleFormat.stepMinute(7 * 60 + 47, 0));
+    }
+    @Test public void morningAndAfternoonKeepTheClockTime() {
+        assertEquals(19 * 60 + 45, ScheduleFormat.withAfternoon(7 * 60 + 45, true));
+        assertEquals(7 * 60 + 45, ScheduleFormat.withAfternoon(19 * 60 + 45, false));
+        assertEquals(12 * 60 + 5, ScheduleFormat.withAfternoon(5, true));
+        assertEquals(7 * 60 + 45, ScheduleFormat.withAfternoon(7 * 60 + 45, false));
+    }
+    @Test public void wheelLabelsFollowTheClockFormat() {
+        assertEquals("12", ScheduleFormat.hourLabel(5, false));
+        assertEquals("7", ScheduleFormat.hourLabel(19 * 60, false));
+        assertEquals("12", ScheduleFormat.hourLabel(12 * 60, false));
+        assertEquals("00", ScheduleFormat.hourLabel(5, true));
+        assertEquals("19", ScheduleFormat.hourLabel(19 * 60, true));
+        assertEquals("05", ScheduleFormat.minuteLabel(7 * 60 + 5));
+    }
 }

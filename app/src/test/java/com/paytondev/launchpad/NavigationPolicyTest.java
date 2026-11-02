@@ -4,27 +4,18 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class NavigationPolicyTest {
-    @Test public void backReturnsThroughTheExistingActivityToTheDefaultTab() {
-        ScreenFlow.Page precondition = ScreenFlow.Page.PRECONDITIONING, home = ScreenFlow.Page.HOME;
-        ScreenFlow.Page advanced = ScreenFlow.Page.ADVANCED, browser = ScreenFlow.Page.BROWSER;
-        for (ScreenFlow.Page defaultPage : ScreenFlow.TABS) {
-            assertEquals(advanced, ScreenFlow.back(browser, defaultPage));
-            assertNull(ScreenFlow.back(defaultPage, defaultPage));
-            for (ScreenFlow.Page tab : ScreenFlow.TABS)
-                if (tab != defaultPage) assertEquals(defaultPage, ScreenFlow.back(tab, defaultPage));
-        }
-        assertEquals(precondition, ScreenFlow.back(home, precondition));
-        assertEquals(home, ScreenFlow.back(advanced, home));
-        assertNull(ScreenFlow.back(advanced, advanced));
+    @Test public void backLeavesSubPagesForSettingsThenBatteryThenCloses() {
+        assertNull(ScreenFlow.back(ScreenFlow.Page.BATTERY));
+        assertEquals(ScreenFlow.Page.BATTERY, ScreenFlow.back(ScreenFlow.Page.SCHEDULE));
+        assertEquals(ScreenFlow.Page.BATTERY, ScreenFlow.back(ScreenFlow.Page.SETTINGS));
+        for (ScreenFlow.Page sub : new ScreenFlow.Page[]{ScreenFlow.Page.WIFI, ScreenFlow.Page.SIGNALS, ScreenFlow.Page.BROWSER})
+            assertEquals(ScreenFlow.Page.SETTINGS, ScreenFlow.back(sub));
     }
-    @Test public void defaultTabPreferenceFallsBackToPreconditioning() {
-        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference(null));
-        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference(""));
-        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference("home"));
-        assertEquals(ScreenFlow.Page.PRECONDITIONING, ScreenFlow.fromPreference("BROWSER"));
-        assertEquals(ScreenFlow.Page.HOME, ScreenFlow.fromPreference("HOME"));
-        assertEquals(ScreenFlow.Page.ADVANCED, ScreenFlow.fromPreference("ADVANCED"));
-        for (ScreenFlow.Page tab : ScreenFlow.TABS) assertEquals(tab, ScreenFlow.fromPreference(tab.name()));
+    @Test public void subPagesKeepSettingsSelectedInTheMenu() {
+        for (ScreenFlow.Page page : ScreenFlow.MENU) assertEquals(page, ScreenFlow.menu(page));
+        assertEquals(ScreenFlow.Page.SETTINGS, ScreenFlow.menu(ScreenFlow.Page.WIFI));
+        assertEquals(ScreenFlow.Page.SETTINGS, ScreenFlow.menu(ScreenFlow.Page.SIGNALS));
+        assertEquals(ScreenFlow.Page.SETTINGS, ScreenFlow.menu(ScreenFlow.Page.BROWSER));
     }
     @Test public void knobWrapsAndSkipsUnavailableControls() {
         boolean[] enabled = {true, false, true, false};

@@ -62,6 +62,24 @@ final class ScheduleFormat {
     }
     /** Minute of the day in 0..1439 for any whole-minute offset (Math.floorMod is API 24). */
     static int wrapDay(int minutes) { int day = 24 * 60; return ((minutes % day) + day) % day; }
+    /** The time picker's hour wheel: moves whole hours, keeping the minutes. */
+    static int stepHour(int minuteOfDay, int steps) { return wrapDay(minuteOfDay + 60 * steps); }
+    /** The minute wheel: five-minute marks that wrap within the hour, keeping the hour. */
+    static int stepMinute(int minuteOfDay, int steps) {
+        int day = wrapDay(minuteOfDay), marks = ((day % 60 / 5 + steps) % 12 + 12) % 12;
+        return day / 60 * 60 + marks * 5;
+    }
+    /** The same clock time in the morning or afternoon half of the day. */
+    static int withAfternoon(int minuteOfDay, boolean afternoon) {
+        int day = wrapDay(minuteOfDay);
+        return day % (12 * 60) + (afternoon ? 12 * 60 : 0);
+    }
+    /** The hour wheel's label: 1-12 on a 12-hour clock, 00-23 on a 24-hour one. */
+    static String hourLabel(int minuteOfDay, boolean twentyFourHour) {
+        int hour = wrapDay(minuteOfDay) / 60;
+        return twentyFourHour ? String.format(Locale.US, "%02d", hour) : String.valueOf(hour % 12 == 0 ? 12 : hour % 12);
+    }
+    static String minuteLabel(int minuteOfDay) { return String.format(Locale.US, "%02d", wrapDay(minuteOfDay) % 60); }
     /** The monitor's countdown line for an armed schedule. */
     static String sendLine(PreconditioningSchedule schedule, long nowEpochMs) {
         if (schedule.plannedSendAt == PreconditioningSchedule.NONE) return "Battery already warm";

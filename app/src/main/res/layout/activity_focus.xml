@@ -1,23 +1,28 @@
+<!-- 1920x720 @ 240dpi = 1280x480dp, minus Hyundai's 60dp status bar. The right
+     padding keeps content clear of the split-screen handle on the right edge. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/focus_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:orientation="horizontal"
     android:background="@color/bg"
-    android:paddingLeft="32dp"
-    android:paddingRight="64dp"
-    android:paddingTop="8dp"
-    android:paddingBottom="24dp">
+    android:paddingRight="64dp">
     <LinearLayout
-        android:id="@+id/focus_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal" />
+        android:id="@+id/focus_menu"
+        android:layout_width="248dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical" />
+    <View
+        android:id="@+id/focus_rule"
+        android:layout_width="1dp"
+        android:layout_height="match_parent" />
     <FrameLayout
         android:id="@+id/focus_content"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginTop="16dp" />
+        android:paddingLeft="28dp"
+        android:paddingTop="22dp"
+        android:paddingRight="28dp"
+        android:paddingBottom="24dp" />
 </LinearLayout>

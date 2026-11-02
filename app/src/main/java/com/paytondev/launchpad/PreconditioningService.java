@@ -92,7 +92,7 @@ public final class PreconditioningService extends Service {
     private final Runnable attach = new Runnable() {
         @Override public void run() {
             bound = true; worker.removeCallbacks(tick);
-            noteRestored("after Launchpad restarted");
+            noteRestored("after Precondition restarted");
             tick.run();
             temperatureVisible = true; startTemperaturePoll();
         }
@@ -138,7 +138,7 @@ public final class PreconditioningService extends Service {
             if (schedule != null) {
                 restoredSchedule = true;
                 if (pending) log(ScheduleLog.Kind.RECOVERED,
-                    "Launchpad restarted mid-request, so it cancelled that first");
+                    "Precondition restarted mid-request, so it cancelled that first");
                 armAlarm();            // Alarms do not survive a reboot.
                 startTemperaturePoll();
             }
@@ -181,7 +181,7 @@ public final class PreconditioningService extends Service {
             else if (STOP.equals(action)) controller.stop(SystemClock.elapsedRealtime());
             else if (SCHEDULE_SET.equals(action)) arm(intent.getStringExtra(EXTRA_MODE), intent.getLongExtra(EXTRA_TARGET, -1));
             else if (SCHEDULE_CANCEL.equals(action)) { if (schedule != null) cancelSchedule("By you"); }
-            else if (SCHEDULE_FIRE.equals(action)) noteRestored("after Launchpad restarted");
+            else if (SCHEDULE_FIRE.equals(action)) noteRestored("after Precondition restarted");
             else if (SCHEDULE_RESTORE.equals(action)) noteRestored("after the head unit restarted");
             evaluateSchedule();
             publish(); worker.removeCallbacks(tick);

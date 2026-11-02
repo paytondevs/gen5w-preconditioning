@@ -1,10 +1,4 @@
 <resources>
-    <color name="bg">#FFFFFF</color>
-    <color name="surface">#F4F5F8</color>
-    <color name="surface_pressed">#E7F0FF</color>
-    <color name="accent">#007AFF</color>
-    <color name="accent_dim">#E6F1FF</color>
-    <color name="text">#101522</color>
-    <color name="text_dim">#677388</color>
-    <color name="on_accent">#FFFFFF</color>
+    <!-- Window background until the palette is applied; the night palette's. -->
+    <color name="bg">#000000</color>
 </resources>

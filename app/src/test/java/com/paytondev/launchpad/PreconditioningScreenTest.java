@@ -19,10 +19,6 @@ public class PreconditioningScreenTest {
         assertEquals(30f / 45f, TemperatureGauge.fraction(20), 1e-6f);
         assertEquals(1f, TemperatureGauge.fraction(35), 0f);
         assertEquals(1f, TemperatureGauge.fraction(60), 0f);
-        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(19, 20));
-        assertEquals(TemperatureGauge.WARM, TemperatureGauge.color(20, 20));
-        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(20, 21));
-        assertEquals(TemperatureGauge.COLD, TemperatureGauge.color(null, 20));
     }
     @Test public void chartRangeAlwaysIncludesTheThresholdAndTenDegrees() {
         assertArrayEquals(new float[]{15, 25}, TemperatureChart.range(Collections.<TemperatureHistory.Sample>emptyList(), 20), 0f);

@@ -16,6 +16,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.database.ContentObserver;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.ColorDrawable;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
@@ -34,6 +35,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.FrameLayout;
 import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ScrollView;
@@ -44,58 +46,65 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
-/** APK-contained touch and TUNE launcher; the external hold service is unchanged. */
+/** Battery preconditioning screen, driven by touch and the TUNE knob; the external hold service is unchanged. */
 public final class MainActivity extends Activity {
     static final String EXTRA_FROM_KNOB = "from_knob";
+    private static final String APP_NAME = "Precondition";
     private static final int TAB_FAVORITES = 0, TAB_APPS = 1, TAB_ALL = 2;
     private static final int KEY_TUNE_UP = keyCode("KEYCODE_TUNE_UP", 223);
     private static final int KEY_TUNE_DOWN = keyCode("KEYCODE_TUNE_DOWN", 224);
     private static final int KEY_TUNE_ENTER = keyCode("KEYCODE_TUNE_ENTER", 243);
-    private static final String[] TAB_TITLES = {"Preconditioning", "Home", "Advanced"};
-    private static final int STOP_RED = 0xffe5484d;
+    private static final String[] MENU_TITLES = {"Battery", "Schedule", "Settings"};
+    private static final String[] CHECK_LABELS = {"EV READY", "Battery conditioning", "Car indicator", "Firmware profile",
+        "Temperature source", "Failure code"};
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Target> targets = new ArrayList<>();
     private final List<Target> headerTargets = new ArrayList<>();
     private FocusUi ui;
-    private LinearLayout toolbar;
+    private LinearLayout menu;
     private FrameLayout content;
     private Favorites favorites;
     private SharedPreferences prefs;
     private TileAdapter adapter;
     private GridView grid;
-    private TextView empty, statusText, networkText, ipText, adbText;
-    private View statusDot, copyButton;
-    private TextView preconditionStatus, preconditionDetail, preconditionElapsed, preconditionButton;
-    private TextView preconditionTemperature;
-    /** Scheduled preconditioning: the control panel's caption, monitor lines, and clock button. */
-    private TextView preconditionCaption, scheduleInputs;
-    private View scheduleButton;
-    private PreconditioningSchedule schedule;
-    private ScheduleLog scheduleLog = ScheduleLog.EMPTY;
-    private Integer outsideC;
-    /** The schedule sheet, drawn over the page; it borrows the TUNE targets while open. */
-    private FrameLayout modal;
-    private List<Target> savedTargets;
-    private int savedKnob;
-    private boolean savedKnobOnToggle;
-    private PreconditioningSchedule.Mode modalMode = PreconditioningSchedule.Mode.START_BY;
-    private int modalMinute;
-    private TextView modalTime, modalDay, modalPreview, modalConfirm;
-    private final TextView[] modeChips = new TextView[2];
-    private TextView lowestValue, lowestCelsius, highestValue, temperatureAge;
-    private View highestColumn, failureRow;
+    private ScrollView scroller;
+    private TextView empty, wifiValue, statusText, networkText, ipText, adbText;
+    private View copyRow;
+    private TextView batteryMeta, scheduleMeta;
+    /** Battery page. */
+    private TextView lowestValue, lowestUnit, lowestSub, highestText, statusPill, preconditionDetail, preconditionButton;
     private TemperatureGauge gauge;
     private CountdownBar countdown;
     private TemperatureChart chart;
-    private final CheckMark[] checkMarks = new CheckMark[6];
-    private final TextView[] checkValues = new TextView[6];
-    private final TextView[] defaultChips = new TextView[ScreenFlow.TABS.length];
-    private final TextView[] appearanceChips = new TextView[AppearanceMode.values().length];
-    private ScrollView advancedScroll;
-    private Palette palette = Palette.LIGHT;
+    private CheckMark summaryMark;
+    private TextView summaryTitle, summaryText;
+    private int buttonStyle;
+    /** Schedule page. */
+    private PreconditioningSchedule.Mode scheduleMode = PreconditioningSchedule.Mode.START_BY;
+    private int scheduleMinute;
+    private final TextView[] modeChips = new TextView[2];
+    private TextView schedulePill, scheduleDay, scheduleHint, schedulePreview, scheduleInputs, scheduleConfirm, scheduleCancel;
+    /** Time picker: hour and minute wheels (previous, current, next) and the AM/PM pair. */
+    private static final int EDIT_NONE = 0, EDIT_HOUR = 1, EDIT_MINUTE = 2;
+    private final TextView[] hourDigits = new TextView[3], minuteDigits = new TextView[3];
+    private LinearLayout hourWheel, minuteWheel;
+    private TextView morningChip, afternoonChip;
+    /** The wheel TUNE is turning, if any; and the target indexes a press moves the knob to. */
+    private int editField = EDIT_NONE, minuteTarget, confirmTarget;
+    /** Cancel was pressed; it stays disabled until the service drops the schedule. */
+    private boolean cancelSent;
+    /** Settings → Vehicle. */
+    private final CheckMark[] checkMarks = new CheckMark[CHECK_LABELS.length];
+    private final TextView[] checkValues = new TextView[CHECK_LABELS.length];
+    private View failureRow, failureDivider;
+    private PreconditioningSchedule schedule;
+    private ScheduleLog scheduleLog = ScheduleLog.EMPTY;
+    private Integer outsideC;
+    private Palette palette = Palette.DARK;
     private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
     private boolean carNight, signalsReading, compact, splitObserved;
     private int rightPadding;
@@ -109,11 +118,11 @@ public final class MainActivity extends Activity {
     /** Earliest estimate of when the pending request started; snapshots only ever lag. */
     private long requestStartedAt = -1;
     private ConnectionSnapshot connection = ConnectionSnapshot.unknown();
-    private ScreenFlow.Page page = ScreenFlow.Page.PRECONDITIONING, defaultPage = ScreenFlow.Page.PRECONDITIONING;
-    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch, toggleColor;
+    private ScreenFlow.Page page;
+    private int tab = TAB_ALL, knobIndex = -1, connectionEpoch;
     private long resumedAt, enterAt;
     private boolean resumed, started, enterDown, enterLong, preview, receiverRegistered, connectionReading;
-    /** The toggle keeps the knob while it is briefly disabled, until TUNE is turned away. */
+    /** Start keeps the knob while it is briefly disabled, until TUNE is turned away. */
     private boolean knobOnToggle;
 
     private static final class Target {
@@ -129,7 +138,7 @@ public final class MainActivity extends Activity {
 
     private final Runnable connectionTick = new Runnable() {
         @Override public void run() {
-            if (resumed && page == ScreenFlow.Page.ADVANCED) {
+            if (resumed && connectionPage()) {
                 refreshConnection();
                 main.postDelayed(this, 5000);
             }
@@ -137,7 +146,7 @@ public final class MainActivity extends Activity {
     };
     private final Runnable signalsTick = new Runnable() {
         @Override public void run() {
-            if (resumed && page == ScreenFlow.Page.ADVANCED) {
+            if (resumed && page == ScreenFlow.Page.SIGNALS) {
                 refreshSignals();
                 main.postDelayed(this, 2000);
             }
@@ -148,7 +157,7 @@ public final class MainActivity extends Activity {
     };
     private final BroadcastReceiver wifiChanges = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            if (resumed && page == ScreenFlow.Page.ADVANCED) refreshConnection();
+            if (resumed && connectionPage()) refreshConnection();
         }
     };
     private final ServiceConnection vehicleConnection = new ServiceConnection() {
@@ -182,7 +191,7 @@ public final class MainActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_focus);
-        toolbar = (LinearLayout) findViewById(R.id.focus_toolbar);
+        menu = (LinearLayout) findViewById(R.id.focus_menu);
         content = (FrameLayout) findViewById(R.id.focus_content);
         prefs = getSharedPreferences("launchpad", MODE_PRIVATE);
         favorites = new Favorites(this);
@@ -194,8 +203,7 @@ public final class MainActivity extends Activity {
         rightPadding = findViewById(R.id.focus_root).getPaddingRight();
         compact = splitScreenOn(); applySplitPadding();
         preview = PreviewData.enabled(getIntent());
-        defaultPage = ScreenFlow.fromPreference(prefs.getString("default_page", null));
-        showPage(defaultPage);
+        showPage(ScreenFlow.Page.BATTERY);
         final Context app = getApplicationContext();
         new Thread(new Runnable() {
             @Override public void run() {
@@ -220,7 +228,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); resumed = true; resumedAt = SystemClock.uptimeMillis();
-        // A day/night switch while Launchpad was hidden may not have reached onConfigurationChanged.
+        // A day/night switch while the app was hidden may not have reached onConfigurationChanged.
         carNight = DisplaySignals.night(this, getResources().getConfiguration()); applyAppearance();
         try {
             getContentResolver().registerContentObserver(Settings.System.getUriFor(SplitScreen.SETTING), false, splitChanges);
@@ -257,7 +265,6 @@ public final class MainActivity extends Activity {
         rebuildPage();
     }
     private void rebuildPage() {
-        if (modal != null) closeScheduleModal();
         int knob = knobIndex; showPage(page);
         if (knob >= 0 && knob < targets.size() && targets.get(knob).enabled()) { knobIndex = knob; applyKnob(); }
     }
@@ -275,9 +282,12 @@ public final class MainActivity extends Activity {
         View root = findViewById(R.id.focus_root);
         int right = compact ? SplitScreen.insetPx(getResources().getDisplayMetrics().widthPixels) : rightPadding;
         root.setPadding(root.getPaddingLeft(), root.getPaddingTop(), right, root.getPaddingBottom());
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) menu.getLayoutParams();
+        params.width = ui.dp(compact ? 84 : 248); menu.setLayoutParams(params);
     }
     private void applyWindowColors() {
         findViewById(R.id.focus_root).setBackgroundColor(palette.background);
+        findViewById(R.id.focus_rule).setBackgroundColor(palette.line);
         getWindow().setBackgroundDrawable(new ColorDrawable(palette.background));
     }
     @Override protected void onNewIntent(Intent intent) {
@@ -288,283 +298,180 @@ public final class MainActivity extends Activity {
             && SystemClock.uptimeMillis() - resumedAt > 700) finish();
     }
     @Override public void onBackPressed() {
-        if (modal != null) { closeScheduleModal(); return; }
-        ScreenFlow.Page previous = ScreenFlow.back(page, defaultPage);
+        ScreenFlow.Page previous = ScreenFlow.back(page);
         if (previous == null) finish(); else showPage(previous);
     }
 
     private void showPage(ScreenFlow.Page next) {
-        // A day/night rebuild of Advanced keeps the log: that switch is what it records.
-        if (next != page || next != ScreenFlow.Page.ADVANCED) signals = null;
+        // A day/night rebuild of the signals page keeps the log: that switch is what it records.
+        if (next != page || next != ScreenFlow.Page.SIGNALS) signals = null;
+        if (next == ScreenFlow.Page.SCHEDULE && page != ScreenFlow.Page.SCHEDULE) resetScheduleDraft();
         page = next; connectionEpoch++;
-        targets.clear(); headerTargets.clear(); grid = null;
-        advancedScroll = null;
-        preconditionStatus = null; preconditionDetail = null; preconditionButton = null;
-        preconditionElapsed = null; preconditionTemperature = null;
-        lowestValue = null; lowestCelsius = null; highestValue = null; temperatureAge = null;
-        highestColumn = null; failureRow = null; gauge = null; chart = null; countdown = null; toggleColor = 0;
-        preconditionCaption = null; scheduleInputs = null; scheduleButton = null;
-        modal = null; savedTargets = null; modalTime = null; modalDay = null; modalPreview = null; modalConfirm = null;
-        Arrays.fill(modeChips, null);
-        Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null);
-        Arrays.fill(defaultChips, null); Arrays.fill(appearanceChips, null);
+        targets.clear(); headerTargets.clear(); grid = null; scroller = null;
+        wifiValue = null; statusText = null; networkText = null; ipText = null; adbText = null; copyRow = null;
+        lowestValue = null; lowestUnit = null; lowestSub = null; highestText = null; statusPill = null;
+        preconditionDetail = null; preconditionButton = null; gauge = null; countdown = null; chart = null;
+        summaryMark = null; summaryTitle = null; summaryText = null; buttonStyle = 0;
+        schedulePill = null; scheduleDay = null; scheduleHint = null; schedulePreview = null; scheduleInputs = null;
+        scheduleConfirm = null; scheduleCancel = null; Arrays.fill(modeChips, null);
+        Arrays.fill(hourDigits, null); Arrays.fill(minuteDigits, null);
+        hourWheel = null; minuteWheel = null; morningChip = null; afternoonChip = null; editField = EDIT_NONE;
+        Arrays.fill(checkMarks, null); Arrays.fill(checkValues, null); failureRow = null; failureDivider = null;
         signalsText = null;
-        content.removeAllViews(); toolbar.removeAllViews();
-        LinearLayout.LayoutParams contentParams = (LinearLayout.LayoutParams) content.getLayoutParams();
-        contentParams.topMargin = ui.dp(page == ScreenFlow.Page.ADVANCED ? 28 : 16);
-        content.setLayoutParams(contentParams);
-        buildToolbar();
-        if (page == ScreenFlow.Page.PRECONDITIONING) buildPreconditioning();
-        else if (page == ScreenFlow.Page.HOME) buildHome();
-        else if (page == ScreenFlow.Page.ADVANCED) buildAdvanced();
+        content.removeAllViews();
+        buildMenu();
+        if (page == ScreenFlow.Page.BATTERY) buildBattery();
+        else if (page == ScreenFlow.Page.SCHEDULE) buildSchedule();
+        else if (page == ScreenFlow.Page.SETTINGS) buildSettings();
+        else if (page == ScreenFlow.Page.WIFI) buildWifi();
+        else if (page == ScreenFlow.Page.SIGNALS) buildSignals();
         else buildBrowser();
         if (page != ScreenFlow.Page.BROWSER) targets.addAll(headerTargets);
-        knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING;
-        knobIndex = KnobFocus.next(-1, 1, enabledTargets()); applyKnob();
-        restartConnectionTick();
+        knobOnToggle = page == ScreenFlow.Page.BATTERY;
+        knobIndex = page == ScreenFlow.Page.SCHEDULE ? confirmTarget : KnobFocus.next(-1, 1, enabledTargets());
         updatePreconditioningViews();
+        if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled())
+            knobIndex = KnobFocus.next(knobIndex, 1, enabledTargets());
+        applyKnob();
+        restartConnectionTick();
     }
 
-    private void buildToolbar() {
-        TextView title = ui.text("Launchpad", 36, palette.ink, true);
-        toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout segmented = ui.row(); segmented.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
-        ui.background(segmented, ui.rounded(palette.surface, 28, 0));
-        ScreenFlow.Page current = page == ScreenFlow.Page.BROWSER ? ScreenFlow.Page.ADVANCED : page;
-        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
-            final ScreenFlow.Page destination = ScreenFlow.TABS[i];
-            TextView chip = chip(TAB_TITLES[i], destination == current, palette.surface);
-            segmented.addView(chip, new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
-            Runnable action = new Runnable() { @Override public void run() { showPage(destination); } };
-            clickable(chip, action); headerTargets.add(new Target(chip, -1, action));
+    /** Left menu like the car's Settings screens; icons only while split screen leaves less room. */
+    private void buildMenu() {
+        menu.removeAllViews(); batteryMeta = null; scheduleMeta = null;
+        LinearLayout title = ui.row(); title.setGravity(Gravity.CENTER_VERTICAL);
+        title.setPadding(ui.dp(compact ? 0 : 12), 0, 0, 0);
+        if (compact) title.setGravity(Gravity.CENTER);
+        menu.addView(title, new LinearLayout.LayoutParams(-1, ui.dp(72)));
+        FrameLayout back = new FrameLayout(this); ui.background(back, ui.quiet(0, 24));
+        MenuGlyph backGlyph = new MenuGlyph(this, MenuGlyph.Kind.BACK); backGlyph.setColor(palette.muted);
+        back.addView(backGlyph, new FrameLayout.LayoutParams(ui.dp(22), ui.dp(22), Gravity.CENTER));
+        back.setContentDescription(page == ScreenFlow.Page.BATTERY ? "Close" : "Back");
+        title.addView(back, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
+        Runnable backAction = new Runnable() { @Override public void run() { onBackPressed(); } };
+        clickable(back, backAction); headerTargets.add(new Target(back, -1, backAction));
+        if (!compact) {
+            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(-2, -2); nameParams.leftMargin = ui.dp(4);
+            title.addView(ui.text(APP_NAME, 24, palette.ink, Fonts.Weight.LIGHT), nameParams);
         }
-        toolbar.addView(segmented);
-        LinearLayout carHome = ui.button("Car home", R.drawable.ic_car, false, 154);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(154), ui.dp(48));
-        params.leftMargin = ui.dp(compact ? 16 : 28); toolbar.addView(carHome, params);
-        Runnable homeAction = shortcutAction(ShortcutSpec.CAR_HOME);
-        clickable(carHome, homeAction); ui.available(carHome, available(ShortcutSpec.CAR_HOME), "");
-        headerTargets.add(new Target(carHome, -1, homeAction));
+        ScreenFlow.Page current = ScreenFlow.menu(page);
+        for (int i = 0; i < ScreenFlow.MENU.length; i++) {
+            final ScreenFlow.Page destination = ScreenFlow.MENU[i];
+            boolean selected = destination == current;
+            LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
+            ui.background(row, ui.quiet(selected ? palette.accentSoft : 0, 0));
+            View bar = new View(this); bar.setBackgroundColor(selected ? palette.accent : 0);
+            row.addView(bar, new LinearLayout.LayoutParams(ui.dp(4), ui.dp(40)));
+            View glyph = menuIcon(destination, selected ? palette.ink : palette.muted);
+            LinearLayout.LayoutParams glyphParams = new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26));
+            glyphParams.leftMargin = ui.dp(compact ? 23 : 18); row.addView(glyph, glyphParams);
+            if (!compact) {
+                TextView label = ui.text(MENU_TITLES[i], 19, selected ? palette.ink : palette.muted, Fonts.Weight.REGULAR);
+                LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1); labelParams.leftMargin = ui.dp(14);
+                row.addView(label, labelParams);
+                TextView meta = ui.text("", 14, palette.accent, Fonts.Weight.MEDIUM); meta.setSingleLine(true);
+                LinearLayout.LayoutParams metaParams = new LinearLayout.LayoutParams(-2, -2); metaParams.rightMargin = ui.dp(18);
+                row.addView(meta, metaParams);
+                if (destination == ScreenFlow.Page.BATTERY) batteryMeta = meta;
+                else if (destination == ScreenFlow.Page.SCHEDULE) scheduleMeta = meta;
+            }
+            row.setContentDescription(MENU_TITLES[i]);
+            menu.addView(row, new LinearLayout.LayoutParams(-1, ui.dp(64)));
+            Runnable action = new Runnable() { @Override public void run() { if (page != destination) showPage(destination); } };
+            clickable(row, action); headerTargets.add(new Target(row, -1, action));
+        }
     }
 
-    private void buildHome() {
+    /** Battery and Schedule are drawn; Settings is the Material Symbols gear, tinted like them. */
+    private View menuIcon(ScreenFlow.Page destination, int color) {
+        if (destination == ScreenFlow.Page.SETTINGS) {
+            ImageView icon = new ImageView(this); icon.setImageResource(R.drawable.ic_settings);
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER); icon.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            return icon;
+        }
+        MenuGlyph glyph = new MenuGlyph(this, destination == ScreenFlow.Page.BATTERY ? MenuGlyph.Kind.BATTERY : MenuGlyph.Kind.SCHEDULE);
+        glyph.setColor(color); return glyph;
+    }
+
+    private void buildBattery() {
         LinearLayout body = ui.row();
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
-        FrameLayout navigation = new FrameLayout(this);
-        ui.background(navigation, ui.control(palette.hero, 20));
-        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(0, -1, 0.57f);
-        body.addView(navigation, heroParams);
-        FrameLayout.LayoutParams glyph = new FrameLayout.LayoutParams(ui.dp(128), ui.dp(128), Gravity.TOP | Gravity.LEFT);
-        glyph.leftMargin = ui.dp(40); glyph.topMargin = ui.dp(36);
-        View navigationIcon = ui.icon(R.drawable.ic_nav, 128);
-        navigationIcon.setRotation(90);
-        navigation.addView(navigationIcon, glyph);
-        LinearLayout labels = ui.column();
-        labels.addView(ui.text("Navigation", compact ? 52 : 64, palette.ink, true));
-        TextView subtitle = ui.text(ShortcutSpec.NAVIGATION.subtitle, 26, palette.muted, false);
-        subtitle.setTag("subtitle");
-        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-2, -2);
-        subtitleParams.topMargin = ui.dp(9); labels.addView(subtitle, subtitleParams);
-        FrameLayout.LayoutParams labelsParams = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM | Gravity.LEFT);
-        labelsParams.leftMargin = ui.dp(36); labelsParams.bottomMargin = ui.dp(30);
-        labelsParams.rightMargin = ui.dp(112);
-        navigation.addView(labels, labelsParams);
-        FrameLayout go = ui.appIcon(R.drawable.ic_arrow, palette.accent, 68, 36);
-        ui.background(go, ui.rounded(palette.accent, 34, 0));
-        FrameLayout.LayoutParams goParams = new FrameLayout.LayoutParams(ui.dp(68), ui.dp(68), Gravity.BOTTOM | Gravity.RIGHT);
-        goParams.rightMargin = ui.dp(28); goParams.bottomMargin = ui.dp(28);
-        navigation.addView(go, goParams);
-        addShortcutTarget(navigation, ShortcutSpec.NAVIGATION);
-        navigation.setContentDescription("Navigation. Choose a destination");
+        LinearLayout left = ui.column();
+        body.addView(left, compact ? new LinearLayout.LayoutParams(0, -1, 1) : new LinearLayout.LayoutParams(ui.dp(420), -1));
+        left.addView(ui.caption("Lowest pack temperature"));
+        LinearLayout reading = ui.row(); reading.setBaselineAligned(false);
+        lowestValue = ui.text("—", 84, palette.ink, Fonts.Weight.BOLD); lowestValue.setSingleLine(true);
+        reading.addView(lowestValue);
+        lowestUnit = ui.text("°F", 34, palette.ink, Fonts.Weight.MEDIUM);
+        LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(-2, -2);
+        unitParams.leftMargin = ui.dp(4); unitParams.topMargin = ui.dp(12); reading.addView(lowestUnit, unitParams);
+        left.addView(reading, below(8));
+        lowestSub = ui.text("Checking…", 16, palette.muted, false); lowestSub.setSingleLine(true);
+        lowestSub.setEllipsize(TextUtils.TruncateAt.END);
+        left.addView(lowestSub, below(4));
+        statusPill = ui.pill();
+        left.addView(statusPill, margins(new LinearLayout.LayoutParams(-2, ui.dp(32)), 0, 16));
+        countdown = new CountdownBar(this); countdown.setPalette(palette); countdown.setVisibility(View.GONE);
+        left.addView(countdown, margins(new LinearLayout.LayoutParams(-1, ui.dp(12)), 0, 8));
+        preconditionDetail = ui.text("", 15, palette.muted, false);
+        preconditionDetail.setLineSpacing(0, 1.1f); preconditionDetail.setMaxLines(2);
+        preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
+        left.addView(preconditionDetail, margins(new LinearLayout.LayoutParams(-1, -2), 0, 8));
+        left.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
+        gauge = new TemperatureGauge(this); gauge.setPalette(palette);
+        left.addView(gauge, new LinearLayout.LayoutParams(-1, ui.dp(40)));
+        LinearLayout actions = ui.row(); actions.setGravity(Gravity.CENTER_VERTICAL);
+        left.addView(actions, margins(new LinearLayout.LayoutParams(-1, ui.dp(64)), 0, 12));
+        preconditionButton = ui.primaryButton("Start");
+        addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
+        preconditionButton.setEnabled(false); preconditionButton.setAlpha(0.4f);
+        actions.addView(preconditionButton, compact ? new LinearLayout.LayoutParams(0, -1, 1)
+            : new LinearLayout.LayoutParams(ui.dp(220), -1));
+        FrameLayout scheduleButton = new FrameLayout(this); ui.background(scheduleButton, ui.secondary(12));
+        MenuGlyph clock = new MenuGlyph(this, MenuGlyph.Kind.SCHEDULE); clock.setColor(palette.ink);
+        scheduleButton.addView(clock, new FrameLayout.LayoutParams(ui.dp(30), ui.dp(30), Gravity.CENTER));
+        scheduleButton.setContentDescription("Schedule preconditioning");
+        actions.addView(scheduleButton, margins(new LinearLayout.LayoutParams(ui.dp(64), -1), 14, 0));
+        addTarget(scheduleButton, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SCHEDULE); } });
+        if (compact) return;
 
-        LinearLayout actions = ui.column();
-        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(0, -1, 0.43f);
-        actionsParams.leftMargin = ui.dp(28); body.addView(actions, actionsParams);
-        ShortcutSpec[] specs = {ShortcutSpec.MUSIC, ShortcutSpec.PHONE, ShortcutSpec.PROJECTION};
-        int[] icons = {R.drawable.ic_music, R.drawable.ic_phone, R.drawable.ic_projection};
-        int[] colors = {0xffff6175, 0xff22c967, 0xff9861ff};
-        for (int i = 0; i < specs.length; i++) {
-            LinearLayout row = ui.homeAction(specs[i].title, specs[i].subtitle, icons[i], colors[i]);
-            actions.addView(row, new LinearLayout.LayoutParams(-1, 0, 1));
-            addShortcutTarget(row, specs[i]);
-            actions.addView(ui.divider(false));
-        }
-        LinearLayout precondition = ui.homeAction("Preconditioning", "Checking vehicle services",
-            R.drawable.ic_preconditioning, 0xffffa623);
-        // Give the action its own focus target, independent of the read-only labels.
-        precondition.removeViewAt(precondition.getChildCount() - 1);
-        preconditionStatus = (TextView) precondition.findViewWithTag("subtitle");
-        preconditionTemperature = ui.text("Battery temp: checking…", 14, palette.muted, false);
-        preconditionTemperature.setSingleLine(true);
-        preconditionTemperature.setEllipsize(TextUtils.TruncateAt.END);
-        ((LinearLayout) preconditionStatus.getParent()).addView(preconditionTemperature);
-        // The row opens the tab; add it before the button so the button's knob state wins.
-        precondition.setContentDescription("Preconditioning. Open the preconditioning tab");
-        addTarget(precondition, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.PRECONDITIONING); } });
-        preconditionButton = preconditioningButton();
-        precondition.addView(preconditionButton, new LinearLayout.LayoutParams(ui.dp(82), ui.dp(44)));
-        actions.addView(precondition, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout right = ui.column();
+        body.addView(right, margins(new LinearLayout.LayoutParams(0, -1, 1), 24, 0));
+        LinearLayout chartCard = ui.card();
+        right.addView(chartCard, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout chartHeader = ui.row(); chartHeader.setGravity(Gravity.CENTER_VERTICAL);
+        chartHeader.addView(ui.caption("Last 30 minutes"), new LinearLayout.LayoutParams(0, -2, 1));
+        highestText = ui.text("", 14, palette.muted, false); chartHeader.addView(highestText);
+        chartCard.addView(chartHeader);
+        chart = new TemperatureChart(this); chart.setPalette(palette);
+        chartCard.addView(chart, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 10));
+
+        LinearLayout summary = ui.row(); summary.setGravity(Gravity.CENTER_VERTICAL);
+        summary.setPadding(ui.dp(18), 0, ui.dp(14), 0);
+        ui.background(summary, ui.secondary(16));
+        right.addView(summary, margins(new LinearLayout.LayoutParams(-1, ui.dp(60)), 0, 14));
+        summaryMark = new CheckMark(this); summaryMark.setPalette(palette);
+        summary.addView(summaryMark, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
+        summaryTitle = ui.text("Checking car", 17, palette.ink, false); summaryTitle.setSingleLine(true);
+        summary.addView(summaryTitle, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
+        summaryText = ui.text("", 15, palette.muted, false); summaryText.setSingleLine(true);
+        summaryText.setEllipsize(TextUtils.TruncateAt.END);
+        summary.addView(summaryText, margins(new LinearLayout.LayoutParams(0, -2, 1), 12, 0));
+        MenuGlyph more = new MenuGlyph(this, MenuGlyph.Kind.MORE); more.setColor(palette.faint);
+        summary.addView(more, new LinearLayout.LayoutParams(ui.dp(18), ui.dp(18)));
+        summary.setContentDescription("Vehicle checks");
+        addTarget(summary, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SETTINGS); } });
+    }
+    private LinearLayout.LayoutParams below(int margin) {
+        return margins(new LinearLayout.LayoutParams(-2, -2), 0, margin);
+    }
+    private LinearLayout.LayoutParams margins(LinearLayout.LayoutParams params, int left, int top) {
+        params.leftMargin = ui.dp(left); params.topMargin = ui.dp(top); return params;
     }
 
-    private void buildAdvanced() {
-        advancedScroll = new ScrollView(this); advancedScroll.setFillViewport(true);
-        content.addView(advancedScroll, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout body = ui.column();
-        advancedScroll.addView(body, new ScrollView.LayoutParams(-1, -2));
-        LinearLayout group = ui.row(); group.setGravity(Gravity.CENTER_VERTICAL);
-        group.setPadding(ui.dp(24), ui.dp(16), ui.dp(18), ui.dp(16));
-        ui.background(group, ui.rounded(palette.surface, 20, 0));
-        body.addView(group, new LinearLayout.LayoutParams(-1, ui.dp(100)));
-        LinearLayout network = ui.row(); network.setGravity(Gravity.CENTER_VERTICAL);
-        statusDot = new View(this); ui.background(statusDot, ui.rounded(palette.idle, 6, 0));
-        network.addView(statusDot, new LinearLayout.LayoutParams(ui.dp(16), ui.dp(16)));
-        LinearLayout networkLabels = ui.column();
-        statusText = ui.text("Checking Wi-Fi", 24, palette.ink, true);
-        networkText = ui.text("Network / Unavailable", 16, palette.muted, false);
-        networkText.setSingleLine(true); networkText.setEllipsize(TextUtils.TruncateAt.END);
-        networkLabels.addView(statusText);
-        LinearLayout.LayoutParams sub = new LinearLayout.LayoutParams(-1, -2); sub.topMargin = ui.dp(7);
-        networkLabels.addView(networkText, sub);
-        LinearLayout.LayoutParams networkLabelParams = new LinearLayout.LayoutParams(0, -2, 1);
-        networkLabelParams.leftMargin = ui.dp(18); network.addView(networkLabels, networkLabelParams);
-        group.addView(network, new LinearLayout.LayoutParams(0, -1, 0.31f));
-        group.addView(ui.divider(true));
-        LinearLayout ip = detailColumn("IP address", false);
-        ipText = (TextView) ip.findViewWithTag("value");
-        group.addView(ip, new LinearLayout.LayoutParams(0, -1, 0.22f)); group.addView(ui.divider(true));
-        LinearLayout adbGroup = ui.row(); adbGroup.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout adbColumn = detailColumn("ADB address", true);
-        adbText = (TextView) adbColumn.findViewWithTag("value");
-        adbGroup.addView(adbColumn, new LinearLayout.LayoutParams(0, -1, 1));
-        FrameLayout copy = ui.appIcon(R.drawable.ic_copy, palette.quiet, 40, 23);
-        ui.background(copy, ui.control(palette.quiet, 12));
-        copyButton = copy; copyButton.setContentDescription("Copy ADB address"); copyButton.setEnabled(false);
-        adbGroup.addView(copy, new LinearLayout.LayoutParams(ui.dp(40), ui.dp(40)));
-        LinearLayout.LayoutParams adbParams = new LinearLayout.LayoutParams(0, -1, 0.36f);
-        adbParams.rightMargin = ui.dp(20); group.addView(adbGroup, adbParams);
-        Runnable copyAction = new Runnable() { @Override public void run() { copyAddress(); } };
-        clickable(copy, copyAction);
-        group.addView(ui.divider(true));
-        LinearLayout wifi = ui.button("Wi-Fi settings", R.drawable.ic_wifi, true, 198);
-        LinearLayout.LayoutParams wifiParams = new LinearLayout.LayoutParams(ui.dp(198), ui.dp(48));
-        wifiParams.leftMargin = ui.dp(22); group.addView(wifi, wifiParams);
-        addShortcutTarget(wifi, ShortcutSpec.WIFI);
-        targets.add(new Target(copyButton, -1, copyAction));
-
-        LinearLayout card = ui.row(); card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
-        ui.background(card, ui.rounded(palette.surface, 20, 0));
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
-        cardParams.topMargin = ui.dp(12); body.addView(card, cardParams);
-        LinearLayout details = ui.column();
-        details.addView(ui.text("Default tab", 24, palette.ink, true));
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-2, -2); hintParams.topMargin = ui.dp(7);
-        details.addView(ui.text("Launchpad opens on this tab", 16, palette.muted, false), hintParams);
-        card.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout choices = ui.row(); choices.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
-        ui.background(choices, ui.rounded(palette.card, 28, 0));
-        card.addView(choices);
-        for (int i = 0; i < ScreenFlow.TABS.length; i++) {
-            final int index = i;
-            defaultChips[i] = chip(TAB_TITLES[i], ScreenFlow.TABS[i] == defaultPage, palette.card);
-            choices.addView(defaultChips[i], new LinearLayout.LayoutParams(ui.dp(i == 0 ? 170 : 128), ui.dp(40)));
-            addTarget(defaultChips[i], new Runnable() { @Override public void run() {
-                defaultPage = ScreenFlow.TABS[index];
-                prefs.edit().putString("default_page", defaultPage.name()).apply();
-                for (int j = 0; j < defaultChips.length; j++) styleChip(defaultChips[j], j == index, palette.card);
-            } });
-        }
-
-        LinearLayout look = ui.row(); look.setGravity(Gravity.CENTER_VERTICAL);
-        look.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
-        ui.background(look, ui.rounded(palette.surface, 20, 0));
-        LinearLayout.LayoutParams lookParams = new LinearLayout.LayoutParams(-1, -2);
-        lookParams.topMargin = ui.dp(12); body.addView(look, lookParams);
-        LinearLayout lookDetails = ui.column();
-        lookDetails.addView(ui.text("Appearance", 24, palette.ink, true));
-        LinearLayout.LayoutParams lookHint = new LinearLayout.LayoutParams(-2, -2); lookHint.topMargin = ui.dp(7);
-        lookDetails.addView(ui.text(appearance == AppearanceMode.FOLLOW_CAR ? "Follows the car's day/night display"
-            : "Always " + appearance.title.toLowerCase(java.util.Locale.US), 16, palette.muted, false), lookHint);
-        look.addView(lookDetails, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout modes = ui.row(); modes.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
-        ui.background(modes, ui.rounded(palette.card, 28, 0));
-        look.addView(modes);
-        final AppearanceMode[] modeValues = AppearanceMode.values();
-        for (int i = 0; i < modeValues.length; i++) {
-            final AppearanceMode mode = modeValues[i];
-            appearanceChips[i] = chip(mode.title, mode == appearance, palette.card);
-            modes.addView(appearanceChips[i], new LinearLayout.LayoutParams(ui.dp(i == 0 ? 150 : 110), ui.dp(40)));
-            addTarget(appearanceChips[i], new Runnable() { @Override public void run() {
-                if (mode == appearance) return;
-                appearance = mode; prefs.edit().putString("appearance", mode.name()).apply();
-                Palette before = palette; applyAppearance();
-                // Same palette: the page wasn't rebuilt, so restyle the chips here.
-                if (before == palette) rebuildPage();
-            } });
-        }
-
-        TextView tools = ui.text("TOOLS", 12, palette.muted, false);
-        LinearLayout.LayoutParams toolsParams = new LinearLayout.LayoutParams(-1, -2);
-        toolsParams.topMargin = ui.dp(12); toolsParams.bottomMargin = ui.dp(8); toolsParams.leftMargin = ui.dp(4);
-        body.addView(tools, toolsParams);
-        LinearLayout list = ui.column();
-        ui.background(list, ui.rounded(palette.card, 17, palette.line));
-        list.setPadding(ui.dp(2), ui.dp(2), ui.dp(2), ui.dp(2));
-        body.addView(list, new LinearLayout.LayoutParams(-1, -2));
-        LinearLayout screens = ui.actionRow("All screens", "Browse every available screen",
-            R.drawable.ic_screens, palette.screensIcon, false);
-        list.addView(screens, new LinearLayout.LayoutParams(-1, ui.dp(80)));
-        addTarget(screens, new Runnable() { @Override public void run() {
-            tab = TAB_ALL; showPage(ScreenFlow.Page.BROWSER);
-        } });
-        View separator = ui.divider(false);
-        LinearLayout.LayoutParams separatorParams = new LinearLayout.LayoutParams(-1, ui.dp(1));
-        separatorParams.leftMargin = ui.dp(24); separatorParams.rightMargin = ui.dp(24);
-        list.addView(separator, separatorParams);
-        LinearLayout nemesis = ui.actionRow(ShortcutSpec.NEMESIS.title, ShortcutSpec.NEMESIS.subtitle,
-            R.drawable.ic_nemesis, 0xff9861ff, false);
-        list.addView(nemesis, new LinearLayout.LayoutParams(-1, ui.dp(80)));
-        addShortcutTarget(nemesis, ShortcutSpec.NEMESIS);
-
-        LinearLayout probe = ui.column(); probe.setPadding(ui.dp(24), ui.dp(16), ui.dp(20), ui.dp(16));
-        ui.background(probe, ui.rounded(palette.surface, 20, 0));
-        LinearLayout.LayoutParams probeParams = new LinearLayout.LayoutParams(-1, -2);
-        probeParams.topMargin = ui.dp(12); body.addView(probe, probeParams);
-        probe.addView(ui.text("Appearance signals", 24, palette.ink, true));
-        probe.addView(ui.text("Read-only. Switch the Hyundai display between Day and Night (and Auto with the "
-            + "headlights on and off), then report which lines changed.", 16, palette.muted, false), below(7));
-        signalsText = ui.text("Reading…", 14, palette.ink, false);
-        signalsText.setTypeface(android.graphics.Typeface.MONOSPACE); signalsText.setLineSpacing(0, 1.15f);
-        probe.addView(signalsText, below(12));
-        updateConnectionViews();
-    }
-
-    private TextView chip(String label, boolean selected, int idle) {
-        TextView chip = ui.text(label, 17, palette.ink, false); chip.setGravity(Gravity.CENTER);
-        styleChip(chip, selected, idle); return chip;
-    }
-    private void styleChip(TextView chip, boolean selected, int idle) {
-        chip.setTextColor(selected ? palette.onAccent : palette.ink);
-        ui.background(chip, ui.control(selected ? palette.accent : idle, 24));
-    }
-    private TextView preconditioningButton() {
-        TextView button = ui.text("Start", 18, palette.onAccent, true);
-        button.setGravity(Gravity.CENTER);
-        ui.background(button, ui.control(palette.accent, 22));
-        addTarget(button, new Runnable() { @Override public void run() { preconditioningAction(); } });
-        button.setEnabled(false); return button;
-    }
-    /** The Preconditioning tab's card is a schedule monitor while one is armed (Home never is). */
-    private boolean scheduleArmedHere() {
-        return page == ScreenFlow.Page.PRECONDITIONING && schedule != null && !preconditioning.requested;
-    }
     private void preconditioningAction() {
-        if (scheduleArmedHere()) {
-            startService(new Intent(this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_CANCEL));
-            if (preconditionButton != null) preconditionButton.setEnabled(false);
-            return;
-        }
-        // Start from Home while a schedule is armed: the service cancels the schedule first.
+        // Start while a schedule is armed: the service cancels the schedule first.
         if (!preconditioning.canStop && !preconditioning.canStart) return;
         String action = preconditioning.canStop ? PreconditioningService.STOP
             : preconditioning.state == PreconditioningSnapshot.State.WARM
@@ -573,162 +480,106 @@ public final class MainActivity extends Activity {
         // Serialize presses until the service publishes the result.
         if (preconditionButton != null) preconditionButton.setEnabled(false);
     }
-
-    private void buildPreconditioning() {
-        LinearLayout body = ui.row();
-        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout control = panel(body, 0.34f, 0);
-        preconditionCaption = caption("BATTERY PRECONDITIONING");
-        control.addView(preconditionCaption);
-        preconditionStatus = ui.text("Checking", 34, palette.ink, true); preconditionStatus.setMaxLines(2);
-        control.addView(preconditionStatus, below(10));
-        preconditionElapsed = ui.text("Elapsed: —", 18, palette.ink, false);
-        control.addView(preconditionElapsed, below(10));
-        preconditionDetail = ui.text("Checking vehicle services", 16, palette.muted, false);
-        preconditionDetail.setLineSpacing(0, 1.15f); preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
-        preconditionDetail.setMaxLines(6);
-        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(-1, -2); detailParams.topMargin = ui.dp(14);
-        control.addView(preconditionDetail, detailParams);
-        countdown = new CountdownBar(this); countdown.setPalette(palette); countdown.setVisibility(View.GONE);
-        LinearLayout.LayoutParams countdownParams = new LinearLayout.LayoutParams(-1, ui.dp(16)); countdownParams.topMargin = ui.dp(12);
-        control.addView(countdown, countdownParams);
-        scheduleInputs = ui.text("", 16, palette.ink, false); scheduleInputs.setVisibility(View.GONE);
-        scheduleInputs.setMaxLines(2); scheduleInputs.setEllipsize(TextUtils.TruncateAt.END);
-        LinearLayout.LayoutParams inputsParams = new LinearLayout.LayoutParams(-1, -2); inputsParams.topMargin = ui.dp(10);
-        control.addView(scheduleInputs, inputsParams);
-        control.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
-        LinearLayout actions = ui.row(); actions.setGravity(Gravity.CENTER_VERTICAL);
-        preconditionButton = ui.text("Start", 26, palette.onAccent, true); preconditionButton.setGravity(Gravity.CENTER);
-        addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
-        preconditionButton.setEnabled(false);
-        // Split screen leaves about 230 dp; the Start pill takes what the clock button doesn't.
-        actions.addView(preconditionButton, compact ? new LinearLayout.LayoutParams(0, ui.dp(72), 1)
-            : new LinearLayout.LayoutParams(ui.dp(260), ui.dp(72)));
-        int clockSize = compact ? 64 : 72;
-        FrameLayout clock = new FrameLayout(this);
-        ui.background(clock, ui.circle(clockSize));
-        ClockGlyph glyph = new ClockGlyph(this); glyph.setColor(palette.secondary);
-        clock.addView(glyph, new FrameLayout.LayoutParams(ui.dp(32), ui.dp(32), Gravity.CENTER));
-        clock.setContentDescription("Schedule preconditioning"); clock.setEnabled(false);
-        // Target 1, right after the toggle, so the toggle stays target 0 for knobOnToggle.
-        addTarget(clock, new Runnable() { @Override public void run() { openScheduleModal(); } });
-        scheduleButton = clock;
-        LinearLayout.LayoutParams clockParams = new LinearLayout.LayoutParams(ui.dp(clockSize), ui.dp(clockSize));
-        clockParams.leftMargin = ui.dp(12); actions.addView(clock, clockParams);
-        control.addView(actions, new LinearLayout.LayoutParams(compact ? -1 : -2, -2));
-
-        LinearLayout temperature = panel(body, 0.40f, 16);
-        LinearLayout readings = ui.row();
-        LinearLayout lowest = ui.column(); lowest.addView(caption("LOWEST PACK"));
-        LinearLayout values = ui.row(); values.setGravity(Gravity.BOTTOM);
-        lowestValue = ui.text("—", 48, palette.ink, true); values.addView(lowestValue);
-        lowestCelsius = ui.text("", 20, palette.muted, false);
-        LinearLayout.LayoutParams celsiusParams = new LinearLayout.LayoutParams(-2, -2);
-        celsiusParams.leftMargin = ui.dp(10); celsiusParams.bottomMargin = ui.dp(5); values.addView(lowestCelsius, celsiusParams);
-        lowest.addView(values, below(6));
-        readings.addView(lowest, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout highest = ui.column(); highest.setGravity(Gravity.RIGHT);
-        highest.addView(caption("HIGHEST PACK"));
-        highestValue = ui.text("—", 28, palette.ink, true); highest.addView(highestValue, below(6));
-        highestColumn = highest; highest.setVisibility(View.GONE); readings.addView(highest);
-        temperature.addView(readings);
-        temperatureAge = ui.text("Checking…", 14, palette.muted, false); temperatureAge.setSingleLine(true);
-        temperature.addView(temperatureAge, below(6));
-        gauge = new TemperatureGauge(this); gauge.setPalette(palette);
-        LinearLayout.LayoutParams gaugeParams = new LinearLayout.LayoutParams(-1, ui.dp(58)); gaugeParams.topMargin = ui.dp(8);
-        temperature.addView(gauge, gaugeParams);
-        chart = new TemperatureChart(this); chart.setPalette(palette);
-        LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(-1, 0, 1); chartParams.topMargin = ui.dp(6);
-        temperature.addView(chart, chartParams);
-
-        LinearLayout checks = panel(body, 0.26f, 16);
-        checks.addView(caption("VEHICLE CHECKS"));
-        String[] labels = {"EV READY", "Battery conditioning", "Car indicator", "Firmware profile", "Temperature source", "Failure code"};
-        for (int i = 0; i < labels.length; i++) {
-            LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
-            checkMarks[i] = new CheckMark(this);
-            row.addView(checkMarks[i], new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26)));
-            LinearLayout text = ui.column();
-            TextView label = ui.text(labels[i], 17, palette.ink, true); label.setSingleLine(true);
-            text.addView(label);
-            checkValues[i] = ui.text("Unknown", 14, palette.muted, false); checkValues[i].setSingleLine(true);
-            checkValues[i].setEllipsize(TextUtils.TruncateAt.END); text.addView(checkValues[i], below(4));
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1); textParams.leftMargin = ui.dp(12);
-            row.addView(text, textParams);
-            checks.addView(row, new LinearLayout.LayoutParams(-1, 0, 1));
-            if (i == labels.length - 1) { failureRow = row; row.setVisibility(View.GONE); }
-        }
+    /** The car is heating the pack: our request is active, or the car started it itself. */
+    private boolean heating() {
+        return preconditioning.state == PreconditioningSnapshot.State.ACTIVE
+            || (preconditioning.state == PreconditioningSnapshot.State.IDLE && preconditioning.indicator == 1);
     }
-    private LinearLayout panel(LinearLayout parent, float weight, int gap) {
-        LinearLayout panel = ui.column(); panel.setPadding(ui.dp(20), ui.dp(18), ui.dp(20), ui.dp(18));
-        ui.background(panel, ui.rounded(palette.surface, 20, 0));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, weight); params.leftMargin = ui.dp(gap);
-        parent.addView(panel, params); return panel;
-    }
-    private TextView caption(String value) { return ui.text(value, 12, palette.muted, true); }
-    private LinearLayout.LayoutParams below(int margin) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2); params.topMargin = ui.dp(margin); return params;
-    }
+    private boolean scheduleArmed() { return schedule != null && !preconditioning.requested; }
 
     private void updatePreconditioningViews() {
-        if (preconditionStatus == null) return;
         long now = SystemClock.elapsedRealtime();
-        boolean armed = scheduleArmedHere();
         long wall = WallClock.now();
         boolean twentyFourHour = DateFormat.is24HourFormat(this);
         TimeZone zone = TimeZone.getDefault();
-        String status = armed ? schedule.title() + " " + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone)
-            : preconditioning.title();
-        if (page == ScreenFlow.Page.HOME && preconditioning.requested) status += " · " + preconditioning.elapsed();
-        preconditionStatus.setText(status);
-        if (preconditionCaption != null) preconditionCaption.setText(armed ? "SCHEDULED PRECONDITIONING" : "BATTERY PRECONDITIONING");
-        if (preconditionTemperature != null) preconditionTemperature.setText(batteryTemperature.label(now, true));
+        boolean armed = scheduleArmed();
         if (!preconditioning.requested) requestStartedAt = -1;
         else if (requestStartedAt < 0 || now - preconditioning.elapsedMs < requestStartedAt)
             requestStartedAt = now - preconditioning.elapsedMs;
         boolean waiting = preconditioning.state == PreconditioningSnapshot.State.WAITING;
-        if (preconditionDetail != null) {
+        if (batteryMeta != null) {
+            batteryMeta.setText(waiting ? "Starting" : heating() && preconditioning.requested ? preconditioning.elapsed() : "");
+            batteryMeta.setTextColor(waiting ? palette.accent : palette.warm);
+        }
+        if (scheduleMeta != null) scheduleMeta.setText(armed ? ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone) : "");
+        if (statusPill != null) updateBatteryViews(now, wall, twentyFourHour, zone, armed, waiting);
+        if (hourWheel != null) renderSchedule();
+        if (checkMarks[0] != null) updateChecks();
+    }
+    private void updateBatteryViews(long now, long wall, boolean twentyFourHour, TimeZone zone, boolean armed, boolean waiting) {
+        PreconditioningSnapshot.State state = preconditioning.state;
+        String detail = preconditioning.detail;
+        if (waiting) {
+            int left = (int) Math.ceil(CountdownBar.remaining(requestStartedAt, now) * CountdownBar.DURATION_MS / 1000f);
+            ui.setPill(statusPill, String.format(Locale.US, "Starting · %d:%02d left", left / 60, left % 60),
+                palette.accent, palette.accentSoft);
+            detail = "Sent to the car. It usually starts within a minute.";
+        } else if (heating()) {
+            ui.setPill(statusPill, preconditioning.requested ? "Conditioning · " + preconditioning.elapsed()
+                : "Conditioning · started by the car", palette.warm, palette.warmSoft);
+        } else if (armed) {
+            ui.setPill(statusPill, "Scheduled · " + schedule.title() + " " + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone),
+                palette.accent, palette.accentSoft);
             ScheduleLog.Event last = scheduleLog.latest();
             // Past the send time the newest "car not ready" line explains the wait better than the plan.
-            boolean deferred = armed && schedule.plannedSendAt != PreconditioningSchedule.NONE && wall >= schedule.plannedSendAt
+            boolean deferred = schedule.plannedSendAt != PreconditioningSchedule.NONE && wall >= schedule.plannedSendAt
                 && last != null && last.kind == ScheduleLog.Kind.DEFERRED;
-            preconditionDetail.setText(armed ? deferred ? last.text : schedule.reason : waiting
-                ? "Preconditioning initiated. It should start within a minute or so." : preconditioning.detail);
-            preconditionDetail.setMaxLines(armed ? 3 : 6);
+            detail = deferred ? last.text : ScheduleFormat.sendLine(schedule, wall) + ". " + schedule.reason;
+        } else if (state == PreconditioningSnapshot.State.WARM) {
+            ui.setPill(statusPill, preconditioning.title(), palette.warm, palette.warmSoft);
+        } else if (state == PreconditioningSnapshot.State.ERROR || state == PreconditioningSnapshot.State.UNAVAILABLE
+            || state == PreconditioningSnapshot.State.UNKNOWN || state == PreconditioningSnapshot.State.TIMED_OUT) {
+            ui.setPill(statusPill, preconditioning.title(), palette.danger, palette.raised);
+        } else {
+            String title = preconditioning.title();
+            if (state == PreconditioningSnapshot.State.ENDED) title += " · " + preconditioning.elapsed();
+            ui.setPill(statusPill, title, palette.ink, palette.raised);
         }
-        if (countdown != null) {
-            countdown.setVisibility(waiting ? View.VISIBLE : View.GONE);
-            countdown.setStartedAt(waiting ? requestStartedAt : -1);
+        preconditionDetail.setText(detail);
+        preconditionDetail.setVisibility(TextUtils.isEmpty(detail) ? View.GONE : View.VISIBLE);
+        countdown.setVisibility(waiting ? View.VISIBLE : View.GONE);
+        countdown.setStartedAt(waiting ? requestStartedAt : -1);
+
+        Integer minimum = batteryTemperature.minimumC;
+        boolean stale = batteryTemperature.stale(now);
+        lowestValue.setText(minimum == null ? "—" : String.valueOf(BatteryTemperatureReading.fahrenheit(minimum)));
+        lowestValue.setTextColor(stale ? palette.muted : palette.ink);
+        lowestUnit.setVisibility(minimum == null ? View.GONE : View.VISIBLE);
+        lowestSub.setText(minimum == null ? batteryTemperature.age(now) : minimum + "°C · " + batteryTemperature.age(now));
+        int threshold = warmThreshold();
+        gauge.setValue(minimum, threshold, heating());
+        if (chart != null) {
+            chart.setTrace(history, now, threshold, heating());
+            TemperatureHistory.Sample latest = history.latest();
+            Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
+            highestText.setText(maximum == null ? "" : "Highest " + BatteryTemperatureReading.fahrenheit(maximum) + "°F");
         }
-        if (preconditionElapsed != null) preconditionElapsed.setText(armed
-            ? ScheduleFormat.sendLine(schedule, wall) : "Elapsed: " +
-            (preconditioning.requested || preconditioning.state == PreconditioningSnapshot.State.ENDED
-                || preconditioning.state == PreconditioningSnapshot.State.TIMED_OUT ? preconditioning.elapsed() : "—"));
-        if (scheduleInputs != null) updateScheduleViews(armed);
-        if (modal != null) renderScheduleModal();
-        if (lowestValue != null) updateTemperatureViews(now);
-        if (preconditionButton != null) {
-            boolean warm = !armed && preconditioning.state == PreconditioningSnapshot.State.WARM;
-            boolean toggle = page == ScreenFlow.Page.PRECONDITIONING;
-            preconditionButton.setText(armed ? compact ? "Cancel" : "Cancel schedule"
-                : warm ? toggle ? "Start anyway" : "Start\nanyway" : preconditioning.requested ? "Stop" : "Start");
-            preconditionButton.setTextSize(toggle ? warm || armed ? 22 : 26 : warm ? 14 : 18);
-            preconditionButton.setContentDescription(armed ? "Cancel scheduled preconditioning"
-                : warm ? "Start preconditioning anyway" : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
-            int color = preconditioning.requested || armed ? STOP_RED : warm ? TemperatureGauge.WARM : palette.accent;
-            if (toggle && color != toggleColor) { toggleColor = color; ui.background(preconditionButton, ui.pill(color, 36)); }
-            boolean enabled = armed || preconditioning.canStart || preconditioning.canStop;
-            preconditionButton.setEnabled(enabled); preconditionButton.setAlpha(enabled ? 1f : 0.4f);
-            if (scheduleButton != null) {
-                // Scheduling for later is fine while the car isn't READY; not during a request.
-                boolean schedulable = vehicleService != null && !preconditioning.requested;
-                scheduleButton.setEnabled(schedulable); scheduleButton.setAlpha(schedulable ? 1f : 0.4f);
-                scheduleButton.setContentDescription(armed ? "Change scheduled preconditioning" : "Schedule preconditioning");
-            }
-            if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
-            // The toggle is the first target on its tab.
-            if (toggle && enabled && knobOnToggle && knobIndex != 0) { knobIndex = 0; applyKnob(); }
+        if (summaryMark != null) {
+            boolean unsupported = preconditioning.supported == PreconditioningSnapshot.FAIL;
+            int ready = unsupported ? PreconditioningSnapshot.FAIL : preconditioning.readyCheck();
+            summaryMark.setState(ready);
+            summaryTitle.setText(unsupported ? "Firmware not supported" : ready == PreconditioningSnapshot.PASS ? "Car ready"
+                : ready == PreconditioningSnapshot.FAIL ? "Car not ready" : "Checking car");
+            String enabled = preconditioning.enabledValue();
+            summaryText.setText(unsupported ? preconditioning.supportedValue() : preconditioning.readyValue()
+                + " · Conditioning " + Character.toLowerCase(enabled.charAt(0)) + enabled.substring(1));
         }
+
+        boolean warm = preconditioning.state == PreconditioningSnapshot.State.WARM;
+        preconditionButton.setText(warm ? "Start anyway" : preconditioning.requested ? "Stop" : "Start");
+        preconditionButton.setContentDescription(warm ? "Start preconditioning anyway"
+            : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
+        int style = preconditioning.requested ? 2 : 1;
+        if (style != buttonStyle) {
+            buttonStyle = style;
+            ui.background(preconditionButton, style == 2 ? ui.secondary(12) : ui.primary(12));
+            preconditionButton.setTextColor(style == 2 ? palette.warm : palette.onAccent);
+        }
+        boolean enabled = preconditioning.canStart || preconditioning.canStop;
+        preconditionButton.setEnabled(enabled); preconditionButton.setAlpha(enabled ? 1f : 0.4f);
+        if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
+        // Start is the first target on the Battery page.
+        if (enabled && knobOnToggle && knobIndex != 0) { knobIndex = 0; applyKnob(); }
     }
     private int warmThreshold() {
         return vehicleService == null ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : vehicleService.warmThresholdC();
@@ -739,115 +590,185 @@ public final class MainActivity extends Activity {
     private static String fahrenheit(Integer celsius) {
         return celsius == null ? "—" : BatteryTemperatureReading.fahrenheit(celsius) + "°F";
     }
-    private void updateScheduleViews(boolean armed) {
-        // Temperatures only matter to an arrive-by plan.
-        boolean inputs = armed && schedule.mode == PreconditioningSchedule.Mode.ARRIVE_BY;
-        if (inputs) scheduleInputs.setText("Battery " + fahrenheit(freshMinimumC()) + " · Outside " + fahrenheit(outsideC));
-        scheduleInputs.setVisibility(inputs ? View.VISIBLE : View.GONE);
-    }
 
-    /** Opens the schedule sheet; it takes over the TUNE targets until it closes. */
-    private void openScheduleModal() {
-        if (modal != null || page != ScreenFlow.Page.PRECONDITIONING || vehicleService == null) return;
+    /** The draft starts from the armed schedule, or half an hour from now. */
+    private void resetScheduleDraft() {
         TimeZone zone = TimeZone.getDefault();
         if (schedule != null) {
-            modalMode = schedule.mode; modalMinute = ScheduleFormat.minuteOfDay(schedule.targetAt, zone);
-        } else modalMinute = ScheduleFormat.roundUpToFive(ScheduleFormat.minuteOfDay(WallClock.now() + 30 * 60_000L, zone));
-        for (Target target : targets) if (target.view != null) { target.view.setActivated(false); target.view.setSelected(false); }
-        savedTargets = new ArrayList<>(targets); savedKnob = knobIndex; savedKnobOnToggle = knobOnToggle;
-        // Without this the 1 s refresh would snap the knob back to target 0 every second.
-        targets.clear(); knobOnToggle = false;
-        final Runnable close = new Runnable() { @Override public void run() { closeScheduleModal(); } };
-
-        modal = new FrameLayout(this);
-        modal.setBackgroundColor(palette.dark ? 0xb3000000 : 0x66000000);
-        clickable(modal, close);   // Tapping outside the card closes it.
-        LinearLayout card = ui.column(); card.setClickable(true);
-        card.setPadding(ui.dp(28), ui.dp(20), ui.dp(28), ui.dp(20));
-        ui.background(card, ui.rounded(palette.background, 24, palette.line));
-        modal.addView(card, new FrameLayout.LayoutParams(ui.dp(compact ? 540 : 640), -2, Gravity.CENTER));
-
+            scheduleMode = schedule.mode; scheduleMinute = ScheduleFormat.minuteOfDay(schedule.targetAt, zone);
+        } else scheduleMinute = ScheduleFormat.roundUpToFive(ScheduleFormat.minuteOfDay(WallClock.now() + 30 * 60_000L, zone));
+    }
+    private void buildSchedule() {
+        LinearLayout body = ui.column();
+        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout header = ui.row(); header.setGravity(Gravity.CENTER_VERTICAL);
-        card.addView(header, new LinearLayout.LayoutParams(-1, -2));
-        header.addView(ui.text(schedule != null ? "Change schedule" : "Schedule", 24, palette.ink, true),
-            new LinearLayout.LayoutParams(0, -2, 1));
+        body.addView(header, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout modes = ui.row(); modes.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
-        ui.background(modes, ui.rounded(palette.surface, 28, 0));
+        ui.background(modes, ui.rounded(palette.raised, 12, palette.line));
         header.addView(modes);
         String[] labels = {"Start by", "Arrive by"};
         for (int i = 0; i < modeChips.length; i++) {
             final PreconditioningSchedule.Mode mode = PreconditioningSchedule.Mode.values()[i];
-            modeChips[i] = chip(labels[i], mode == modalMode, palette.surface);
-            modes.addView(modeChips[i], new LinearLayout.LayoutParams(ui.dp(compact ? 120 : 136), ui.dp(44)));
-            addTarget(modeChips[i], new Runnable() { @Override public void run() {
-                modalMode = mode;
-                for (int j = 0; j < modeChips.length; j++)
-                    styleChip(modeChips[j], PreconditioningSchedule.Mode.values()[j] == modalMode, palette.surface);
-                renderScheduleModal();
-            } });
+            modeChips[i] = ui.text(labels[i], 17, palette.muted, Fonts.Weight.MEDIUM); modeChips[i].setGravity(Gravity.CENTER);
+            modes.addView(modeChips[i], new LinearLayout.LayoutParams(ui.dp(132), ui.dp(44)));
+            addTarget(modeChips[i], new Runnable() { @Override public void run() { scheduleMode = mode; renderSchedule(); } });
+        }
+        header.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1));
+        schedulePill = ui.pill(); header.addView(schedulePill, new LinearLayout.LayoutParams(-2, ui.dp(32)));
+
+        LinearLayout middle = ui.row(); middle.setGravity(Gravity.CENTER_VERTICAL);
+        body.addView(middle, margins(new LinearLayout.LayoutParams(-1, -2), 0, 10));
+        boolean twelveHour = !DateFormat.is24HourFormat(this);
+        int wheelWidth = compact ? 112 : 150;
+        hourWheel = wheel(hourDigits, EDIT_HOUR, "Hour");
+        middle.addView(hourWheel, new LinearLayout.LayoutParams(ui.dp(wheelWidth), -2));
+        TextView colon = ui.text(":", compact ? 60 : 72, palette.muted, Fonts.Weight.LIGHT);
+        middle.addView(colon, margins(new LinearLayout.LayoutParams(-2, -2), 2, 0));
+        minuteTarget = targets.size();
+        minuteWheel = wheel(minuteDigits, EDIT_MINUTE, "Minutes");
+        middle.addView(minuteWheel, margins(new LinearLayout.LayoutParams(ui.dp(wheelWidth), -2), 2, 0));
+        if (twelveHour) {
+            LinearLayout halves = ui.column();
+            middle.addView(halves, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
+            morningChip = halfChip(halves, "AM", false); afternoonChip = halfChip(halves, "PM", true);
         }
 
-        LinearLayout time = ui.row(); time.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(-1, -2); timeParams.topMargin = ui.dp(18);
-        card.addView(time, timeParams);
-        stepper(time, "−1 h", -60); stepper(time, "+1 h", 60);
-        LinearLayout clockColumn = ui.column(); clockColumn.setGravity(Gravity.CENTER_HORIZONTAL);
-        modalTime = ui.text("", compact ? 30 : 44, palette.ink, true); modalTime.setSingleLine(true);
-        clockColumn.addView(modalTime);
-        modalDay = ui.text("", 14, palette.muted, false); clockColumn.addView(modalDay, below(4));
-        time.addView(clockColumn, new LinearLayout.LayoutParams(0, -2, 1));
-        stepper(time, "−5 min", -5); stepper(time, "+5 min", 5);
+        LinearLayout plan = ui.card();
+        middle.addView(plan, margins(new LinearLayout.LayoutParams(0, -2, 1), compact ? 16 : 28, 0));
+        plan.addView(ui.caption("Plan"));
+        schedulePreview = ui.text("", 18, palette.ink, false);
+        schedulePreview.setLineSpacing(0, 1.1f); schedulePreview.setMaxLines(3); schedulePreview.setEllipsize(TextUtils.TruncateAt.END);
+        plan.addView(schedulePreview, margins(new LinearLayout.LayoutParams(-1, -2), 0, 8));
+        scheduleInputs = ui.text("", 15, palette.muted, false); scheduleInputs.setSingleLine(true);
+        scheduleInputs.setEllipsize(TextUtils.TruncateAt.END);
+        plan.addView(scheduleInputs, margins(new LinearLayout.LayoutParams(-1, -2), 0, 6));
 
-        modalPreview = ui.text("", 16, palette.muted, false);
-        modalPreview.setLineSpacing(0, 1.15f); modalPreview.setMaxLines(3); modalPreview.setEllipsize(TextUtils.TruncateAt.END);
-        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(-1, -2); previewParams.topMargin = ui.dp(16);
-        card.addView(modalPreview, previewParams);
+        LinearLayout status = ui.row(); status.setGravity(Gravity.CENTER_VERTICAL);
+        body.addView(status, margins(new LinearLayout.LayoutParams(-1, -2), 0, 6));
+        scheduleDay = ui.text("", 16, palette.muted, false);
+        status.addView(scheduleDay, new LinearLayout.LayoutParams(ui.dp(wheelWidth * 2 + 30), -2));
+        scheduleDay.setGravity(Gravity.CENTER_HORIZONTAL);
+        scheduleHint = ui.text("", 15, palette.accent, Fonts.Weight.MEDIUM); scheduleHint.setSingleLine(true);
+        status.addView(scheduleHint, margins(new LinearLayout.LayoutParams(0, -2, 1), 16, 0));
 
-        LinearLayout buttons = ui.row(); buttons.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams buttonsParams = new LinearLayout.LayoutParams(-1, -2); buttonsParams.topMargin = ui.dp(18);
-        card.addView(buttons, buttonsParams);
-        TextView cancel = ui.text("Cancel", 20, palette.ink, false); cancel.setGravity(Gravity.CENTER);
-        ui.background(cancel, ui.control(palette.surface, 28));
-        buttons.addView(cancel, new LinearLayout.LayoutParams(ui.dp(150), ui.dp(56)));
-        addTarget(cancel, close);
-        modalConfirm = ui.text(schedule != null ? "Update" : "Schedule", 22, palette.onAccent, true);
-        modalConfirm.setGravity(Gravity.CENTER); ui.background(modalConfirm, ui.pill(palette.accent, 28));
-        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(ui.dp(200), ui.dp(56));
-        confirmParams.leftMargin = ui.dp(12); buttons.addView(modalConfirm, confirmParams);
-        addTarget(modalConfirm, new Runnable() { @Override public void run() { confirmSchedule(); } });
-
-        content.addView(modal, new FrameLayout.LayoutParams(-1, -1));
-        knobIndex = targets.size() - 1;   // Schedule
-        renderScheduleModal(); applyKnob();
-    }
-    private void stepper(LinearLayout row, String label, final int minutes) {
-        TextView button = ui.text(label, 17, palette.ink, false); button.setGravity(Gravity.CENTER);
-        ui.background(button, ui.control(palette.surface, 18));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(compact ? 76 : 84), ui.dp(52));
-        params.leftMargin = ui.dp(4); params.rightMargin = ui.dp(4);
-        row.addView(button, params);
-        button.setContentDescription((minutes < 0 ? "Earlier by " : "Later by ") + Math.abs(minutes) + " minutes");
-        addTarget(button, new Runnable() { @Override public void run() {
-            modalMinute = ScheduleFormat.wrapDay(modalMinute + minutes); renderScheduleModal();
+        body.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout actions = ui.row();
+        body.addView(actions, new LinearLayout.LayoutParams(-1, ui.dp(64)));
+        scheduleConfirm = ui.primaryButton("Schedule"); scheduleConfirm.setPadding(ui.dp(28), 0, ui.dp(28), 0);
+        scheduleConfirm.setMinWidth(ui.dp(220));
+        actions.addView(scheduleConfirm, new LinearLayout.LayoutParams(-2, -1));
+        confirmTarget = targets.size();
+        addTarget(scheduleConfirm, new Runnable() { @Override public void run() { confirmSchedule(); } });
+        scheduleCancel = ui.secondaryButton("Cancel schedule", palette.warm);
+        actions.addView(scheduleCancel, margins(new LinearLayout.LayoutParams(-2, -1), 14, 0));
+        addTarget(scheduleCancel, new Runnable() { @Override public void run() {
+            startService(new Intent(MainActivity.this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_CANCEL));
+            cancelSent = true; renderSchedule();
         } });
     }
-    private void renderScheduleModal() {
-        if (modal == null || modalTime == null) return;
+    /**
+     * One wheel: the current value large, its neighbours small above and below. Tapping a neighbour steps
+     * to it. TUNE selects the wheel, a press grabs it so turning changes it, and the next press moves on.
+     */
+    private LinearLayout wheel(TextView[] digits, final int field, String label) {
+        LinearLayout wheel = ui.column(); wheel.setGravity(Gravity.CENTER_HORIZONTAL);
+        wheel.setPadding(0, ui.dp(4), 0, ui.dp(8)); wheel.setContentDescription(label);
+        for (int i = 0; i < digits.length; i++) {
+            boolean current = i == 1;
+            digits[i] = ui.text("", current ? compact ? 76 : 88 : 30, current ? palette.ink : palette.faint,
+                current ? Fonts.Weight.SEMI_BOLD : Fonts.Weight.LIGHT);
+            digits[i].setGravity(Gravity.CENTER); digits[i].setSingleLine(true);
+            wheel.addView(digits[i], new LinearLayout.LayoutParams(-1, -2));
+        }
+        clickable(digits[0], new Runnable() { @Override public void run() { stepWheel(field, -1); } });
+        clickable(digits[2], new Runnable() { @Override public void run() { stepWheel(field, 1); } });
+        digits[0].setContentDescription("Earlier"); digits[2].setContentDescription("Later");
+        // A knob-only target: touch uses the neighbours, so the wheel itself isn't clickable.
+        wheel.setFocusable(false);
+        targets.add(new Target(wheel, -1, new Runnable() { @Override public void run() { pressWheel(field); } }));
+        return wheel;
+    }
+    private TextView halfChip(LinearLayout column, String label, final boolean afternoon) {
+        TextView chip = ui.text(label, 18, palette.muted, Fonts.Weight.MEDIUM); chip.setGravity(Gravity.CENTER);
+        column.addView(chip, margins(new LinearLayout.LayoutParams(ui.dp(76), ui.dp(52)), 0, afternoon ? 10 : 0));
+        addTarget(chip, new Runnable() { @Override public void run() {
+            scheduleMinute = ScheduleFormat.withAfternoon(scheduleMinute, afternoon); renderSchedule();
+        } });
+        return chip;
+    }
+    private void stepWheel(int field, int steps) {
+        scheduleMinute = field == EDIT_HOUR ? ScheduleFormat.stepHour(scheduleMinute, steps)
+            : ScheduleFormat.stepMinute(scheduleMinute, steps);
+        renderSchedule();
+    }
+    /** Press on a wheel: grab it; press again on the hour to move to minutes, on the minutes to finish. */
+    private void pressWheel(int field) {
+        if (editField != field) editField = field;
+        else if (field == EDIT_HOUR) { editField = EDIT_MINUTE; knobIndex = minuteTarget; }
+        else {
+            editField = EDIT_NONE;
+            if (targets.get(confirmTarget).enabled()) knobIndex = confirmTarget;
+        }
+        applyKnob(); renderSchedule();
+    }
+    private void renderSchedule() {
         long wall = WallClock.now(); TimeZone zone = TimeZone.getDefault();
         boolean twentyFourHour = DateFormat.is24HourFormat(this);
-        long target = ScheduleFormat.nextOccurrence(modalMinute, wall, zone);
-        modalTime.setText(ScheduleFormat.time(target, twentyFourHour, zone));
+        for (int i = 0; i < modeChips.length; i++) {
+            boolean selected = PreconditioningSchedule.Mode.values()[i] == scheduleMode;
+            modeChips[i].setTextColor(selected ? palette.accent : palette.muted);
+            ui.background(modeChips[i], ui.quiet(selected ? palette.accentSoft : 0, 9));
+        }
+        boolean armed = scheduleArmed();
+        schedulePill.setVisibility(armed ? View.VISIBLE : View.GONE);
+        if (armed) ui.setPill(schedulePill, "Scheduled · " + schedule.title() + " "
+            + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone), palette.accent, palette.accentSoft);
+        long target = ScheduleFormat.nextOccurrence(scheduleMinute, wall, zone);
+        for (int i = 0; i < 3; i++) {
+            hourDigits[i].setText(ScheduleFormat.hourLabel(ScheduleFormat.stepHour(scheduleMinute, i - 1), twentyFourHour));
+            minuteDigits[i].setText(ScheduleFormat.minuteLabel(ScheduleFormat.stepMinute(scheduleMinute, i - 1)));
+        }
+        styleWheel(hourWheel, hourDigits[1], editField == EDIT_HOUR);
+        styleWheel(minuteWheel, minuteDigits[1], editField == EDIT_MINUTE);
+        if (morningChip != null) {
+            boolean afternoon = scheduleMinute >= 12 * 60;
+            styleHalf(morningChip, !afternoon); styleHalf(afternoonChip, afternoon);
+        }
+        boolean onWheel = knobIndex >= 0 && knobIndex < targets.size()
+            && (targets.get(knobIndex).view == hourWheel || targets.get(knobIndex).view == minuteWheel);
+        scheduleHint.setText(editField == EDIT_HOUR ? "Turn to change the hour · press for minutes"
+            : editField == EDIT_MINUTE ? "Turn to change minutes · press to finish" : onWheel ? "Press to change" : "");
         String day = ScheduleFormat.dayHint(target, wall, zone).trim();
-        modalDay.setText(day.isEmpty() ? "Today" : Character.toUpperCase(day.charAt(0)) + day.substring(1));
+        scheduleDay.setText(day.isEmpty() ? "Today" : Character.toUpperCase(day.charAt(0)) + day.substring(1));
         boolean acceptable = PreconditioningSchedule.acceptable(target, wall);
-        modalConfirm.setEnabled(acceptable); modalConfirm.setAlpha(acceptable ? 1f : 0.4f);
-        modalPreview.setText(schedulePreview(target, wall, twentyFourHour, zone, acceptable));
+        // Scheduling for later is fine while the car isn't READY; not during a request.
+        boolean allowed = acceptable && vehicleService != null && !preconditioning.requested;
+        scheduleConfirm.setText(schedule != null ? "Update schedule" : "Schedule");
+        scheduleConfirm.setEnabled(allowed); scheduleConfirm.setAlpha(allowed ? 1f : 0.4f);
+        schedulePreview.setText(preconditioning.requested ? "Stop the current session to schedule another."
+            : planText(target, wall, twentyFourHour, zone, acceptable));
+        // Temperatures only matter to an arrive-by plan.
+        boolean inputs = scheduleMode == PreconditioningSchedule.Mode.ARRIVE_BY;
+        scheduleInputs.setText("Battery " + fahrenheit(freshMinimumC()) + " · Outside " + fahrenheit(outsideC));
+        scheduleInputs.setVisibility(inputs ? View.VISIBLE : View.GONE);
+        if (!armed) cancelSent = false;
+        scheduleCancel.setVisibility(armed ? View.VISIBLE : View.GONE);
+        scheduleCancel.setEnabled(armed && !cancelSent);
         if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(-1);
     }
-    private String schedulePreview(long target, long wall, boolean twentyFourHour, TimeZone zone, boolean acceptable) {
+    /** A grabbed wheel keeps a solid tint and an accent value; otherwise it tints only while selected. */
+    private void styleWheel(LinearLayout wheel, TextView value, boolean editing) {
+        ui.background(wheel, editing ? ui.rounded(palette.focus, 16, 0) : ui.quiet(0, 16));
+        value.setTextColor(editing ? palette.accent : palette.ink);
+    }
+    private void styleHalf(TextView chip, boolean selected) {
+        chip.setTextColor(selected ? palette.accent : palette.muted);
+        ui.background(chip, selected ? ui.quiet(palette.accentSoft, 10) : ui.secondary(10));
+    }
+    private String planText(long target, long wall, boolean twentyFourHour, TimeZone zone, boolean acceptable) {
         if (!acceptable) return "Pick a time at least 2 minutes away.";
         String text;
-        if (modalMode == PreconditioningSchedule.Mode.START_BY) {
+        if (scheduleMode == PreconditioningSchedule.Mode.START_BY) {
             text = "Preconditioning will be running by " + ScheduleFormat.time(target, twentyFourHour, zone) + ".";
         } else {
             ArriveByPlanner.Plan plan = ArriveByPlanner.plan(target, freshMinimumC(), outsideC, warmThreshold(), wall);
@@ -859,36 +780,82 @@ public final class MainActivity extends Activity {
     }
     private void confirmSchedule() {
         long wall = WallClock.now();
-        long target = ScheduleFormat.nextOccurrence(modalMinute, wall, TimeZone.getDefault());
+        long target = ScheduleFormat.nextOccurrence(scheduleMinute, wall, TimeZone.getDefault());
         if (!PreconditioningSchedule.acceptable(target, wall)) return;
         startService(new Intent(this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_SET)
-            .putExtra(PreconditioningService.EXTRA_MODE, modalMode.name())
+            .putExtra(PreconditioningService.EXTRA_MODE, scheduleMode.name())
             .putExtra(PreconditioningService.EXTRA_TARGET, target));
-        closeScheduleModal();
+        showPage(ScreenFlow.Page.BATTERY);
     }
-    private void closeScheduleModal() {
-        if (modal == null) return;
-        content.removeView(modal); modal = null;
-        modalTime = null; modalDay = null; modalPreview = null; modalConfirm = null; Arrays.fill(modeChips, null);
-        targets.clear(); if (savedTargets != null) targets.addAll(savedTargets); savedTargets = null;
-        knobIndex = savedKnob; knobOnToggle = savedKnobOnToggle;
-        if (knobIndex >= targets.size() || (knobIndex >= 0 && !targets.get(knobIndex).enabled()))
-            knobIndex = KnobFocus.next(-1, 1, enabledTargets());
-        applyKnob();
+
+    private void buildSettings() {
+        LinearLayout body = ui.row();
+        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        scroller = new ScrollView(this); scroller.setFillViewport(true); scroller.setVerticalScrollBarEnabled(false);
+        body.addView(scroller, new LinearLayout.LayoutParams(0, -1, 1));
+        LinearLayout list = ui.column(); scroller.addView(list, new ScrollView.LayoutParams(-1, -2));
+        list.addView(sectionCaption("Display", 0));
+        LinearLayout look = settingsRow(list, "Appearance", appearance.title, false);
+        addTarget(look, new Runnable() { @Override public void run() {
+            AppearanceMode[] modes = AppearanceMode.values();
+            appearance = modes[(appearance.ordinal() + 1) % modes.length];
+            prefs.edit().putString("appearance", appearance.name()).apply();
+            Palette before = palette; applyAppearance();
+            // Same palette: the page wasn't rebuilt, so show the new value here.
+            if (before == palette) rebuildPage();
+        } });
+        list.addView(sectionCaption("Tools", 18));
+        LinearLayout wifi = settingsRow(list, "Wi-Fi & ADB", "Checking", true);
+        wifiValue = (TextView) wifi.findViewWithTag("value");
+        addTarget(wifi, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.WIFI); } });
+        list.addView(ui.divider(false));
+        LinearLayout screens = settingsRow(list, "All screens", "", true);
+        addTarget(screens, new Runnable() { @Override public void run() { tab = TAB_ALL; showPage(ScreenFlow.Page.BROWSER); } });
+        list.addView(ui.divider(false));
+        LinearLayout nemesis = settingsRow(list, "NEMESIS Manager", "", true);
+        ui.available(nemesis, available(ShortcutSpec.NEMESIS)); addTarget(nemesis, shortcutAction(ShortcutSpec.NEMESIS));
+        list.addView(ui.divider(false));
+        LinearLayout probe = settingsRow(list, "Appearance signals", "", true);
+        addTarget(probe, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SIGNALS); } });
+
+        LinearLayout vehicle = ui.column();
+        body.addView(vehicle, margins(new LinearLayout.LayoutParams(0, -1, 1), 28, 0));
+        vehicle.addView(sectionCaption("Vehicle", 0));
+        for (int i = 0; i < CHECK_LABELS.length; i++) {
+            LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
+            View divider = ui.divider(false);
+            if (i > 0) vehicle.addView(divider);
+            checkMarks[i] = new CheckMark(this); checkMarks[i].setPalette(palette);
+            row.addView(checkMarks[i], new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
+            TextView label = ui.text(CHECK_LABELS[i], 17, palette.ink, false); label.setSingleLine(true);
+            row.addView(label, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
+            checkValues[i] = ui.text("Unknown", 15, palette.muted, false); checkValues[i].setSingleLine(true);
+            checkValues[i].setEllipsize(TextUtils.TruncateAt.END); checkValues[i].setGravity(Gravity.RIGHT);
+            row.addView(checkValues[i], margins(new LinearLayout.LayoutParams(0, -2, 1), 12, 0));
+            vehicle.addView(row, new LinearLayout.LayoutParams(-1, ui.dp(50)));
+            if (i == CHECK_LABELS.length - 1) { failureRow = row; failureDivider = divider; }
+        }
+        vehicle.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
+        vehicle.addView(ui.text(APP_NAME + " " + versionName(), 13, palette.faint, false));
+        updateConnectionViews();
     }
-    private void updateTemperatureViews(long now) {
+    private TextView sectionCaption(String label, int top) {
+        TextView caption = ui.caption(label);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = ui.dp(top); params.bottomMargin = ui.dp(6); caption.setLayoutParams(params);
+        return caption;
+    }
+    private LinearLayout settingsRow(LinearLayout parent, String label, String value, boolean chevron) {
+        LinearLayout row = ui.listRow(label, value, chevron);
+        parent.addView(row, new LinearLayout.LayoutParams(-1, ui.dp(56)));
+        return row;
+    }
+    private String versionName() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (PackageManager.NameNotFoundException e) { return ""; }
+    }
+    private void updateChecks() {
         Integer minimum = batteryTemperature.minimumC;
-        boolean stale = batteryTemperature.stale(now);
-        lowestValue.setText(minimum == null ? "—" : BatteryTemperatureReading.fahrenheit(minimum) + "°F");
-        lowestValue.setTextColor(stale ? palette.muted : palette.ink);
-        lowestCelsius.setText(minimum == null ? "" : minimum + "°C");
-        temperatureAge.setText(batteryTemperature.age(now));
-        TemperatureHistory.Sample latest = history.latest();
-        Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
-        highestColumn.setVisibility(maximum == null ? View.GONE : View.VISIBLE);
-        if (maximum != null) highestValue.setText(BatteryTemperatureReading.fahrenheit(maximum) + "°F · " + maximum + "°C");
-        int threshold = vehicleService == null ? BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C : vehicleService.warmThresholdC();
-        gauge.setValue(minimum, threshold); chart.setTrace(history, now, threshold);
         setCheck(0, preconditioning.readyCheck(), preconditioning.readyValue());
         setCheck(1, preconditioning.enabledCheck(), preconditioning.enabledValue());
         setCheck(2, preconditioning.indicatorCheck(), preconditioning.indicatorValue());
@@ -896,48 +863,71 @@ public final class MainActivity extends Activity {
         setCheck(4, minimum != null ? PreconditioningSnapshot.PASS : batteryTemperature.attempted
             ? PreconditioningSnapshot.FAIL : PreconditioningSnapshot.UNKNOWN,
             minimum != null ? "Native" : batteryTemperature.attempted ? "Not available on this firmware" : "Checking");
-        failureRow.setVisibility(preconditioning.failureRaw >= 0 ? View.VISIBLE : View.GONE);
+        int failure = preconditioning.failureRaw >= 0 ? View.VISIBLE : View.GONE;
+        failureRow.setVisibility(failure); failureDivider.setVisibility(failure);
         setCheck(5, PreconditioningSnapshot.UNKNOWN, "Raw " + preconditioning.failureRaw + " · meaning unknown");
     }
     private void setCheck(int index, int state, String value) {
         checkMarks[index].setState(state); checkValues[index].setText(value);
     }
 
-    private LinearLayout detailColumn(String title, boolean compact) {
-        LinearLayout column = ui.column(); column.setGravity(Gravity.CENTER_VERTICAL);
-        column.setPadding(ui.dp(compact ? 24 : 32), 0, ui.dp(12), 0);
-        column.addView(ui.text(title, 14, palette.muted, false));
-        TextView value = ui.text("—", 20, palette.ink, true); value.setTag("value"); value.setSingleLine(true);
-        value.setEllipsize(TextUtils.TruncateAt.END);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2); params.topMargin = ui.dp(8);
-        column.addView(value, params); return column;
+    private void buildWifi() {
+        LinearLayout list = ui.column();
+        content.addView(list, new FrameLayout.LayoutParams(compact ? -1 : ui.dp(620), -2));
+        list.addView(sectionCaption("Wi-Fi & ADB", 0));
+        statusText = (TextView) settingsRow(list, "Status", "Checking", false).findViewWithTag("value");
+        list.addView(ui.divider(false));
+        networkText = (TextView) settingsRow(list, "Network", "—", false).findViewWithTag("value");
+        list.addView(ui.divider(false));
+        ipText = (TextView) settingsRow(list, "IP address", "—", false).findViewWithTag("value");
+        list.addView(ui.divider(false));
+        LinearLayout adb = settingsRow(list, "ADB address", "—", false);
+        adbText = (TextView) adb.findViewWithTag("value"); copyRow = adb;
+        adb.setContentDescription("Copy ADB address");
+        addTarget(adb, new Runnable() { @Override public void run() { copyAddress(); } });
+        list.addView(ui.divider(false));
+        LinearLayout settings = settingsRow(list, ShortcutSpec.WIFI.title, "", true);
+        ui.available(settings, available(ShortcutSpec.WIFI)); addTarget(settings, shortcutAction(ShortcutSpec.WIFI));
+        updateConnectionViews();
+    }
+
+    private void buildSignals() {
+        LinearLayout body = ui.column();
+        content.addView(body, new FrameLayout.LayoutParams(-1, -1));
+        body.addView(sectionCaption("Appearance signals", 0));
+        TextView hint = ui.text("Read-only. Switch the Hyundai display between Day and Night (and Auto with the "
+            + "headlights on and off), then report which lines changed.", 16, palette.muted, false);
+        hint.setLineSpacing(0, 1.1f); body.addView(hint);
+        scroller = new ScrollView(this);
+        body.addView(scroller, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 14));
+        signalsText = ui.text("Reading…", 14, palette.ink, false);
+        signalsText.setTypeface(android.graphics.Typeface.MONOSPACE); signalsText.setLineSpacing(0, 1.15f);
+        scroller.addView(signalsText);
     }
 
     private void buildBrowser() {
         LinearLayout body = ui.column(); content.addView(body, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout browserToolbar = ui.row(); browserToolbar.setGravity(Gravity.CENTER_VERTICAL);
-        body.addView(browserToolbar, new LinearLayout.LayoutParams(-1, ui.dp(52)));
-        LinearLayout back = ui.button("All screens", R.drawable.ic_back, false, 180);
-        browserToolbar.addView(back);
-        addTarget(back, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.ADVANCED); } });
+        body.addView(browserToolbar, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout tabs = ui.row(); tabs.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
+        ui.background(tabs, ui.rounded(palette.raised, 12, palette.line));
+        browserToolbar.addView(tabs);
         String[] names = {"Favorites", "Apps", "All screens"};
         for (int i = 0; i < names.length; i++) {
             final int selection = i;
-            TextView button = ui.text(names[i], 18, tab == i ? palette.onAccent : palette.ink, false);
+            TextView button = ui.text(names[i], 17, tab == i ? palette.accent : palette.muted, Fonts.Weight.MEDIUM);
             button.setGravity(Gravity.CENTER);
-            ui.background(button, ui.control(tab == i ? palette.accent : palette.surface, 22));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(compact ? 136 : 156), ui.dp(44));
-            params.leftMargin = ui.dp(12); browserToolbar.addView(button, params);
+            ui.background(button, ui.quiet(tab == i ? palette.accentSoft : 0, 9));
+            tabs.addView(button, new LinearLayout.LayoutParams(ui.dp(compact ? 112 : 132), ui.dp(44)));
             addTarget(button, new Runnable() { @Override public void run() {
                 tab = selection; prefs.edit().putInt("tab", tab).apply(); showPage(ScreenFlow.Page.BROWSER);
             } });
         }
         TextView hint = ui.text("Hold an app to favorite", 14, palette.muted, false);
         hint.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        browserToolbar.addView(hint, new LinearLayout.LayoutParams(0, -1, 1));
+        browserToolbar.addView(hint, new LinearLayout.LayoutParams(0, -2, 1));
         FrameLayout list = new FrameLayout(this);
-        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(-1, 0, 1);
-        listParams.topMargin = ui.dp(12); body.addView(list, listParams);
+        body.addView(list, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 14));
         grid = new GridView(this); grid.setNumColumns(GridView.AUTO_FIT); grid.setColumnWidth(ui.dp(152));
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         grid.setHorizontalSpacing(ui.dp(12)); grid.setVerticalSpacing(ui.dp(12));
@@ -975,8 +965,8 @@ public final class MainActivity extends Activity {
         empty.setText(catalog == null ? "Loading screens…" : tab == TAB_FAVORITES
             ? "No favorites yet\nHold an app to add it here" : "No available screens");
         empty.setVisibility(entries.isEmpty() ? View.VISIBLE : View.GONE);
-        // Keep the four browser controls; rebuild item targets when the catalog or favorites change.
-        while (targets.size() > 4) targets.remove(targets.size() - 1);
+        // Keep the three tab controls; rebuild item targets when the catalog or favorites change.
+        while (targets.size() > 3) targets.remove(targets.size() - 1);
         for (int i = 0; i < entries.size(); i++) {
             final AppCatalog.Entry entry = entries.get(i);
             Target target = new Target(null, i, new Runnable() { @Override public void run() { launch(entry); } });
@@ -990,8 +980,6 @@ public final class MainActivity extends Activity {
     private Intent intent(ShortcutSpec spec) {
         Intent intent = new Intent(spec.action);
         if (spec.component != null) intent.setComponent(ComponentName.unflattenFromString(spec.component));
-        if (spec.launcher) intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        if (spec == ShortcutSpec.CAR_HOME) intent.addCategory(Intent.CATEGORY_HOME);
         return intent;
     }
     private boolean available(ShortcutSpec spec) {
@@ -1008,9 +996,6 @@ public final class MainActivity extends Activity {
     private Runnable shortcutAction(final ShortcutSpec spec) {
         return new Runnable() { @Override public void run() { start(intent(spec), spec.title); } };
     }
-    private void addShortcutTarget(View view, ShortcutSpec spec) {
-        ui.available(view, available(spec), spec.subtitle); addTarget(view, shortcutAction(spec));
-    }
     private void addTarget(View view, Runnable action) {
         clickable(view, action); targets.add(new Target(view, -1, action));
     }
@@ -1019,7 +1004,10 @@ public final class MainActivity extends Activity {
         // keyboard focus so it cannot draw a second highlight on another control.
         view.setFocusable(false);
         view.setClickable(true);
-        view.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { action.run(); } });
+        // A touch lets go of a time wheel the knob had grabbed, so a later turn moves the knob again.
+        view.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) {
+            editField = EDIT_NONE; action.run();
+        } });
     }
     private void launch(AppCatalog.Entry entry) {
         Intent intent = new Intent(Intent.ACTION_MAIN).setComponent(entry.component);
@@ -1034,9 +1022,13 @@ public final class MainActivity extends Activity {
         catch (ActivityNotFoundException | SecurityException error) { toast(getString(R.string.cannot_open, title)); }
     }
 
+    /** Settings shows the ADB address; Wi-Fi & ADB shows the whole connection. */
+    private boolean connectionPage() { return page == ScreenFlow.Page.SETTINGS || page == ScreenFlow.Page.WIFI; }
     private void restartConnectionTick() {
         main.removeCallbacks(connectionTick); main.removeCallbacks(signalsTick);
-        if (resumed && page == ScreenFlow.Page.ADVANCED) { main.post(connectionTick); main.post(signalsTick); }
+        if (!resumed) return;
+        if (connectionPage()) main.post(connectionTick);
+        if (page == ScreenFlow.Page.SIGNALS) main.post(signalsTick);
     }
     private void refreshSignals() {
         if (signalsReading) return;
@@ -1048,7 +1040,7 @@ public final class MainActivity extends Activity {
                 final Map<String, String> values = DisplaySignals.read(app);
                 main.post(new Runnable() { @Override public void run() {
                     signalsReading = false;
-                    if (isFinishing() || !resumed || page != ScreenFlow.Page.ADVANCED || epoch != connectionEpoch
+                    if (isFinishing() || !resumed || page != ScreenFlow.Page.SIGNALS || epoch != connectionEpoch
                         || signalsText == null) return;
                     if (signals == null) signals = new SignalLog(values); else signals.update(values);
                     signalsText.setText(TextUtils.join("\n", signals.lines()));
@@ -1078,7 +1070,7 @@ public final class MainActivity extends Activity {
                 final ConnectionSnapshot result = value;
                 main.post(new Runnable() { @Override public void run() {
                     connectionReading = false;
-                    if (!isFinishing() && resumed && page == ScreenFlow.Page.ADVANCED && epoch == connectionEpoch) {
+                    if (!isFinishing() && resumed && connectionPage() && epoch == connectionEpoch) {
                         connection = result; updateConnectionViews();
                     }
                 } });
@@ -1095,15 +1087,19 @@ public final class MainActivity extends Activity {
             process.waitFor(); return value == null ? "" : value;
         } catch (Exception error) { return ""; }
     }
-    private void updateConnectionViews() {
-        if (page != ScreenFlow.Page.ADVANCED || statusText == null) return;
-        String status = connection.state == ConnectionSnapshot.State.CONNECTED ? "Connected"
+    private String connectionStatus() {
+        return connection.state == ConnectionSnapshot.State.CONNECTED ? "Connected"
             : connection.state == ConnectionSnapshot.State.OFF ? "Wi-Fi off"
             : connection.state == ConnectionSnapshot.State.DISCONNECTED ? "Disconnected" : "Unavailable";
-        statusText.setText(status); networkText.setText("Network / " + connection.network);
-        ipText.setText(connection.ip); adbText.setText(connection.adb);
-        ui.background(statusDot, ui.rounded(connection.state == ConnectionSnapshot.State.CONNECTED ? 0xff1acb59 : palette.idle, 7, 0));
-        copyButton.setEnabled(connection.canCopy); copyButton.setAlpha(connection.canCopy ? 1f : 0.4f);
+    }
+    private void updateConnectionViews() {
+        if (wifiValue != null) wifiValue.setText(connection.canCopy ? connection.adb : connectionStatus());
+        if (statusText == null) return;
+        statusText.setText(connectionStatus());
+        statusText.setTextColor(connection.state == ConnectionSnapshot.State.CONNECTED ? palette.ok : palette.muted);
+        networkText.setText(connection.network); ipText.setText(connection.ip);
+        adbText.setText(connection.canCopy ? connection.adb + " · Copy" : connection.adb);
+        copyRow.setEnabled(connection.canCopy);
         if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
     }
     private void copyAddress() {
@@ -1116,8 +1112,11 @@ public final class MainActivity extends Activity {
         int code = event.getKeyCode(); boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         if (code == KEY_TUNE_UP || code == KEY_TUNE_DOWN || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_LEFT) {
             if (down) {
-                moveKnob(code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
-                knobOnToggle = page == ScreenFlow.Page.PRECONDITIONING && knobIndex == 0;
+                int steps = code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1;
+                if (editField != EDIT_NONE) { stepWheel(editField, steps); return true; }
+                moveKnob(steps);
+                if (hourWheel != null) renderSchedule();   // "Press to change" follows the knob onto a wheel.
+                knobOnToggle = page == ScreenFlow.Page.BATTERY && knobIndex == 0;
             }
             return true;
         }
@@ -1151,7 +1150,7 @@ public final class MainActivity extends Activity {
         }
         adapter.setKnobPosition(selectedGridPosition);
         if (grid != null && selectedGridPosition >= 0) grid.smoothScrollToPosition(selectedGridPosition);
-        if (advancedScroll != null && knobIndex >= 0 && knobIndex < targets.size()) {
+        if (scroller != null && knobIndex >= 0 && knobIndex < targets.size()) {
             View selected = targets.get(knobIndex).view;
             if (selected != null) selected.requestRectangleOnScreen(
                 new android.graphics.Rect(0, 0, selected.getWidth(), selected.getHeight()), false);

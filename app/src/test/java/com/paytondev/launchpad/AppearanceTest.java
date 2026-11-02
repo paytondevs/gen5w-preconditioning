@@ -15,25 +15,26 @@ public class AppearanceTest {
         assertEquals(AppearanceMode.FOLLOW_CAR, AppearanceMode.fromPreference("SEPIA"));
         assertEquals(AppearanceMode.DARK, AppearanceMode.fromPreference("DARK"));
     }
-    @Test public void lightPaletteKeepsTheOriginalColors() {
-        assertEquals(0xffffffff, Palette.LIGHT.background);
-        assertEquals(0xfff0f2f6, Palette.LIGHT.surface);
-        assertEquals(0xff101522, Palette.LIGHT.ink);
-        assertEquals(0xff677388, Palette.LIGHT.muted);
-        assertEquals(0xffdfe3ea, Palette.LIGHT.line);
-        assertEquals(TemperatureGauge.COLD, Palette.LIGHT.accent);
+    @Test public void textIsReadableOnEveryBackgroundInBothPalettes() {
         assertSame(Palette.DARK, Palette.of(true));
-    }
-    @Test public void darkTextIsReadableOnEveryDarkBackground() {
-        Palette d = Palette.DARK;
-        for (int background : new int[]{d.background, d.surface, d.card, d.hero}) {
-            assertTrue(Palette.contrast(d.ink, background) >= 7);
-            assertTrue(Palette.contrast(d.muted, background) >= 4.5);
-            assertTrue(Palette.contrast(d.secondary, background) >= 4.5);
+        assertSame(Palette.LIGHT, Palette.of(false));
+        for (Palette p : new Palette[]{Palette.DARK, Palette.LIGHT}) {
+            for (int background : new int[]{p.background, p.surface, p.raised, p.focus, p.accentSoft}) {
+                assertTrue(Palette.contrast(p.ink, background) >= 7);
+                assertTrue(Palette.contrast(p.muted, background) >= 4.5);
+            }
+            assertTrue(Palette.contrast(p.onAccent, p.accent) >= 4.5);
+            assertTrue(Palette.contrast(p.onAccent, p.accentFocus) >= 3);
+            assertTrue(Palette.contrast(p.accent, p.accentSoft) >= 4.5);
+            assertTrue(Palette.contrast(p.warm, p.warmSoft) >= 4.5);
+            assertTrue(Palette.contrast(p.warm, p.raised) >= 4.5);
         }
-        assertTrue(Palette.contrast(d.link, d.card) >= 4.5);
-        assertTrue(Palette.contrast(d.link, d.pressed) >= 4.5);
-        // White on the accent is at least as readable as in the light palette.
-        assertTrue(Palette.contrast(d.onAccent, d.accent) >= Palette.contrast(Palette.LIGHT.onAccent, Palette.LIGHT.accent));
+    }
+    @Test public void knobSelectionChangesTheFillVisibly() {
+        for (Palette p : new Palette[]{Palette.DARK, Palette.LIGHT}) {
+            assertTrue(Palette.contrast(p.focus, p.raised) >= 1.3);
+            assertTrue(Palette.contrast(p.focus, p.accentSoft) >= 1.2);
+            assertTrue(Palette.contrast(p.accentFocus, p.accent) >= 1.3);
+        }
     }
 }
