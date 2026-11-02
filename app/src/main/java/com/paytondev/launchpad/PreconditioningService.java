@@ -377,8 +377,9 @@ public final class PreconditioningService extends Service {
     private void notifyOutcome(ScheduleLog.Kind kind, String text) {
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager == null) return;
-        String title = kind == ScheduleLog.Kind.FIRED ? "Preconditioning started"
-            : kind == ScheduleLog.Kind.SKIPPED ? "Preconditioning skipped" : "Preconditioning didn't start";
+        // Short: the head unit wraps notification titles past about 20 characters.
+        String title = kind == ScheduleLog.Kind.FIRED ? "Warming started"
+            : kind == ScheduleLog.Kind.SKIPPED ? "Warming skipped" : "Warming missed";
         PendingIntent content = PendingIntent.getActivity(this, OUTCOME_NOTIFICATION,
             new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
         manager.notify(OUTCOME_NOTIFICATION, new Notification.Builder(this)
