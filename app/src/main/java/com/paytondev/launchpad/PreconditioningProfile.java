@@ -28,6 +28,9 @@ final class PreconditioningProfile {
     static final String IONIQ5_NEEV_US_240822_SOFTWARE = "NEEV.USA.0000.V012.010.240822";
     static final String IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256 = "0f6786b9c8c167f09c08c559afea7da1e2137e2a1968b9ab372def65762674f9";
     static final String IONIQ5_NEEV_US_240822_SERVICE_SHA256 = "2758a413c184855bf92080cfdc6decbfcd6f09775128a982b1eee211993772a1";
+    // NEEV US 260903 (US 2022 Ioniq 5 SEL AWD): the porting kit report of 2026-11-01 found
+    // both framework files byte-identical to NEEV23 US 260903, so it reuses those hashes.
+    static final String IONIQ5_NEEV_US_260903_SOFTWARE = "NEEV.USA.0000.V016.010.260903";
     static final String EV6_DEVICE = "wp_daudioplus_cvev_us";
     static final String EV6_SOFTWARE = "CVEV.USA.0000.V015.012.260507";
     static final String EV6_FRAMEWORK_SHA256 = "b9e7e02b81e1a8cfcf767c6b8bbb28bcf1d2c411a208fbf6a465e7f0c662774a";
@@ -99,6 +102,9 @@ final class PreconditioningProfile {
             if (IONIQ5_NEEV_US_240822_SOFTWARE.equals(software)
                 && IONIQ5_NEEV_US_240822_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV_US_240822_SERVICE_SHA256.equals(serviceHash)) return true;
+            if (IONIQ5_NEEV_US_260903_SOFTWARE.equals(software)
+                && IONIQ5_NEEV23_US_260903_FRAMEWORK_SHA256.equals(frameworkHash)
+                && IONIQ5_NEEV23_US_260903_SERVICE_SHA256.equals(serviceHash)) return true;
             return IONIQ5_NEEV_US_SOFTWARE.equals(software) && IONIQ5_NEEV23_US_FRAMEWORK_SHA256.equals(frameworkHash)
                 && IONIQ5_NEEV23_US_SERVICE_SHA256.equals(serviceHash);
         }

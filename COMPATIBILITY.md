@@ -11,6 +11,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Hyundai IONIQ 5 | 2023–2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2022 | US | NEEV (`wp_daudioplus_neev_us`) | ⚠️ see below | ✅ | ✅ supported |
 
 ### older software versions
 
@@ -62,6 +63,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 </details>
 
+- **NEEV US on 260903: preconditioning ⚠️.** On the car this profile comes from, Launchpad recognizes the head unit and shows the battery temperature, but **Start** stays unavailable: the car reports battery conditioning as not enabled even with Winter Mode on, and its EV settings have no Battery conditioning item. Launchpad sends nothing to the car in that state. Holding TUNE opens Launchpad.
 - **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Precondition → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
 - **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, as above.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
@@ -273,6 +275,56 @@ is unchanged.
 callback and array layout as the other profiles. As on the NEEV23 US device's
 260507 and 260206 releases, the warm notice uses 21°C / 70°F and the pending
 timeout is two minutes.
+
+No report, firmware, raw logs, or disassembly are included.
+
+### NEEV US 260903 profile
+
+Vehicle: **US 2022 Hyundai Ioniq 5 SEL AWD**.
+
+The profile requires Android API 19, the NEEV US device `wp_daudioplus_neev_us`,
+and `ro.build.product=NEEV.USA.0000.V016.010.260903` (build `KVT49L`; the
+settings screen shows `ro.build.product2`, `NEEV.USA.S5W_M.V016.010.260903`). A
+read-only porting kit report (kit 1.5.0) collected on 2026-11-01 found both
+framework files byte-identical to the NEEV23 US 260903 profile above
+(`c52e0825…d1ff6a3be` and `bf17e682…bb4d9ec1`), so it requires those same two
+fingerprints. The NEEV US 260507 check (its own software and the 260507 hashes)
+is unchanged; this is a separate exact match on the same device, and its
+software string doesn't unlock the 260507 files or the NEEV23 US device.
+`OemVehicleClient` already reads `ro.build.product` on NEEV US. The report
+shows `com.hkmc.micom.hev` / `com.hkmc.hev.IHEVService` and `com.hkmc.micom.bcm`
+/ `com.hkmc.bcm.IBCMService` present, and every transaction Launchpad uses keeps
+its code: HEV 3 `getHEVStatus`, 62 `setBattCondEvStation`, 65
+`setBattCondRouteDis`, 66 `setBattCondRemainTime`, and BCM 109
+`getBattCondIndSta`. No command or enum remapping was made. Status reads use
+the same `getHEVStatus` ID arguments as the other profiles (94 enabled, 44
+ready, 115 failure).
+
+**TUNE:** on this car TUNE is a roller that also presses in. A second kit run
+on 2026-11-01, pressing it in and holding it, recorded key 17 on the main
+`daudio_wp_daudioplus_neev_us` input device (`likely_knob`, holds of up to
+2.8 s), the same device and key as NEEV US 260507. `knob.conf` selects that
+name on the exact NEEV US 260903 identity with the original 800 ms hold.
+
+**Battery temperature:** the report shows `com.hkmc.micom.cluster` /
+`com.hkmc.cluster.IClusterService` present with an unchanged contract:
+`addNavigationClusterListener` 37, `requestBatteryInfoReq()` 109 and
+`removeNavigationClusterListener` 38. Launchpad reads it with the same listener
+callback and array layout as the other profiles. As on NEEV US 260507, the warm
+notice uses 21°C / 70°F and the pending timeout is two minutes. With a build of
+this profile installed on 2026-11-01, the Preconditioning tab showed
+**Firmware profile: Supported** and a live native reading (16°C / 61°F).
+
+**Preconditioning on this car:** in the same session, the conditioning-enabled
+status (`getHEVStatus` 94) read **0**, both with Winter Mode off and with it on.
+Launchpad enables **Start** only on 2 (1 is the car's Off), so Start stayed
+unavailable and no command was sent. This car's EV settings list Max. % Charge,
+AC Charging Current, Winter Mode, Utility Mode, Smart Regeneration System,
+Charging Connector Locking Mode and Charging Voice Prompts, with no Battery
+conditioning item; its dealer history records the battery conditioning update
+campaign (T9Q, 2023). The owner also reports that the car's own navigation-based
+preconditioning never ran on a sub-freezing trip with Winter Mode on and DC
+fast chargers as route stops. What 0 means is not established.
 
 No report, firmware, raw logs, or disassembly are included.
 
