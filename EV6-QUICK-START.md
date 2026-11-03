@@ -183,12 +183,19 @@ Launchpad is already installed, it updates in place and keeps its settings; on
 the 1.16+ drive NEMESIS asks a second time before updating. Do not clear app data to force
 an update.
 
+**Coming from Launchpad 1.x** needs nothing extra. If 1.x is on the car, the
+drive moves its settings over and removes the old `/system/app` copy in the same
+run. 2.0 and newer are installed like any other Android app, which also puts
+them on NEMESIS Manager's home screen as **Precondition**. If you already
+removed 1.x with NEMESIS Manager, the drive still installs; your settings come
+along if infotainment has not restarted since.
+
 ## Removing Launchpad
 
 Stop any pending or active session and confirm **Off**. Open NEMESIS Manager,
-then **Packages -> Launchpad -> Uninstall**, and restart infotainment. This
-removes Launchpad, its TUNE service and `/system/app/Launchpad.apk`; it leaves
-NEMESIS installed. If it fails, use **Logs -> Copy to USB** and keep
+then **Packages -> Precondition -> Uninstall**, and restart infotainment. This
+removes Launchpad, its TUNE service and its saved settings; it leaves NEMESIS
+installed. If it fails, use **Logs -> Copy to USB** and keep
 `NEMESIS-logs`.
 
 ## If something goes wrong

@@ -1,42 +1,41 @@
 package com.paytondev.launchpad;
 
-/** Screen colors. LIGHT is the original look; DARK follows the head unit's night UI. */
+/** Screen colors. DARK follows the head unit's night UI; LIGHT its day UI. */
 final class Palette {
     final boolean dark;
-    /** Window, raised panels, cards inside panels, and hairlines. */
-    final int background, surface, card, line;
-    /** Primary text, secondary text, and labels on secondary buttons. */
-    final int ink, muted, secondary;
-    /** Accent fill, text on it, accent-colored text, and its pressed / knob-activated tints. */
-    final int accent, onAccent, link, pressed, activated;
-    /** Navigation hero, the copy button, the All screens icon, and the idle status dot. */
-    final int hero, quiet, screensIcon, idle;
-    /** Gauge track below and above the warm threshold. */
-    final int coldTrack, warmTrack;
+    /** Window, cards, secondary buttons, and hairlines. */
+    final int background, surface, raised, line;
+    /** Primary text, secondary text, and disabled glyphs / unknown marks. */
+    final int ink, muted, faint;
+    /** Accent fill, text on it, and its soft tint for selected chips and pills. */
+    final int accent, onAccent, accentSoft;
+    /** TUNE-knob selection: a secondary control's fill and the accent fill. Never an outline. */
+    final int focus, accentFocus, pressed;
+    /** Battery cold, warming, and checks that passed or failed, with soft pill tints. */
+    final int cold, warm, warmSoft, ok, danger;
 
-    private Palette(boolean dark, int background, int surface, int card, int line, int ink, int muted,
-                    int secondary, int accent, int onAccent, int link, int pressed, int activated, int hero,
-                    int quiet, int screensIcon, int idle, int coldTrack, int warmTrack) {
-        this.dark = dark; this.background = background; this.surface = surface; this.card = card;
-        this.line = line; this.ink = ink; this.muted = muted; this.secondary = secondary;
-        this.accent = accent; this.onAccent = onAccent; this.link = link;
-        this.pressed = pressed; this.activated = activated;
-        this.hero = hero; this.quiet = quiet; this.screensIcon = screensIcon; this.idle = idle;
-        this.coldTrack = coldTrack; this.warmTrack = warmTrack;
+    private Palette(boolean dark, int background, int surface, int raised, int line, int ink, int muted, int faint,
+                    int accent, int onAccent, int accentSoft, int focus, int accentFocus, int pressed,
+                    int cold, int warm, int warmSoft, int ok, int danger) {
+        this.dark = dark; this.background = background; this.surface = surface; this.raised = raised;
+        this.line = line; this.ink = ink; this.muted = muted; this.faint = faint;
+        this.accent = accent; this.onAccent = onAccent; this.accentSoft = accentSoft;
+        this.focus = focus; this.accentFocus = accentFocus; this.pressed = pressed;
+        this.cold = cold; this.warm = warm; this.warmSoft = warmSoft; this.ok = ok; this.danger = danger;
     }
 
-    static final Palette LIGHT = new Palette(false,
-        0xffffffff, 0xfff0f2f6, 0xffffffff, 0xffdfe3ea,
-        0xff101522, 0xff677388, 0xff45536a,
-        0xff007aff, 0xffffffff, 0xff007aff, 0xffe7f0ff, 0xffd9eaff,
-        0xffe8f2ff, 0xfff8f9fb, 0xffd5f0ff, 0xffa0a7b2,
-        0xffd5e6ff, 0xffffe7bf);
     static final Palette DARK = new Palette(true,
-        0xff0b0f17, 0xff161c27, 0xff1f2733, 0xff2a3242,
-        0xffe8ecf3, 0xff97a1b3, 0xffc3cad6,
-        0xff2678eb, 0xffffffff, 0xff6aaeff, 0xff1d3150, 0xff1a2d4a,
-        0xff14243b, 0xff1f2733, 0xff16324a, 0xff6b7486,
-        0xff1d3352, 0xff4a3714);
+        0xff000000, 0xff121519, 0xff1b1f25, 0xff272c34,
+        0xfff1f3f6, 0xff9fa8b6, 0xff59616d,
+        0xff3fb3ea, 0xff001520, 0xff0f2a38,
+        0xff1b3e55, 0xff8ad3f5, 0xff16303f,
+        0xff5d8fd6, 0xffffa53a, 0xff33240f, 0xff3ccf8e, 0xffff6b6b);
+    static final Palette LIGHT = new Palette(false,
+        0xffeceef1, 0xffffffff, 0xfff4f5f7, 0xffd8dce2,
+        0xff121820, 0xff4d5765, 0xffa3aab4,
+        0xff0866ab, 0xffffffff, 0xffe3eff9,
+        0xffc0d8ed, 0xff2f8fd6, 0xffd3e5f5,
+        0xff3f72bd, 0xff9a5300, 0xfffbefdf, 0xff168a56, 0xffd13b3b);
 
     static Palette of(boolean dark) { return dark ? DARK : LIGHT; }
 

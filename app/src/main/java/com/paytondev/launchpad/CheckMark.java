@@ -12,6 +12,7 @@ final class CheckMark extends View {
     private final Path path = new Path();
     private final float dp;
     private int state = PreconditioningSnapshot.UNKNOWN;
+    private Palette palette = Palette.DARK;
 
     CheckMark(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
@@ -19,15 +20,16 @@ final class CheckMark extends View {
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
     void setState(int value) { if (value != state) { state = value; invalidate(); } }
-    static int color(int state) {
-        return state == PreconditioningSnapshot.PASS ? 0xff1aa251 : state == PreconditioningSnapshot.FAIL ? 0xffe5484d : 0xffa0a7b2;
+    void setPalette(Palette value) { if (value != palette) { palette = value; invalidate(); } }
+    static int color(Palette palette, int state) {
+        return state == PreconditioningSnapshot.PASS ? palette.ok : state == PreconditioningSnapshot.FAIL ? palette.danger : palette.faint;
     }
 
     @Override protected void onDraw(Canvas canvas) {
         float s = Math.min(getWidth(), getHeight()), cx = getWidth() / 2f, cy = getHeight() / 2f, r = s / 2f;
-        paint.setStyle(Paint.Style.FILL); paint.setColor(color(state));
+        paint.setStyle(Paint.Style.FILL); paint.setColor(color(palette, state));
         canvas.drawCircle(cx, cy, r, paint);
-        paint.setColor(0xffffffff); paint.setStrokeWidth(2.5f * dp);
+        paint.setColor(palette.dark ? palette.background : 0xffffffff); paint.setStrokeWidth(2.5f * dp);
         path.reset();
         if (state == PreconditioningSnapshot.PASS) {
             path.moveTo(cx - r * 0.42f, cy + r * 0.02f); path.lineTo(cx - r * 0.1f, cy + r * 0.34f); path.lineTo(cx + r * 0.44f, cy - r * 0.3f);

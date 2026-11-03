@@ -10,7 +10,12 @@ android {
     namespace = "com.paytondev.launchpad"
     compileSdk = 37
     defaultConfig {
-        applicationId = "com.paytondev.launchpad"
+        // Not the namespace on purpose. Launchpad 1.x was com.paytondev.launchpad,
+        // copied into /system/app, and Android keeps that system package registered
+        // until the head unit restarts, so a new install under the same name would
+        // need a reboot first. Components outside the app must use full class names
+        // (com.paytondev.precondition/com.paytondev.launchpad.MainActivity).
+        applicationId = "com.paytondev.precondition"
         minSdk = 19
         targetSdk = 19
         versionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]

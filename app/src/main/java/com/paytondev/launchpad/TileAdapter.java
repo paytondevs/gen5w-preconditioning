@@ -28,14 +28,14 @@ final class TileAdapter extends BaseAdapter {
         notifyDataSetChanged();
     }
 
-    /** Dark mode draws tiles from the palette; light keeps the XML drawables. */
+    /** Tiles are drawn from the palette, so they follow day and night. */
     void setUi(FocusUi value) {
         if (value == ui) return;
         ui = value;
         notifyDataSetChanged();
     }
 
-    /** Position outlined for TUNE-knob navigation, or -1. */
+    /** Position highlighted for TUNE-knob navigation, or -1. */
     void setKnobPosition(int position) {
         if (position == knobPosition) return;
         knobPosition = position;
@@ -55,10 +55,10 @@ final class TileAdapter extends BaseAdapter {
         ((ImageView) v.findViewById(R.id.icon)).setImageDrawable(e.icon);
         TextView label = (TextView) v.findViewById(R.id.label);
         label.setText(e.label);
-        if (ui != null && ui.p.dark) {
-            label.setTextColor(ui.p.ink); ui.background(v, ui.control(ui.p.surface, 18));
-        } else {
-            label.setTextColor(v.getResources().getColor(R.color.text)); v.setBackgroundResource(R.drawable.tile_bg);
+        if (ui != null) {
+            label.setTextColor(ui.p.ink); label.setTypeface(Fonts.get(ui.context, Fonts.Weight.REGULAR));
+            ui.background(v, ui.secondary(16));
+            ui.background(v.findViewById(R.id.badge), ui.rounded(ui.p.accent, 6, 0));
         }
         v.findViewById(R.id.badge).setVisibility(favorites.contains(e.key) ? View.VISIBLE : View.GONE);
         v.setActivated(position == knobPosition);

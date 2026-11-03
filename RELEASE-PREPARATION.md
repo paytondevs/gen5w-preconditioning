@@ -47,17 +47,23 @@ BMS cutoff. See [the detailed evidence](TEMPERATURE-AND-TIMEOUT.md).
    does not add a license on behalf of the original author.
 3. Choose the release version and put it in `VERSION`; the app, the NEMESIS
    package and the draft release all take it from there. There is no signing
-   certificate to choose: CI signs every build with a new throwaway key. The
-   package writes `/system/app/Launchpad.apk` directly rather than through
-   `pm install`, so releases don't need to share a certificate.
+   certificate to choose: CI signs every build with a new throwaway key.
+   NEMESIS uninstalls the old APK before it installs the new one, so releases
+   don't need to share a certificate.
 4. Merge to `main`. CI builds and signs the APK, verifies it for API 19, builds
    the USB bundle from that exact APK, and attaches everything to the draft
    release `v<VERSION>` (see [BUILDING.md](BUILDING.md)).
 5. Check a first installation, an update over a build signed with a different
-   key that keeps app data, and removal from NEMESIS Manager, using the draft's
-   artifacts. Stop and confirm Off before each change. Verify TUNE after reboot
-   and that removal leaves NEMESIS intact. Host packaging and hook tests support
-   these checks but do not replace them.
+   key that keeps app data and an armed schedule, an install over 1.x (one run:
+   `/system/app/Launchpad.apk` removed, 1.x settings carried over), and removal
+   from NEMESIS Manager, using the draft's artifacts. Stop and confirm Off before
+   each change. After each install, `pm path com.paytondev.precondition` shows
+   `/data/app/...` and
+   Precondition is on NEMESIS Manager's home screen and opens from there. Verify
+   TUNE after reboot and that removal leaves NEMESIS intact. If `pm install`
+   fails inside NEMESIS, check with `ls -ld` that every folder above
+   `/data/nemesis/apps/paytondev.launchpad/app/Launchpad.apk` is world-searchable.
+   Host packaging and hook tests support these checks but do not replace them.
 6. Publish the draft. It carries the APK, NEMESIS package,
    `Launchpad-install-usb.zip`, `Launchpad-manual-install-usb.zip`,
    `Launchpad-port-kit-usb.zip` and `SHA256SUMS.txt`, and targets the source

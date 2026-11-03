@@ -84,6 +84,11 @@ public class TemperatureBinderTest {
    else check(remote.calls.equals(mode==3?Arrays.asList(37,38):Arrays.asList(37,109,38)));
    passed++;
   }
+  Remote both=new Remote(0);ServiceManager.current=both;
+  BatteryTemperature.Sample sample=ClusterBatteryTemperatureReader.readAll();
+  check(Integer.valueOf(20).equals(sample.minimumC)&&Integer.valueOf(17).equals(sample.outsideC)&&sample.maximumC==null);
+  check(both.calls.equals(Arrays.asList(37,109,38))); // Outside air rides the same single round trip.
+  passed++;
   Remote slow=new Remote(8);ServiceManager.current=slow;
   long before=System.nanoTime();check(ClusterBatteryTemperatureReader.read()==null);
   long ms=(System.nanoTime()-before)/1000000;check(ms<2600);
@@ -113,5 +118,5 @@ sources = [str(p) for p in work.rglob('*.java')]+[str(production/n) for n in ('B
 classes=work/'classes';classes.mkdir(exist_ok=True)
 subprocess.run([JAVAC,'-d',str(classes),*sources],check=True,timeout=60)
 result=subprocess.run([JAVA,'-cp',str(classes),'com.paytondev.launchpad.TemperatureBinderTest'],check=True,capture_output=True,text=True,timeout=15)
-(work/'results.json').write_text(json.dumps({'passed':True,'scenarios':10,'scope':'host Binder fixtures, no car access','output':result.stdout},indent=2)+'\n')
+(work/'results.json').write_text(json.dumps({'passed':True,'scenarios':11,'scope':'host Binder fixtures, no car access','output':result.stdout},indent=2)+'\n')
 print(result.stdout)

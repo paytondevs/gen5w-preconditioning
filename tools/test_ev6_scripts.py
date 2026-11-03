@@ -7,6 +7,7 @@ are replaced with temporary fixture paths; vehicle operations are mocked.
 from pathlib import Path
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -111,95 +112,7 @@ printf '%s|%s|%s|%s' "$DEVICE_NAME" "$KEY_CODE" "$HOLD_MS" "$TARGET_COMPONENT"
                 with self.subTest(device=device, software=software, sdk=sdk):
                     result = run(script, TEST_DEVICE=device, TEST_SOFTWARE=software, TEST_SDK=sdk)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout, expected + "|17|800|com.paytondev.launchpad/.MainActivity")
-
-    def test_postinstall_staging_install_and_rollback(self):
-        cases = ("fresh", "existing-equal", "replace-existing", "bad-stage",
-                 "rollback-existing", "rollback-fresh")
-        for case in cases:
-            with self.subTest(case=case), tempfile.TemporaryDirectory(prefix="launchpad-hook-") as tmp:
-                folder = Path(tmp)
-                app = folder / "package/app"
-                app.mkdir(parents=True)
-                (folder / "system").mkdir()
-                expected, previous = b"new APK bytes\x00\x01", b"previous APK bytes"
-                (app / "Launchpad.apk").write_bytes(expected)
-                system = folder / "system/Launchpad.apk"
-                if case in ("replace-existing", "rollback-existing"):
-                    system.write_bytes(previous)
-                if case == "existing-equal":
-                    system.write_bytes(expected)
-                common = (ROOT / "tune-service/scripts/common.sh").read_text()
-                common = common.replace("HERE=/data/nemesis/apps/paytondev.launchpad", "HERE=" + quote(folder / "package"))
-                common = common.replace("SYSAPK=/system/app/Launchpad.apk", "SYSAPK=" + quote(system))
-                common = common.replace("WORK=/data/local/tmp/launchpad", "WORK=" + quote(folder / "work"))
-                common += '''
-export PATH=/usr/bin:/bin
-file_size() { wc -c < "$1"; }
-system_free() { echo 104857600; }
-system_rw() { echo rw >> "$TEST_FOLDER/remounts"; }
-system_restore() { echo ro >> "$TEST_FOLDER/remounts"; }
-stop_app() { :; }
-chown() { :; }
-chmod() { :; }
-sync() { :; }
-cmp() {
- case "$1" in -*) echo 'toolbox cmp rejects options' >&2; return 2 ;; esac
- if [ "$TEST_CASE" = bad-stage ] && [ "$2" = "$WORK/Launchpad.apk" ]; then return 1; fi
- case "$TEST_CASE" in rollback-*)
-   if [ "$1" = "$WORK/Launchpad.apk" ] && [ "$2" = "$SYSAPK" ]; then return 1; fi ;;
- esac
- command cmp "$@"
-}
-'''
-                (folder / "common.sh").write_text(common, newline="\n")
-                hook = (ROOT / "tune-service/scripts/postinstall.sh").read_text()
-                hook = hook.replace(". /data/nemesis/apps/paytondev.launchpad/scripts/common.sh",
-                                    ". " + quote(folder / "common.sh"))
-                script = folder / "postinstall.sh"
-                script.write_text(hook, newline="\n")
-                result = run(script, TEST_CASE=case, TEST_FOLDER=shell_path(folder))
-                success = case in ("fresh", "existing-equal", "replace-existing")
-                self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
-                if success:
-                    self.assertEqual(system.read_bytes(), expected)
-                elif case == "rollback-existing":
-                    self.assertEqual(system.read_bytes(), previous)
-                else:
-                    self.assertFalse(system.exists())
-                remounts = folder / "remounts"
-                if case in ("existing-equal", "bad-stage"):
-                    self.assertFalse(remounts.exists())
-                else:
-                    self.assertEqual(remounts.read_text().splitlines(), ["rw", "ro"])
-
-    def test_usb_verification_rejects_different_or_missing_apk(self):
-        with tempfile.TemporaryDirectory(prefix="launchpad-verify-") as tmp:
-            folder = Path(tmp)
-            expected, system = folder / "expected.apk", folder / "system.apk"
-            expected.write_bytes(b"expected")
-            # Source the real helper and real USB verification function. Stop
-            # before the USB library's top-level initialization/log redirection.
-            common = (ROOT / "tune-service/scripts/common.sh").read_text()
-            library = (ROOT / "usb/launchpad/lib.sh").read_text()
-            start = library.index("verify_installed() {")
-            end = library.index("\n}", start) + 2
-            script = folder / "verify.sh"
-            script.write_text(common + '\nexport PATH=/usr/bin:/bin\n' + library[start:end] + '''
-say() { :; }
-pkg_installed() { return 0; }
-knobd_state() { echo running; }
-sleep() { :; }
-cmp() { case "$1" in -*) return 2 ;; esac; command cmp "$@"; }
-''' + "\nDEX=" + quote(expected) + "\nSYSAPK=" + quote(system) + "\nverify_installed\n", newline="\n")
-            for value in (b"expected", b"different", None):
-                with self.subTest(value=value):
-                    if value is None:
-                        system.unlink()
-                    else:
-                        system.write_bytes(value)
-                    result = run(script)
-                    self.assertEqual(result.returncode == 0, value == b"expected", result.stderr)
+                    self.assertEqual(result.stdout, expected + "|17|800|com.paytondev.precondition/com.paytondev.launchpad.MainActivity")
 
     def run_port_kit(self, folder, probe_rc="0"):
         """Run the real collect.sh from a fixture USB with every car command mocked."""
@@ -312,6 +225,305 @@ app_process() {
             self.assertFalse((folder / "work").exists())
             self.assertFalse((folder / "cache.dex").exists())
             self.assertIn("FAILED.", (folder / "usb/launchpad-collect.log").read_text())
+
+
+
+APP = "com.paytondev.precondition"
+LEGACY = "com.paytondev.launchpad"
+SERVICE = APP + "/com.paytondev.launchpad.PreconditioningService"
+USER_APK = "/data/app/com.paytondev.precondition-1.apk"
+PREFS = ("launchpad.xml", "launchpad.xml.bak", "launchpad_preconditioning.xml")
+# Car commands the hooks use, stubbed and recorded in $TEST_FOLDER.
+HOOK_STUBS = r"""
+export PATH=/usr/bin:/bin
+getprop() { [ "$1" = sys.boot_completed ] && echo "${TEST_BOOT:-1}"; }
+system_rw() { [ "$TEST_RW" = fail ] && return 1; echo rw >> "$TEST_FOLDER/remounts"; }
+system_restore() { echo ro >> "$TEST_FOLDER/remounts"; }
+pm() { echo "pm $*" >> "$TEST_FOLDER/calls"; [ -n "$TEST_PM_PATH" ] && echo "package:$TEST_PM_PATH"; return 0; }
+am() { echo "am $*" >> "$TEST_FOLDER/calls"; [ -n "$TEST_AM_ERROR" ] && echo "Error: $TEST_AM_ERROR" >&2; return 0; }
+ls() {
+ if [ "$1" = -nd ]; then
+  [ -d "$2" ] && echo "drwxr-x--x 10123    10123    2026-11-02 12:00 ${2##*/}"
+ else command ls "$@"; fi
+}
+chown() { echo "chown $*" >> "$TEST_FOLDER/calls"; }
+sync() { :; }
+sleep() { :; }
+cmp() { case "$1" in -*) echo 'toolbox cmp rejects options' >&2; return 2 ;; esac; command cmp "$@"; }
+"""
+FAKE_NEMESIS = """#!/bin/sh
+echo "$*" >> "$TEST_FOLDER/nemesis-calls"
+case "$1" in
+install) : > "$TEST_FOLDER/registered" ;;
+pkg-list) [ -n "$TEST_PKG_INSTALLED" ] || [ -f "$TEST_FOLDER/registered" ] && echo "paytondev.launchpad|1.7.0" ;;
+service) echo "paytondev.launchpad/knobd|restart|running|42" ;;
+esac
+exit 0
+"""
+
+
+class PackageHooksTest(unittest.TestCase):
+    """Run the real NEMESIS hooks and the manual USB installer against a temporary
+    tree. Every /system, /data and Android path is redirected there."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="launchpad-hooks-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.scripts = self.root / "package/scripts"
+        self.scripts.mkdir(parents=True)
+        self.system_apk = self.root / "system/app/Launchpad.apk"
+        self.system_apk.parent.mkdir(parents=True)
+        self.app_data = self.root / "data/data" / APP
+        self.legacy_data = self.root / "data/data" / LEGACY
+        self.backup = self.root / "data/nemesis/backup/paytondev.launchpad"
+        self.prefs_backup = self.backup / "prefs"
+        self.work = self.root / "work"
+        self.stage = self.root / "stage"
+        self.dexcache = self.root / "classes.dex"
+        nemesis = self.root / "nemesis"
+        nemesis.write_text(FAKE_NEMESIS, newline="\n")
+        nemesis.chmod(0o755)
+        common = (ROOT / "tune-service/scripts/common.sh").read_text()
+        for line, value in (
+                ("NEMESIS=/system/xbin/nemesis", nemesis),
+                ("HERE=/data/nemesis/apps/paytondev.launchpad", self.root / "package"),
+                ("DEXCACHE=/data/dalvik-cache/data@nemesis@apps@paytondev.launchpad@app@Launchpad.apk@classes.dex",
+                 self.dexcache),
+                ("APP_DATA=/data/data/$APP_PACKAGE", self.app_data),
+                ("LEGACY_DATA=/data/data/$LEGACY_PACKAGE", self.legacy_data),
+                ("SYSAPK=/system/app/Launchpad.apk", self.system_apk),
+                ("BACKUP_DIR=/data/nemesis/backup/paytondev.launchpad", self.backup),
+                ("WORK=/data/local/tmp/launchpad", self.work),
+                ("STAGE=/data/local/tmp/nemesis/stage/paytondev.launchpad", self.stage)):
+            self.assertEqual(common.count("\n" + line + "\n"), 1, line)
+            common = common.replace("\n" + line + "\n", "\n" + line.split("=")[0] + "=" + quote(value) + "\n")
+        self.common = common + HOOK_STUBS
+        (self.scripts / "common.sh").write_text(self.common, newline="\n")
+        source = ". /data/nemesis/apps/paytondev.launchpad/scripts/common.sh"
+        for hook in ("preinstall", "postinstall", "preuninstall"):
+            text = (ROOT / f"tune-service/scripts/{hook}.sh").read_text()
+            if hook == "preinstall":
+                # Runs from NEMESIS's staging copy, so it finds common.sh next to itself.
+                self.assertIn('. "${0%/*}/common.sh"', text)
+            else:
+                self.assertIn(source, text)
+                text = text.replace(source, ". " + quote(self.scripts / "common.sh"))
+            (self.scripts / f"{hook}.sh").write_text(text, newline="\n")
+
+    def hook(self, name, **env):
+        return run(self.scripts / f"{name}.sh", TEST_FOLDER=shell_path(self.root), **env)
+
+    def lines(self, name):
+        path = self.root / name
+        return path.read_text().splitlines() if path.exists() else []
+
+    def write_prefs(self, folder, names=PREFS):
+        folder.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            (folder / name).write_text(f"<map><string name=\"{name}\">kept</string></map>\n")
+
+    def assertPrefs(self, folder, names=PREFS):
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted(names))
+        for name in names:
+            self.assertIn(f"\"{name}\">kept", (folder / name).read_text())
+
+    # preinstall
+
+    def test_preinstall_without_1x_changes_nothing(self):
+        result = self.hook("preinstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.lines("remounts"), [])
+        self.assertEqual(self.lines("calls"), [])
+        self.assertFalse(self.backup.exists())
+
+    def test_preinstall_moves_installed_1x_over_and_continues(self):
+        self.system_apk.write_bytes(b"1.x APK")
+        self.write_prefs(self.legacy_data / "shared_prefs")
+        result = self.hook("preinstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(self.system_apk.exists())
+        self.assertEqual(self.lines("remounts"), ["rw", "ro"])
+        self.assertPrefs(self.prefs_backup)
+        calls = self.lines("calls")
+        self.assertIn("am force-stop " + LEGACY, calls)
+        self.assertNotIn("am force-stop " + APP, calls)
+
+    def test_preinstall_saves_settings_of_1x_uninstalled_without_a_reboot(self):
+        # NEMESIS Manager's Uninstall removed the /system copy, but Android keeps
+        # 1.x's data until the head unit restarts.
+        self.write_prefs(self.legacy_data / "shared_prefs")
+        result = self.hook("preinstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertPrefs(self.prefs_backup)
+        self.assertEqual(self.lines("remounts"), [])
+
+    def test_preinstall_keeps_a_newer_backup(self):
+        # An update: the old 2.x preuninstall already saved this app's settings.
+        self.write_prefs(self.prefs_backup, ("launchpad.xml",))
+        (self.prefs_backup / "launchpad.xml").write_text("<map>newer</map>\n")
+        self.write_prefs(self.legacy_data / "shared_prefs")
+        result = self.hook("preinstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(sorted(p.name for p in self.prefs_backup.iterdir()), ["launchpad.xml"])
+        self.assertEqual((self.prefs_backup / "launchpad.xml").read_text(), "<map>newer</map>\n")
+
+    def test_preinstall_stops_when_1x_cannot_be_removed(self):
+        self.system_apk.write_bytes(b"1.x APK")
+        result = self.hook("preinstall", TEST_RW="fail")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertTrue(self.system_apk.exists())
+        self.assertEqual(self.lines("remounts"), [])
+
+    def test_installing_over_1x_keeps_its_settings_in_one_run(self):
+        self.system_apk.write_bytes(b"1.x APK")
+        self.write_prefs(self.legacy_data / "shared_prefs")
+        result = self.hook("preinstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # NEMESIS runs pm install, which creates the new app's data directory.
+        self.app_data.mkdir(parents=True)
+        result = self.hook("postinstall", TEST_PM_PATH=USER_APK)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertPrefs(self.app_data / "shared_prefs")
+        self.assertFalse(self.backup.exists())
+        self.assertFalse(self.system_apk.exists())
+
+    # preuninstall
+
+    def test_preuninstall_update_saves_settings(self):
+        self.stage.mkdir()
+        (self.stage / "NEMESIS.data").write_text("[nemesis]\n")
+        self.write_prefs(self.app_data / "shared_prefs")
+        self.dexcache.write_bytes(b"dex")
+        result = self.hook("preuninstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertPrefs(self.prefs_backup)
+        self.assertPrefs(self.app_data / "shared_prefs")
+        self.assertFalse(self.dexcache.exists())
+        self.assertEqual(self.lines("remounts"), [])
+        self.assertIn("am force-stop " + APP, self.lines("calls"))
+
+    def test_preuninstall_update_keeps_an_unrestored_backup(self):
+        self.stage.mkdir()
+        (self.stage / "NEMESIS.data").write_text("[nemesis]\n")
+        self.write_prefs(self.prefs_backup)
+        result = self.hook("preuninstall")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertPrefs(self.prefs_backup)
+
+    def test_preuninstall_removal_cleans_up(self):
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy):
+                (self.root / "remounts").unlink(missing_ok=True)
+                self.write_prefs(self.prefs_backup)
+                self.work.mkdir(exist_ok=True)
+                if legacy:
+                    self.system_apk.write_bytes(b"1.x APK")
+                result = self.hook("preuninstall")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertFalse(self.backup.exists())
+                self.assertFalse(self.work.exists())
+                self.assertFalse(self.system_apk.exists())
+                self.assertEqual(self.lines("remounts"), ["rw", "ro"] if legacy else [])
+
+    # postinstall
+
+    def test_postinstall_restores_settings_then_starts_the_service_last(self):
+        self.write_prefs(self.prefs_backup)
+        self.app_data.mkdir(parents=True)
+        self.work.mkdir()
+        result = self.hook("postinstall", TEST_PM_PATH=USER_APK)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        restored = self.app_data / "shared_prefs"
+        self.assertPrefs(restored)
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(restored.stat().st_mode), 0o771)
+            for name in PREFS:
+                self.assertEqual(stat.S_IMODE((restored / name).stat().st_mode), 0o660)
+        calls = self.lines("calls")
+        chowns = [c for c in calls if c.startswith("chown ")]
+        self.assertEqual(chowns, ["chown 10123:10123 " + shell_path(restored)] +
+                         ["chown 10123:10123 " + shell_path(restored / n) for n in
+                          ("launchpad.xml", "launchpad.xml.bak", "launchpad_preconditioning.xml")])
+        # A force-stop would put the package back into Android's stopped state.
+        self.assertEqual([c for c in calls if c.startswith("am ")], ["am startservice -n " + SERVICE])
+        self.assertEqual(calls[-1], "am startservice -n " + SERVICE)
+        self.assertFalse(self.backup.exists())
+        self.assertFalse(self.work.exists())
+
+    def test_postinstall_without_backup_only_starts_the_service(self):
+        self.app_data.mkdir(parents=True)
+        result = self.hook("postinstall", TEST_PM_PATH=USER_APK)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.lines("calls"), ["pm path " + APP, "am startservice -n " + SERVICE])
+        self.assertFalse((self.app_data / "shared_prefs").exists())
+
+    def test_postinstall_never_fails_the_install(self):
+        self.write_prefs(self.prefs_backup)
+        # No app data directory and no pm path: settings stay in the backup.
+        result = self.hook("postinstall", TEST_AM_ERROR="Not found; no service started.")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertPrefs(self.prefs_backup)
+        self.assertIn("WARN: pm path shows 'nothing'", result.stdout)
+        self.assertIn("WARN: could not start", result.stdout)
+
+    def test_postinstall_with_android_down_leaves_the_backup(self):
+        self.write_prefs(self.prefs_backup)
+        result = self.hook("postinstall", TEST_BOOT="0")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.lines("calls"), [])
+        self.assertPrefs(self.prefs_backup)
+
+    # USB verification and the manual installer
+
+    def test_usb_verification_requires_a_user_app_and_no_1x_copy(self):
+        library = (ROOT / "usb/launchpad/lib.sh").read_text()
+        start = library.index("verify_installed() {")
+        end = library.index("\n}", start) + 2
+        script = self.root / "verify.sh"
+        script.write_text(self.common + library[start:end] + """
+say() { :; }
+pkg_installed() { return 0; }
+knobd_state() { echo running; }
+verify_installed
+""", newline="\n")
+        for pm_path, legacy, ok in ((USER_APK, False, True),
+                                    (USER_APK, True, False),
+                                    ("/system/app/Launchpad.apk", False, False),
+                                    ("", False, False)):
+            with self.subTest(pm_path=pm_path, legacy=legacy):
+                if legacy:
+                    self.system_apk.write_bytes(b"1.x APK")
+                else:
+                    self.system_apk.unlink(missing_ok=True)
+                result = run(script, TEST_FOLDER=shell_path(self.root), TEST_PM_PATH=pm_path)
+                self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
+
+    def run_install(self, **env):
+        drive = self.root / "drive"
+        if not drive.exists():
+            (drive / "launchpad").mkdir(parents=True)
+            (drive / "packages").mkdir()
+            (drive / "packages/paytondev.launchpad.zip").write_bytes(b"package")
+            for name in ("install.sh", "lib.sh"):
+                (drive / "launchpad" / name).write_text(
+                    (ROOT / "usb/launchpad" / name).read_text(), newline="\n")
+            (drive / "launchpad/common.sh").write_text(self.common, newline="\n")
+        result = run(drive / "launchpad/install.sh", TEST_FOLDER=shell_path(self.root), **env)
+        log = drive / "launchpad-install.log"
+        return result, log.read_text() if log.exists() else ""
+
+    def test_usb_install_and_update(self):
+        package = shell_path(self.root / "drive/packages/paytondev.launchpad.zip")
+        for installed, command in (("", "install " + package), ("1", "install --update " + package)):
+            with self.subTest(installed=bool(installed)):
+                (self.root / "nemesis-calls").unlink(missing_ok=True)
+                (self.root / "registered").unlink(missing_ok=True)
+                result, log = self.run_install(TEST_PKG_INSTALLED=installed,
+                                               TEST_PM_PATH=USER_APK)
+                self.assertEqual(result.returncode, 0, log)
+                self.assertIn(command, self.lines("nemesis-calls"))
+                self.assertIn("ok: com.paytondev.precondition installed at /data/app/", log)
 
 
 if __name__ == "__main__":

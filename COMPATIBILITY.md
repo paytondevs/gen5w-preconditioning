@@ -64,8 +64,8 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 </details>
 
 - **NEEV US on 260903: preconditioning ⚠️.** On the car this profile comes from, Launchpad recognizes the head unit and shows the battery temperature, but **Start** stays unavailable: the car reports battery conditioning as not enabled even with Winter Mode on, and its EV settings have no Battery conditioning item. Launchpad sends nothing to the car in that state. Holding TUNE opens Launchpad.
-- **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open Launchpad from the NEMESIS package manager instead. A porting kit report taken while holding TUNE would let us add the shortcut.
-- **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open Launchpad from the NEMESIS package manager instead.
+- **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Precondition → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
+- **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, as above.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
@@ -642,7 +642,9 @@ of temperature, charge, and other operating constraints.
 
 A foreground service owns a requested session after the activity closes. Stop
 is available while waiting. Recovery cancels uncertain ownership and never
-automatically starts conditioning. A successful Binder call or elapsed 60–120
+automatically starts conditioning. The only automatic Start is a schedule the
+user armed, sent once through the same checks as the Start button (see
+[scheduled preconditioning](TEMPERATURE-AND-TIMEOUT.md#scheduled-preconditioning)). A successful Binder call or elapsed 60–120
 seconds does not establish activation; only vehicle feedback can show Active.
 
 The source includes unit tests for the request/feedback distinction, cancellation,

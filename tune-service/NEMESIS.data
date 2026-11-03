@@ -1,20 +1,22 @@
 [nemesis]
 version=1.1
 id=paytondev.launchpad
-name=Launchpad
+name=Precondition
 type=application,service
 package-version=@VERSION@
 short-desc="Battery preconditioning and TUNE launcher for IONIQ 5/6 and EV6."
 os="NEEV23.USA.*,NEEV.USA.0000.V016.010.260903,NEEV.USA.0000.V015.012.260507,NEEV.USA.0000.V012.010.240822,NEEV.KOR.0000.V039.001.260902,CEEV.USA.0000.V015.012.260507,CVEV.USA.0000.V015.012.260507,CVEV.USA.0000.V014.011.251120,CVEV.KOR.0000.V039.001.260902"
 models="any"
 depends=""
+preinstall=scripts/preinstall.sh
 postinstall=scripts/postinstall.sh
 preuninstall=scripts/preuninstall.sh
 
 [app.0]
-kind=sh
-path=bin/open.sh
-uid=root
+kind=apk
+path=app/Launchpad.apk
+package=com.paytondev.precondition
+component=com.paytondev.precondition/com.paytondev.launchpad.MainActivity
 
 [service.0]
 name=knobd

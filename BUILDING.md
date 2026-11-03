@@ -1,7 +1,8 @@
 # Building Launchpad and the TUNE-knob service
 
-The Android project builds Launchpad, package
-`com.paytondev.launchpad`, for Android 4.4/API 19. The TUNE daemon source is in
+The Android project builds Launchpad, Android package
+`com.paytondev.precondition` (Java package and namespace
+`com.paytondev.launchpad`), for Android 4.4/API 19. The TUNE daemon source is in
 `app/src/main/java/com/paytondev/launchpad/knob/`; its NEMESIS scripts and input
 profile are in `tune-service/`.
 
@@ -54,11 +55,11 @@ finished release. Building does not connect to the car.
 
 ## Signed, API 19-compatible release
 
-Signing keys and passwords are deliberately not included; any key works. The
-NEMESIS package writes `/system/app/Launchpad.apk` directly instead of going
-through `pm install`, so builds don't have to share a certificate, and CI signs
-each build with a new throwaway key. Don't change verifier settings or use
-`adb install` to work around a signing error.
+Signing keys and passwords are deliberately not included; any key works.
+NEMESIS installs the APK with `pm install` and, on every update, uninstalls the
+old APK before installing the new one, so builds don't have to share a
+certificate, and CI signs each build with a new throwaway key. Don't change
+verifier settings or use `adb install` to work around a signing error.
 
 Set these environment variables privately, without committing them:
 
@@ -87,15 +88,16 @@ python3 tools/build_usb_bundles.py --apk path/to/signed.apk
 ```
 
 The builder requires a **signed** APK (by default the `dist/Launchpad.apk` from
-`tools/build_apk.sh`), because the package installs it at
-`/system/app/Launchpad.apk`. The same APK is also the **dex container** for the
+`tools/build_apk.sh`), because NEMESIS installs it with `pm install` (the
+descriptor's `[app.0] kind=apk`). The same APK is also the **dex container** for the
 root `app_process` TUNE listener (`KnobDaemon`, `Evdev`, `HoldDetector`), so the
 visible app and the daemon always come from one build.
 
 Outputs in `dist/`:
 
 - `paytondev.launchpad.zip`: the NEMESIS package (`tune-service/` plus
-  `app/Launchpad.apk`).
+  `app/Launchpad.apk`). NEMESIS Manager lists it as Precondition; its package
+  ID stays `paytondev.launchpad`, so installs and updates match 1.x's package.
 - `Launchpad-install-usb.zip`: the USB drive root. Its `type=install`
   `NEMESIS.data` points at `packages/paytondev.launchpad.zip`, so NEMESIS prompts,
   installs it, and offers to update it when it's already installed. There are no
@@ -104,7 +106,7 @@ Outputs in `dist/`:
   `type=execute` `NEMESIS.data` runs `launchpad/install.sh` (from `usb/launchpad/`,
   with a copy of `tune-service/scripts/common.sh`), which installs or updates
   `packages/paytondev.launchpad.zip`, writes `launchpad-install.log` and checks
-  the APK and `knobd` afterwards.
+  that Android has the app under `/data/app` and that `knobd` runs afterwards.
 
 - `Launchpad-port-kit-usb.zip`: the read-only vehicle porting kit. Its
   `type=execute` `NEMESIS.data` runs `launchpad-port/collect.sh` (from
@@ -135,30 +137,43 @@ the actual release APK.
 move any previous NEMESIS files on it into a backup folder rather than deleting
 them.
 
-How it works on the car:
+How it works on the car. The descriptor's `[app.0]` is `kind=apk`, so NEMESIS
+itself runs `pm install` on `app/Launchpad.apk` and `pm uninstall` on removal.
+That makes the app a normal `/data/app` app, which is what NEMESIS Manager's
+home-screen grid lists (it skips system apps):
 
-- **install** (package not registered): `nemesis install`. The package's
-  `postinstall` stages and verifies the APK in `/data/local/tmp/launchpad`, then
-  writes `/system/app/Launchpad.apk`. It checks free space first, compares the
-  result byte for byte, and restores the previous APK if that check fails.
+- **install** (package not registered): `nemesis install`. `preinstall` checks
+  for Launchpad 1.x (below), NEMESIS runs `pm install`, then `postinstall`
+  restores any saved settings and starts `PreconditioningService` once. That
+  start takes the new package out of Android's "stopped" state, so
+  `BootReceiver` gets `BOOT_COMPLETED`; nothing may force-stop the app after it.
 - **update** (same drive, package already registered): `nemesis install
   --update`. NEMESIS runs the old package's `preuninstall`, which sees the new
-  package in NEMESIS's stage directory and leaves the APK in place. The new
-  `postinstall` then rewrites it in place, so app data survives. A plain
-  `type=install` USB descriptor isn't used because, on the firmware this was
-  tested on, NEMESIS answered "uninstall first" with Android up.
+  package in NEMESIS's stage directory and copies the app's `shared_prefs`
+  files to `/data/nemesis/backup/paytondev.launchpad/prefs`. NEMESIS then
+  uninstalls the old APK (which deletes its data) and installs the new one, and
+  the new `postinstall` puts the settings back, owned by the app's new uid.
 - **uninstall**: NEMESIS Manager → Packages → Uninstall, or `nemesis uninstall
-  paytondev.launchpad`. `preuninstall` force-stops the app and removes
-  `/system/app/Launchpad.apk`. There is no USB uninstall bundle.
+  paytondev.launchpad`. `preuninstall` deletes the backup folder, then NEMESIS
+  runs `pm uninstall`. There is no USB uninstall bundle.
+- **from 1.x**: 1.x was Android package `com.paytondev.launchpad`, copied to
+  `/system/app/Launchpad.apk`. Android keeps that system package registered,
+  with its data, until it restarts, even once the file is gone, so 2.x uses its
+  own package, `com.paytondev.precondition`, and installs right away. When
+  `preinstall` finds the 1.x file or 1.x's data folder, it copies 1.x's
+  `shared_prefs` to the backup folder (unless an update's own backup is already
+  waiting), removes the file, and lets the install continue. `postinstall` then
+  restores them into the new app. A car without 1.x skips all of this.
 
-Rule for these scripts: the only file under `/system` they may write or remove
-is `/system/app/Launchpad.apk`. `/system` is remounted rw (`nemesis remount`)
-only around that write, and only when the file actually changes. Car-side
-scripts are toolbox-only `#!/system/bin/sh` (KitKat mksh: no `grep`, `awk`,
-`cp` or busybox).
+Rule for these scripts: nothing writes under `/system`. The only `/system`
+operation is removing the 1.x file `/system/app/Launchpad.apk`, with `/system`
+remounted rw (`nemesis remount`) only around that. Persistent state goes in
+`/data/nemesis/backup/paytondev.launchpad`, temporary files in
+`/data/local/tmp`. Car-side scripts are toolbox-only `#!/system/bin/sh`
+(KitKat mksh: no `grep`, `awk`, `cp` or busybox).
 
 The service uses package id `paytondev.launchpad` and registry name
-`paytondev.launchpad/knobd`. It opens `com.paytondev.launchpad/.MainActivity`
+`paytondev.launchpad/knobd`. It opens `com.paytondev.precondition/com.paytondev.launchpad.MainActivity`
 and passes the existing `from_knob` intent extra. It listens passively, without
 grabbing the input device or injecting events. Its default profile expects the NEEV23 US (Ioniq 5) device name
 `daudio_wp_daudioplus_neev23_us`, key code 17, and an 800 ms hold; the

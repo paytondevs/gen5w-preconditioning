@@ -57,9 +57,9 @@ helpers. A missing or failed read returns unknown rather than zero or warm.
 
 While Launchpad is bound/visible, a separate worker polls about ten seconds
 after each response. The temperature worker is separate from the serialized
-control worker. Unbinding removes future polls; a generation check discards
-completions from an earlier binding. Closing the app does not stop a requested
-conditioning session.
+control worker. Unbinding removes future polls unless a schedule is armed (see
+below); a generation check discards completions from an earlier binding. Closing
+the app does not stop a requested conditioning session.
 
 Home shows `Battery temp: 61°F`. Advanced shows
 `Lowest Battery Pack Temperature: 61°F (16°C)` and response age. Equal values
@@ -120,6 +120,62 @@ Stop for a user retry. An uncertain Off leaves the request unresolved. Only
 confirmed completion restores Start and displays No activation. Recovery still
 cancels uncertain ownership and never automatically restarts conditioning.
 
+## Scheduled preconditioning
+
+The user can arm one schedule from the clock button on the Preconditioning tab.
+It is the only automatic Start, and it goes through the same path as the Start
+button: the READY/enabled/Off checks, the minimum-temperature precheck, the
+ownership journal, the pending-request timeout and Stop all apply unchanged.
+
+- **Start by** sends Start 70 seconds before the chosen time (activation
+  normally follows in about 60–70 seconds).
+- **Arrive by** plans backwards from the arrival time:
+  `ceil((threshold − pack minimum) / rate) + 2` minutes of heating, capped at the
+  car's 30-minute session, plus the 70-second lead. It is re-planned from every
+  temperature reading; within 5 minutes of the send time the plan may only move
+  earlier. An unknown pack temperature plans the full 30 minutes.
+
+The heating rate is an **assumption**, not a calibration. No measured rate exists
+for these cars; the table is a conservative reading of owner reports (EV6 minimum
+14 → 18 °C in 15 minutes; "about 20–30 minutes to 20 °C"; a 4–7 kW heater) and
+slows in the cold:
+
+| Outside air | Assumed rate |
+| --- | --- |
+| ≥ 10 °C | 0.50 °C/min |
+| 0 °C (and unknown) | 0.40 °C/min |
+| −10 °C | 0.30 °C/min |
+| ≤ −20 °C | 0.25 °C/min |
+
+Values in between are interpolated. The outside temperature is index 4 of the
+same cluster array (`DATC_OUT_TEMP_SNSR`), read in the same single round trip.
+It is decoded as raw / 2 − 40 °C, the usual DATC scaling, which is **unverified**
+against the car's own display; the scheduler shows it so owners can compare.
+
+At the send time:
+
+- The car not READY, not enabled, or with an unknown indicator defers the send;
+  it is retried every second until 5 minutes after the chosen time, then logged
+  as missed. A schedule is never sent later than that.
+- A pack at or above the warm threshold is skipped and nothing is sent, the same
+  advisory as a manual Start but with no Start anyway.
+- The car already reporting Active is skipped.
+- The stored schedule is removed before Start is transmitted, like the ownership
+  journal, so a restart can never send it twice.
+
+While a schedule is armed the service stays in the foreground, refreshes vehicle
+status every second and polls temperature every ten seconds even with Launchpad
+closed. An `AlarmManager.setExact` alarm at the send time restarts the service if
+its process was killed, and `BootReceiver` restores a stored schedule after a
+head-unit restart; it does nothing when none is stored. Pressing Start or Start
+anyway cancels an armed schedule first. Every decision is kept in a 24-entry log
+that survives process death (not shown on the card); outcomes are also posted
+as notifications, which may not be visible on the head unit.
+
+Not yet verified in a car: the outside-temperature scale, the heating rates,
+whether the head unit stays awake for an alarm while the car is off, and
+notification visibility.
+
 ## Evidence and release checks
 
 Field observations are from a US 2023 EV6 Wind RWD on the exact 260507 profile,
@@ -178,8 +234,12 @@ using the local development build:
 Host tests cover the warm notice, override, unknown-temperature fallback,
 eligibility loss, timeout boundaries, cancellation failure, retained ownership,
 stale/equal-value display samples, and native registration/request/removal. Host
-Binder fixtures also cover a hung call and overlapping readers. They do not
-execute the Android service/activity lifecycle on a vehicle.
+Binder fixtures also cover a hung call and overlapping readers, and the outside
+temperature riding the same round trip. `tools/test_service_rebind.py` runs the
+real service through arming, sending at the planned time with Launchpad closed,
+cancel, restore after a simulated kill, a missed window, a car that is not READY
+yet, a warm pack, a manual Start while armed, and an arrive-by re-plan. They do
+not execute the Android service/activity lifecycle on a vehicle.
 
 The five-minute pending timeout has host-test coverage but has not been verified
 in the car. The owner clarified that the observed stop followed Active, so it

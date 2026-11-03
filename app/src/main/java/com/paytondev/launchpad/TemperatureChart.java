@@ -5,7 +5,6 @@ import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.RectF;
 import android.view.View;
 
 import java.util.List;
@@ -16,27 +15,28 @@ final class TemperatureChart extends View {
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dashed = new Paint(Paint.ANTI_ALIAS_FLAG), label = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final RectF frame = new RectF();
     private final float dp;
     private TemperatureHistory.Trace trace = TemperatureHistory.Trace.EMPTY;
     private long now;
     private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
-    private Palette palette = Palette.LIGHT;
+    private boolean heating;
+    private Palette palette = Palette.DARK;
 
     TemperatureChart(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
         line.setStyle(Paint.Style.STROKE); line.setStrokeCap(Paint.Cap.ROUND); line.setStrokeJoin(Paint.Join.ROUND);
-        dashed.setStyle(Paint.Style.STROKE); dashed.setStrokeWidth(2 * dp); dashed.setColor(TemperatureGauge.WARM);
-        dashed.setPathEffect(new DashPathEffect(new float[]{8 * dp, 6 * dp}, 0));
-        label.setTextSize(13 * dp); label.setColor(palette.muted);
+        dashed.setStyle(Paint.Style.STROKE); dashed.setStrokeWidth(1.5f * dp);
+        dashed.setPathEffect(new DashPathEffect(new float[]{4 * dp, 5 * dp}, 0));
+        label.setTextSize(13 * dp); label.setTypeface(Fonts.get(context, Fonts.Weight.REGULAR));
         setContentDescription("Battery temperature this session");
     }
     void setPalette(Palette value) {
         if (value == palette) return;
         palette = value; label.setColor(palette.muted); invalidate();
     }
-    void setTrace(TemperatureHistory.Trace trace, long now, int thresholdC) {
-        this.trace = trace; this.now = now; this.thresholdC = thresholdC; invalidate();
+    /** {@code heating} draws the lowest-pack line amber instead of cold blue. */
+    void setTrace(TemperatureHistory.Trace trace, long now, int thresholdC, boolean heating) {
+        this.trace = trace; this.now = now; this.thresholdC = thresholdC; this.heating = heating; invalidate();
     }
 
     /** Visible time span: at least five minutes, at most the history window. */
@@ -62,16 +62,14 @@ final class TemperatureChart extends View {
     }
 
     @Override protected void onDraw(Canvas canvas) {
-        frame.set(0, 0, getWidth(), getHeight());
-        fill.setStyle(Paint.Style.FILL); fill.setColor(palette.card);
-        canvas.drawRoundRect(frame, 14 * dp, 14 * dp, fill);
+        fill.setStyle(Paint.Style.FILL); label.setColor(palette.muted); dashed.setColor(palette.faint);
         List<TemperatureHistory.Sample> samples = trace.samples;
         if (samples.isEmpty()) {
             label.setTextAlign(Paint.Align.CENTER); label.setTextSize(17 * dp);
             canvas.drawText("Waiting for readings", getWidth() / 2f, getHeight() / 2f + 6 * dp, label);
             label.setTextSize(13 * dp); return;
         }
-        float left = 48 * dp, top = 14 * dp, width = getWidth() - left - 14 * dp, height = getHeight() - top - 28 * dp;
+        float left = 44 * dp, top = 8 * dp, width = getWidth() - left, height = getHeight() - top - 26 * dp;
         float[] range = range(samples, thresholdC);
         long start = start(samples, now);
         label.setTextAlign(Paint.Align.RIGHT);
@@ -84,18 +82,17 @@ final class TemperatureChart extends View {
         float threshold = y(thresholdC, range[0], range[1], top, height);
         path.reset(); path.moveTo(left, threshold); path.lineTo(left + width, threshold);
         canvas.drawPath(path, dashed);
-        label.setColor(TemperatureGauge.WARM); label.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText(BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
-        label.setColor(palette.muted);
+        label.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("Warm at " + BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
         // The session marker's label sits in the time axis row, replacing an end label it would hit.
         float axis = top + height + 20 * dp, sx = -1;
         if (trace.sessionStart >= 0 && trace.sessionStart >= start) {
             sx = x(trace.sessionStart, start, now, left, width);
-            line.setColor(palette.ink); line.setStrokeWidth(1.5f * dp);
+            line.setColor(palette.muted); line.setStrokeWidth(1.5f * dp);
             canvas.drawLine(sx, top, sx, top + height + 6 * dp, line);
-            label.setTextAlign(Paint.Align.CENTER); label.setColor(palette.ink); label.setFakeBoldText(true);
+            label.setTextAlign(Paint.Align.CENTER); label.setColor(palette.ink);
             canvas.drawText("Start", Math.max(left + 18 * dp, Math.min(left + width - 18 * dp, sx)), axis, label);
-            label.setColor(palette.muted); label.setFakeBoldText(false);
+            label.setColor(palette.muted);
         }
         trace(canvas, samples, true, range, start, left, top, width, height);
         trace(canvas, samples, false, range, start, left, top, width, height);
@@ -107,7 +104,7 @@ final class TemperatureChart extends View {
     }
     private void trace(Canvas canvas, List<TemperatureHistory.Sample> samples, boolean maximum, float[] range,
                        long start, float left, float top, float width, float height) {
-        int color = maximum ? 0x99f59e0b : palette.accent;
+        int color = maximum ? palette.faint : heating ? palette.warm : palette.cold;
         line.setColor(color); line.setStrokeWidth((maximum ? 2 : 3) * dp); fill.setColor(color);
         path.reset();
         TemperatureHistory.Sample previous = null;

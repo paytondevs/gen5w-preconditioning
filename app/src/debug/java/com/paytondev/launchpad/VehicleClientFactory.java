@@ -18,6 +18,11 @@ final class VehicleClientFactory {
                 return (int) Math.min(24, 8 + (SystemClock.elapsedRealtime() - created) / 60000);
             }
             @Override public Integer readMaximumBatteryTemperatureC() { return readMinimumBatteryTemperatureC() + 3; }
+            // Fixed 5°C outside air so arrive-by planning has an input in the emulator.
+            @Override public BatteryTemperature.Sample readTemperatures() {
+                Integer minimum = readMinimumBatteryTemperatureC();
+                return new BatteryTemperature.Sample(minimum, minimum + 3, 5);
+            }
             @Override public void beginManual() { requested = true; }
             @Override public void maintainManual() { }
             @Override public void stopAndRelease() { requested = false; }
