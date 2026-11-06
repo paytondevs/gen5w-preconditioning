@@ -3,7 +3,7 @@ Launchpad - install/update USB
 This drive installs Launchpad, or updates it in place if it is already
 installed. It needs NEMESIS 1.16 or newer, which installs the package itself.
 On an older NEMESIS, use Launchpad-manual-install-usb.zip instead. To remove Launchpad and its TUNE shortcut, use NEMESIS Manager ->
-Packages -> Launchpad -> Uninstall; NEMESIS stays installed. There is no
+Packages -> Precondition -> Uninstall; NEMESIS stays installed. There is no
 uninstall drive.
 
 BEFORE YOU BEGIN
@@ -13,9 +13,10 @@ CV_E.USA.S5W_M.V015.012.260507. Ioniq 5 NEEV US support was tested on a US
 2022 Ioniq 5 SE AWD, software NEEV.USA.0000.V015.012.260507. Other matching
 cars and model years are untested.
 NEMESIS must already be installed. Engineering Mode is not needed for this step.
-Each release is signed with its own key. The package replaces
-/system/app/Launchpad.apk directly, so a different key does not block an
-update. Do not clear app data or change verifier settings.
+Each release is signed with its own key. NEMESIS removes the old version
+before it installs the new one, and Launchpad saves its settings around that,
+so a different key does not block an update. Do not clear app data or change
+verifier settings.
 
 ON THE COMPUTER
 1. Use an empty FAT32 or exFAT USB, or back it up first.
@@ -39,7 +40,14 @@ IN THE CAR
 6. After success, remove the drive and restart infotainment with its recessed
    reset button. This is not a factory reset.
 7. After install/update, hold the right-hand TUNE knob for about one second to
-   open Launchpad. TUNE opens the screen; it does not begin heating.
+   open Launchpad. TUNE opens the screen; it does not begin heating. It is also
+   on NEMESIS Manager's home screen as Precondition.
+
+COMING FROM LAUNCHPAD 1.x
+Nothing extra to do. If 1.x is on the car, this drive moves your settings over
+and removes the old copy (/system/app/Launchpad.apk) in the same run. If you
+already removed 1.x with NEMESIS Manager, it still installs; your settings come
+along if infotainment has not restarted since.
 
 USING PRECONDITIONING
 Enable Battery conditioning mode in the car's EV settings. Start requests

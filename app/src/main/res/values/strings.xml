@@ -1,20 +1,5 @@
 <resources>
-    <string name="app_name">Launchpad</string>
-    <string name="hint">Hold TUNE to open or close · Long-press an app to favorite it</string>
-    <string name="close">Close</string>
-    <string name="tab_favorites">Favorites</string>
-    <string name="tab_apps">Apps</string>
-    <string name="tab_all">All screens</string>
-    <string name="wifi">Wi-Fi settings</string>
-    <string name="wifi_off">Wi-Fi is off</string>
-    <string name="wifi_not_connected">On · not connected</string>
-    <string name="nemesis">NEMESIS</string>
-    <string name="nemesis_sub">Manager</string>
-    <string name="car_home">Car home</string>
-    <string name="car_home_sub">Hyundai launcher</string>
-    <string name="loading">Loading apps…</string>
-    <string name="no_favorites">No favorites yet. Long-press any app in Apps or All screens to add it here.</string>
-    <string name="no_apps">Nothing to show.</string>
+    <string name="app_name">Precondition</string>
     <string name="fav_added">Added %1$s to favorites</string>
     <string name="fav_removed">Removed %1$s from favorites</string>
     <string name="cannot_open">Couldn\'t open %1$s</string>

@@ -15,6 +15,11 @@ interface VehiclePort {
     default Integer readMinimumBatteryTemperatureC() { return null; }
     /** Display-only; never used for the warm advisory. */
     default Integer readMaximumBatteryTemperatureC() { return null; }
+    /** One telemetry round trip for the display poll and the scheduler; outside air may be null. */
+    default BatteryTemperature.Sample readTemperatures() {
+        Integer minimum = readMinimumBatteryTemperatureC();
+        return new BatteryTemperature.Sample(minimum, minimum == null ? null : readMaximumBatteryTemperatureC(), null);
+    }
     void beginManual() throws Exception;
     void maintainManual() throws Exception;
     void stopAndRelease() throws Exception;
