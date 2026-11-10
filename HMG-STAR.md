@@ -15,7 +15,8 @@ framework resource hooks. It skips registration if HMG-API, Android or the
 checked map is not ready. A 375-point baseline without ButtonSettings remains
 unchanged and does not gain this feature. Retry the NEMESIS update only after
 Android and HMG-API have fully started and the map is separately available.
-This package never creates, edits, verifies, or replaces an HMG-API map.
+The package checks the existing map, report and hook points read-only; it does
+not create, edit or replace the map or its existing verification report.
 HMG-API's official `engine install` owns its own module registry; no other
 HMG module is intentionally changed. Do not run HMG-API install/remove/map
 operations concurrently: HMG-API 1.0.2 does not provide a shared transaction
