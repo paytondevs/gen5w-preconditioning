@@ -57,6 +57,21 @@ public class ScheduleFormatTest {
         assertEquals("48°F (9°C)", ScheduleFormat.temperature(9));
         assertEquals("—", ScheduleFormat.temperature(null));
     }
+    @Test public void currentPlanReasonUsesSelectedUnitWithoutChangingStoredText() {
+        String original = "About 15 min to warm the battery from 48°F to 70°F.";
+        String display = ScheduleFormat.displayPlanReason(original, BatteryDisplayUnit.CELSIUS);
+        assertEquals("About 15 min to warm the battery from 9°C to 21°C.", display);
+        assertEquals("About 15 min to warm the battery from 48°F to 70°F.", original);
+        assertEquals(original, ScheduleFormat.displayPlanReason(original, BatteryDisplayUnit.FAHRENHEIT));
+        assertEquals(display, ScheduleFormat.displayPlanReason(display, BatteryDisplayUnit.CELSIUS));
+        String capped = "About 30 min to warm the battery from -4°F to 70°F. It may not be fully warm in time.";
+        assertEquals("About 30 min to warm the battery from -20°C to 21°C. It may not be fully warm in time.",
+            ScheduleFormat.displayPlanReason(capped, BatteryDisplayUnit.CELSIUS));
+        String malformed = "About 15 min to warm the battery from 4.8°F to 70°F.";
+        assertEquals(malformed, ScheduleFormat.displayPlanReason(malformed, BatteryDisplayUnit.CELSIUS));
+        assertEquals("9°C (48°F)", ScheduleFormat.displayPlanReason("9°C (48°F)", BatteryDisplayUnit.CELSIUS));
+        assertNull(ScheduleFormat.displayPlanReason(null, BatteryDisplayUnit.CELSIUS));
+    }
     @Test public void hourWheelKeepsMinutesAndWrapsTheDay() {
         assertEquals(8 * 60 + 45, ScheduleFormat.stepHour(7 * 60 + 45, 1));
         assertEquals(23 * 60 + 45, ScheduleFormat.stepHour(45, -1));

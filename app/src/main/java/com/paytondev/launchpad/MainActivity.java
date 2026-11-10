@@ -514,7 +514,7 @@ public final class MainActivity extends Activity {
     }
     private void updateBatteryViews(long now, long wall, boolean twentyFourHour, TimeZone zone, boolean armed, boolean waiting) {
         PreconditioningSnapshot.State state = preconditioning.state;
-        String detail = preconditioning.detail;
+        String detail = batteryUnit.displayCurrentDetail(preconditioning.detail);
         if (waiting) {
             int left = (int) Math.ceil(CountdownBar.remaining(requestStartedAt, now) * CountdownBar.DURATION_MS / 1000f);
             ui.setPill(statusPill, String.format(Locale.US, "Starting · %d:%02d left", left / 60, left % 60),
@@ -530,7 +530,8 @@ public final class MainActivity extends Activity {
             // Past the send time the newest "car not ready" line explains the wait better than the plan.
             boolean deferred = schedule.plannedSendAt != PreconditioningSchedule.NONE && wall >= schedule.plannedSendAt
                 && last != null && last.kind == ScheduleLog.Kind.DEFERRED;
-            detail = deferred ? last.text : ScheduleFormat.sendLine(schedule, wall) + ". " + schedule.reason;
+            detail = deferred ? last.text : ScheduleFormat.sendLine(schedule, wall) + ". "
+                + ScheduleFormat.displayPlanReason(schedule.reason, batteryUnit);
         } else if (state == PreconditioningSnapshot.State.WARM) {
             ui.setPill(statusPill, preconditioning.title(), palette.warm, palette.warmSoft);
         } else if (state == PreconditioningSnapshot.State.ERROR || state == PreconditioningSnapshot.State.UNAVAILABLE
@@ -551,7 +552,7 @@ public final class MainActivity extends Activity {
         lowestValue.setText(minimum == null ? "—" : String.valueOf(batteryUnit.value(minimum)));
         lowestValue.setTextColor(stale ? palette.muted : palette.ink);
         lowestUnit.setVisibility(minimum == null ? View.GONE : View.VISIBLE);
-        lowestSub.setText(minimum == null ? batteryTemperature.age(now) : batteryUnit.other().format(minimum) + " · " + batteryTemperature.age(now));
+        lowestSub.setText(batteryTemperature.age(now));
         int threshold = warmThreshold();
         gauge.setValue(minimum, threshold, heating());
         if (chart != null) {
@@ -592,9 +593,6 @@ public final class MainActivity extends Activity {
     }
     private Integer freshMinimumC() {
         return batteryTemperature.stale(SystemClock.elapsedRealtime()) ? null : batteryTemperature.minimumC;
-    }
-    private static String fahrenheit(Integer celsius) {
-        return celsius == null ? "—" : BatteryTemperatureReading.fahrenheit(celsius) + "°F";
     }
 
     /** The draft starts from the armed schedule, or half an hour from now. */
@@ -755,7 +753,8 @@ public final class MainActivity extends Activity {
             : planText(target, wall, twentyFourHour, zone, acceptable));
         // Temperatures only matter to an arrive-by plan.
         boolean inputs = scheduleMode == PreconditioningSchedule.Mode.ARRIVE_BY;
-        scheduleInputs.setText("Battery " + fahrenheit(freshMinimumC()) + " · Outside " + fahrenheit(outsideC));
+        scheduleInputs.setText("Battery " + batteryUnit.formatNullable(freshMinimumC())
+            + " · Outside " + batteryUnit.formatNullable(outsideC));
         scheduleInputs.setVisibility(inputs ? View.VISIBLE : View.GONE);
         if (!armed) cancelSent = false;
         scheduleCancel.setVisibility(armed ? View.VISIBLE : View.GONE);
@@ -778,8 +777,9 @@ public final class MainActivity extends Activity {
             text = "Preconditioning will be running by " + ScheduleFormat.time(target, twentyFourHour, zone) + ".";
         } else {
             ArriveByPlanner.Plan plan = ArriveByPlanner.plan(target, freshMinimumC(), outsideC, warmThreshold(), wall);
-            text = plan.alreadyWarm || plan.lateStart ? plan.reason
-                : "Starts at " + ScheduleFormat.time(plan.sendAt, twentyFourHour, zone) + ". " + plan.reason;
+            String reason = ScheduleFormat.displayPlanReason(plan.reason, batteryUnit);
+            text = plan.alreadyWarm || plan.lateStart ? reason
+                : "Starts at " + ScheduleFormat.time(plan.sendAt, twentyFourHour, zone) + ". " + reason;
         }
         if (!preconditioning.canStart) text += " The car needs to be on then.";
         return text;
@@ -811,7 +811,7 @@ public final class MainActivity extends Activity {
             if (before == palette) rebuildPage();
         } });
         list.addView(ui.divider(false));
-        LinearLayout unit = settingsRow(list, "Battery screen units", batteryUnitPreference.title(batteryUnit), false);
+        LinearLayout unit = settingsRow(list, "Temperature units", batteryUnitPreference.title(batteryUnit), false);
         addTarget(unit, new Runnable() { @Override public void run() {
             batteryUnitPreference = batteryUnitPreference.next();
             batteryUnit = batteryUnitPreference.resolve(vehicleProduct);

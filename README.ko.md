@@ -16,6 +16,8 @@ TUNE 노브를 길게 누르고 **Start**를 누르면 Launchpad가 차량에 �
 
 **EV6 사용자:** [EV6 설치 및 일상 사용 안내](EV6-QUICK-START.md)부터 확인하세요.
 
+지원 대상이 제한된 순정 ★ 바로가기의 조건은 [HMG-API 연동 안내](HMG-STAR.ko.md)에서 확인하세요.
+
 ## 시작하기 전에
 
 > [!WARNING]
@@ -128,7 +130,7 @@ Launchpad를 닫아도 예약은 백그라운드에서 유지되며 헤드유닛
 - 해당 시점에 배터리가 이미 따뜻하면 요청을 보내지 않고 그 사실을 기록합니다.
 - 결과는 알림으로도 게시되지만 헤드유닛에 표시되지 않을 수 있습니다.
 
-**배터리 화면 단위:** **Settings → Battery screen units**에서 Auto(자동), °C 또는 °F를 선택하세요. 기본값인 자동은 헤드유닛의 `ro.build.product`에 표시된 차량 시장을 사용합니다(KOR → °C, USA → °F, 그 외 또는 확인 불가는 °F). °C 또는 °F를 직접 선택하면 자동 설정보다 우선하며 재부팅과 앱 업데이트 후에도 유지됩니다. 주 온도 표시, 게이지와 그래프에 해당 단위가 적용됩니다. 예약 예측과 기존 로그는 원래 단위를 유지하며, 센서 측정값과 차량 명령은 바뀌지 않습니다.
+**온도 단위:** **Settings → Temperature units**에서 Auto(자동), °C 또는 °F를 선택하세요. 기본값인 자동은 헤드유닛의 `ro.build.product`에 표시된 차량 시장을 사용합니다(KOR → °C, USA → °F, 그 외 또는 확인 불가는 °F). °C 또는 °F를 직접 선택하면 자동 설정보다 우선하며 재부팅과 앱 업데이트 후에도 유지됩니다. 배터리 온도 표시·게이지·그래프와 현재 예약의 입력·예측 설명에 적용됩니다. 과거 로그는 저장된 원문을 유지하며, 센서 값·예약 계산·차량 명령은 바뀌지 않습니다.
 
 **다크 모드:** **Advanced → Appearance**에서 설정합니다. **Follow car**(기본값)는 차량의 주간·야간 화면에 맞추고, **Light** 또는 **Dark**를 선택하면 하나의 화면 모드를 유지합니다. Follow car는 자동 모드를 포함한 차량의 주간·야간 표시 설정을 따릅니다. 차량에서 전환되지 않는다면 Advanced 하단의 **Appearance signals** 패널에서 차량이 보고하는 값을 확인하세요.
 
@@ -145,10 +147,11 @@ Launchpad를 닫아도 예약은 백그라운드에서 유지되며 헤드유닛
 ## 제거
 
 1. 프리컨디셔닝이 실행 중이면 **Stop**을 누르고 종료될 때까지 기다립니다.
-2. NEMESIS Manager를 열고(NAV 세 번) → **Packages** → **Precondition** → **Uninstall**을 선택합니다.
-3. 헤드유닛을 재부팅합니다.
+2. 제거 보호가 나타나지 않더라도 본체와 핸들의 ★ 버튼을 순정 기능으로 바꾸세요. 제거 중에는 버튼 설정을 변경하지 마세요.
+3. NEMESIS Manager를 열고(NAV 세 번) → **Packages** → **Precondition** → **Uninstall**을 선택합니다.
+4. 헤드유닛을 재부팅합니다.
 
-Launchpad와 TUNE 바로가기가 제거됩니다. Launchpad 1.x가 아직 남아 있지만 Packages 목록에 없다면(예: ADB로 설치한 경우), 먼저 2.0을 설치해 1.x를 제거한 뒤 삭제하세요. NEMESIS는 유지됩니다. NEMESIS도 제거하려면 NEMESIS Manager의 **Wipe NEMESIS**를 사용하세요. [NEMESIS 문서](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe)를 참고하세요.
+Launchpad와 TUNE 바로가기가 제거됩니다. HMG-API ★ 모듈은 별도로 관리되며 HMG-API에서 직접 제거할 때까지 남습니다. [★ 바로가기 자세히 보기](HMG-STAR.ko.md). Launchpad 1.x가 아직 남아 있지만 Packages 목록에 없다면(예: ADB로 설치한 경우), 먼저 2.0을 설치해 1.x를 제거한 뒤 삭제하세요. NEMESIS는 유지됩니다. NEMESIS도 제거하려면 NEMESIS Manager의 **Wipe NEMESIS**를 사용하세요. [NEMESIS 문서](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe)를 참고하세요.
 
 ## 문제 해결
 
@@ -164,7 +167,7 @@ Launchpad와 TUNE 바로가기가 제거됩니다. Launchpad 1.x가 아직 남�
 
 ## 차량에서 변경되는 사항
 
-- Launchpad는 일반 NEMESIS 패키지로 설치되어 NEMESIS Manager → **Packages**에 **Precondition**으로 표시됩니다. 여기에서 제거하면 관련 항목이 삭제됩니다.
+- Launchpad는 일반 NEMESIS 패키지로 설치되어 NEMESIS Manager → **Packages**에 **Precondition**으로 표시됩니다. 제거 후에도 별도로 관리되는 HMG-API ★ 모듈은 남습니다. [★ 바로가기 자세히 보기](HMG-STAR.ko.md).
 - NEMESIS가 일반 Android 앱처럼 설치하므로 Manager 홈 화면에도 표시됩니다. 차량 시스템 영역에는 아무것도 쓰지 않으며 현대·기아 파일을 변경하지 않습니다.
 - 업데이트 시 이전 버전을 교체하는 동안 설정을 NEMESIS 백업 폴더에 복사한 뒤 복원합니다.
 - 업데이트가 중간에 실패하면 USB를 다시 실행하세요. 설치 과정이 복원할 때까지 설정은 백업 폴더에 남아 있습니다.
@@ -174,7 +177,7 @@ Launchpad와 TUNE 바로가기가 제거됩니다. Launchpad 1.x가 아직 남�
 
 - TUNE 길게 누르기 서비스와 앱 사본은 `/data/nemesis/apps/paytondev.launchpad/`에 있습니다.
 - NEMESIS는 그 위치의 앱을 `pm install`로 설치하고 `pm uninstall`로 제거합니다. NEMESIS가 이전 버전을 제거한 뒤 새 버전을 설치하므로 각 릴리스가 서로 다른 키로 서명되어도 작동합니다.
-- 업데이트 중 설정 파일은 `/data/nemesis/backup/paytondev.launchpad/`에 복사된 뒤 새 설치에 복원됩니다. 제거하면 이 폴더도 다른 항목과 함께 삭제됩니다.
+- 업데이트 중 설정 파일은 `/data/nemesis/backup/paytondev.launchpad/`에 복사된 뒤 새 설치에 복원됩니다. 제거 시 이 백업 폴더는 삭제되지만 별도로 관리되는 HMG-API ★ 모듈은 남습니다.
 - Launchpad 1.x는 `/system/app/Launchpad.apk`에 자신을 복사했습니다. 2.0은 1.x를 발견했을 때 해당 파일을 한 번 제거하는 것만 `/system`에서 수행합니다. 이를 위해서만 `/system`을 쓰기 가능하게 바꾸고 직후 다시 읽기 전용으로 돌립니다.
 - 2.0의 Android 패키지는 `com.paytondev.precondition`이며 1.x는 `com.paytondev.launchpad`였습니다. Android는 1.x를 제거해도 헤드유닛을 재부팅할 때까지 이전 이름을 예약해 두므로, 새 이름을 사용해 2.0을 바로 설치할 수 있습니다.
 </details>

@@ -130,7 +130,7 @@ you can close Launchpad; the schedule keeps running in the background and surviv
 - if the battery is already warm at that point, nothing is sent and the log says so.
 - the outcome is also posted as a notification, but the head unit may not show those.
 
-**battery screen units:** in **Settings → Battery screen units**, choose Auto, °C or °F. Auto is the default: it uses the market in the head unit's `ro.build.product` (KOR → °C, USA → °F; other or unknown markets fall back to °F). The explicit °C and °F choices override Auto and are saved across restarts and app updates. The main reading, gauge and graph use that unit; scheduling estimates and previous logs continue to show their original units. Sensor readings and car commands are unchanged.
+**temperature units:** in **Settings → Temperature units**, choose Auto, °C or °F. Auto is the default: it uses the market in the head unit's `ro.build.product` (KOR → °C, USA → °F; other or unknown markets fall back to °F). The explicit °C and °F choices override Auto and are saved across restarts and app updates. The battery reading, gauge, graph, and current scheduling inputs and plan use that unit. Historical log entries remain as originally saved; sensor readings, scheduling calculations and car commands are unchanged.
 
 **dark mode:** go to **Advanced → Appearance**. **Follow car** (the default) matches the head unit's day/night display, or pick **Light** or **Dark** to keep one. Follow car uses the head unit's Day/Night display setting, including Auto. if it doesn't switch on your car, the **Appearance signals** panel at the bottom of Advanced shows what the head unit reports.
 
@@ -167,7 +167,7 @@ this removes Launchpad and its TUNE shortcut. The optional HMG-API module is man
 
 ## what this changes on your car
 
-- Launchpad is installed as a normal NEMESIS package, so it shows up in NEMESIS Manager → **Packages** as **Precondition**, and uninstalling it from there removes everything.
+- Launchpad is installed as a normal NEMESIS package, so it shows up in NEMESIS Manager → **Packages** as **Precondition**. The separately managed HMG-API shortcut module remains after uninstall; see [star shortcut details](HMG-STAR.md).
 - NEMESIS installs the app the normal Android way, like an app you'd install yourself, so it also shows up on NEMESIS Manager's home screen. nothing is written to the car's system area, and no Hyundai or Kia files are changed.
 - updates keep your settings: they're copied to NEMESIS's backup folder while the old version is swapped for the new one, then put back.
 - if an update fails partway, run the drive again. your settings stay in the backup folder until an install puts them back.
@@ -177,7 +177,7 @@ this removes Launchpad and its TUNE shortcut. The optional HMG-API module is man
 
 - the TUNE-hold service and a copy of the app live in `/data/nemesis/apps/paytondev.launchpad/`.
 - NEMESIS installs the app from there with `pm install` and removes it with `pm uninstall`. each release is signed with its own key, which works because NEMESIS removes the old version before installing the new one.
-- during an update, the settings files are copied to `/data/nemesis/backup/paytondev.launchpad/` and put back into the new install. uninstalling deletes that folder along with everything else.
+- during an update, the settings files are copied to `/data/nemesis/backup/paytondev.launchpad/` and put back into the new install. uninstalling deletes that backup folder; it does not remove the separately managed HMG-API shortcut module.
 - Launchpad 1.x copied itself to `/system/app/Launchpad.apk`. the only thing 2.0 does in `/system` is remove that file, once, when it finds 1.x. `/system` is made writable only for that and is set back to read-only right after.
 - 2.0's Android package is `com.paytondev.precondition`; 1.x was `com.paytondev.launchpad`. Android keeps the old name reserved until the headunit restarts, even once 1.x is removed, so the new name lets 2.0 install right away.
 </details>
