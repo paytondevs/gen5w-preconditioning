@@ -128,7 +128,7 @@ you can close Launchpad; the schedule keeps running in the background and surviv
 - if the battery is already warm at that point, nothing is sent and the log says so.
 - the outcome is also posted as a notification, but the head unit may not show those.
 
-**battery screen units:** in **Settings → Battery screen units**, choose °F (the default) or °C. the main reading, gauge and graph use that unit; scheduling estimates and previous logs continue to show their original units. the sensor readings and car commands are unchanged.
+**battery screen units:** in **Settings → Battery screen units**, choose Auto, °C or °F. Auto is the default: it uses the market in the head unit's `ro.build.product` (KOR → °C, USA → °F; other or unknown markets fall back to °F). The explicit °C and °F choices override Auto and are saved across restarts and app updates. The main reading, gauge and graph use that unit; scheduling estimates and previous logs continue to show their original units. Sensor readings and car commands are unchanged.
 
 **dark mode:** go to **Advanced → Appearance**. **Follow car** (the default) matches the head unit's day/night display, or pick **Light** or **Dark** to keep one. Follow car uses the head unit's Day/Night display setting, including Auto. if it doesn't switch on your car, the **Appearance signals** panel at the bottom of Advanced shows what the head unit reports.
 

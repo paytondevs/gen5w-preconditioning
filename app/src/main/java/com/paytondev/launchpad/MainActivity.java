@@ -106,6 +106,8 @@ public final class MainActivity extends Activity {
     private Integer outsideC;
     private Palette palette = Palette.DARK;
     private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
+    private BatteryDisplayPreference batteryUnitPreference = BatteryDisplayPreference.AUTO;
+    private String vehicleProduct = "";
     private BatteryDisplayUnit batteryUnit = BatteryDisplayUnit.FAHRENHEIT;
     private boolean carNight, signalsReading, compact, splitObserved;
     private int rightPadding;
@@ -198,7 +200,9 @@ public final class MainActivity extends Activity {
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
         appearance = AppearanceMode.fromPreference(prefs.getString("appearance", null));
-        batteryUnit = BatteryDisplayUnit.fromPreference(prefs.getString("battery_display_unit", null));
+        vehicleProduct = BatteryDisplayPreference.vehicleProduct();
+        batteryUnitPreference = BatteryDisplayPreference.fromPreference(prefs.getString("battery_display_unit", null));
+        batteryUnit = batteryUnitPreference.resolve(vehicleProduct);
         carNight = DisplaySignals.night(this, getResources().getConfiguration());
         palette = Palette.of(appearance.dark(carNight));
         ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
@@ -807,10 +811,11 @@ public final class MainActivity extends Activity {
             if (before == palette) rebuildPage();
         } });
         list.addView(ui.divider(false));
-        LinearLayout unit = settingsRow(list, "Battery screen units", batteryUnit.symbol, false);
+        LinearLayout unit = settingsRow(list, "Battery screen units", batteryUnitPreference.title(batteryUnit), false);
         addTarget(unit, new Runnable() { @Override public void run() {
-            batteryUnit = batteryUnit.other();
-            prefs.edit().putString("battery_display_unit", batteryUnit.name()).apply();
+            batteryUnitPreference = batteryUnitPreference.next();
+            batteryUnit = batteryUnitPreference.resolve(vehicleProduct);
+            prefs.edit().putString("battery_display_unit", batteryUnitPreference.name()).apply();
             rebuildPage();
         } });
         list.addView(sectionCaption("Tools", 18));
