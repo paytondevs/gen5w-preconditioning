@@ -20,6 +20,7 @@ final class TemperatureChart extends View {
     private long now;
     private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
     private boolean heating;
+    private BatteryDisplayUnit displayUnit = BatteryDisplayUnit.FAHRENHEIT;
     private Palette palette = Palette.DARK;
 
     TemperatureChart(Context context) {
@@ -30,6 +31,7 @@ final class TemperatureChart extends View {
         label.setTextSize(13 * dp); label.setTypeface(Fonts.get(context, Fonts.Weight.REGULAR));
         setContentDescription("Battery temperature this session");
     }
+    void setDisplayUnit(BatteryDisplayUnit value) { if (value != displayUnit) { displayUnit = value; invalidate(); } }
     void setPalette(Palette value) {
         if (value == palette) return;
         palette = value; label.setColor(palette.muted); invalidate();
@@ -77,13 +79,13 @@ final class TemperatureChart extends View {
         for (float c : range) {
             float yy = y(c, range[0], range[1], top, height);
             canvas.drawLine(left, yy, left + width, yy, line);
-            canvas.drawText(BatteryTemperatureReading.fahrenheit(c) + "°F", left - 8 * dp, yy + 5 * dp, label);
+            canvas.drawText(displayUnit.format(c), left - 8 * dp, yy + 5 * dp, label);
         }
         float threshold = y(thresholdC, range[0], range[1], top, height);
         path.reset(); path.moveTo(left, threshold); path.lineTo(left + width, threshold);
         canvas.drawPath(path, dashed);
         label.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("Warm at " + BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
+        canvas.drawText("Warm at " + displayUnit.format(thresholdC), left + width, threshold - 6 * dp, label);
         // The session marker's label sits in the time axis row, replacing an end label it would hit.
         float axis = top + height + 20 * dp, sx = -1;
         if (trace.sessionStart >= 0 && trace.sessionStart >= start) {

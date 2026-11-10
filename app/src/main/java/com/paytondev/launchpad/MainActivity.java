@@ -106,6 +106,7 @@ public final class MainActivity extends Activity {
     private Integer outsideC;
     private Palette palette = Palette.DARK;
     private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
+    private BatteryDisplayUnit batteryUnit = BatteryDisplayUnit.FAHRENHEIT;
     private boolean carNight, signalsReading, compact, splitObserved;
     private int rightPadding;
     private TextView signalsText;
@@ -197,6 +198,7 @@ public final class MainActivity extends Activity {
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
         appearance = AppearanceMode.fromPreference(prefs.getString("appearance", null));
+        batteryUnit = BatteryDisplayUnit.fromPreference(prefs.getString("battery_display_unit", null));
         carNight = DisplaySignals.night(this, getResources().getConfiguration());
         palette = Palette.of(appearance.dark(carNight));
         ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
@@ -403,7 +405,7 @@ public final class MainActivity extends Activity {
         LinearLayout reading = ui.row(); reading.setBaselineAligned(false);
         lowestValue = ui.text("—", 84, palette.ink, Fonts.Weight.BOLD); lowestValue.setSingleLine(true);
         reading.addView(lowestValue);
-        lowestUnit = ui.text("°F", 34, palette.ink, Fonts.Weight.MEDIUM);
+        lowestUnit = ui.text(batteryUnit.symbol, 34, palette.ink, Fonts.Weight.MEDIUM);
         LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(-2, -2);
         unitParams.leftMargin = ui.dp(4); unitParams.topMargin = ui.dp(12); reading.addView(lowestUnit, unitParams);
         left.addView(reading, below(8));
@@ -419,7 +421,7 @@ public final class MainActivity extends Activity {
         preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
         left.addView(preconditionDetail, margins(new LinearLayout.LayoutParams(-1, -2), 0, 8));
         left.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
-        gauge = new TemperatureGauge(this); gauge.setPalette(palette);
+        gauge = new TemperatureGauge(this); gauge.setPalette(palette); gauge.setDisplayUnit(batteryUnit);
         left.addView(gauge, new LinearLayout.LayoutParams(-1, ui.dp(40)));
         LinearLayout actions = ui.row(); actions.setGravity(Gravity.CENTER_VERTICAL);
         left.addView(actions, margins(new LinearLayout.LayoutParams(-1, ui.dp(64)), 0, 12));
@@ -444,7 +446,7 @@ public final class MainActivity extends Activity {
         chartHeader.addView(ui.caption("Last 30 minutes"), new LinearLayout.LayoutParams(0, -2, 1));
         highestText = ui.text("", 14, palette.muted, false); chartHeader.addView(highestText);
         chartCard.addView(chartHeader);
-        chart = new TemperatureChart(this); chart.setPalette(palette);
+        chart = new TemperatureChart(this); chart.setPalette(palette); chart.setDisplayUnit(batteryUnit);
         chartCard.addView(chart, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 10));
 
         LinearLayout summary = ui.row(); summary.setGravity(Gravity.CENTER_VERTICAL);
@@ -542,17 +544,17 @@ public final class MainActivity extends Activity {
 
         Integer minimum = batteryTemperature.minimumC;
         boolean stale = batteryTemperature.stale(now);
-        lowestValue.setText(minimum == null ? "—" : String.valueOf(BatteryTemperatureReading.fahrenheit(minimum)));
+        lowestValue.setText(minimum == null ? "—" : String.valueOf(batteryUnit.value(minimum)));
         lowestValue.setTextColor(stale ? palette.muted : palette.ink);
         lowestUnit.setVisibility(minimum == null ? View.GONE : View.VISIBLE);
-        lowestSub.setText(minimum == null ? batteryTemperature.age(now) : minimum + "°C · " + batteryTemperature.age(now));
+        lowestSub.setText(minimum == null ? batteryTemperature.age(now) : batteryUnit.other().format(minimum) + " · " + batteryTemperature.age(now));
         int threshold = warmThreshold();
         gauge.setValue(minimum, threshold, heating());
         if (chart != null) {
             chart.setTrace(history, now, threshold, heating());
             TemperatureHistory.Sample latest = history.latest();
             Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
-            highestText.setText(maximum == null ? "" : "Highest " + BatteryTemperatureReading.fahrenheit(maximum) + "°F");
+            highestText.setText(maximum == null ? "" : "Highest " + batteryUnit.format(maximum));
         }
         if (summaryMark != null) {
             boolean unsupported = preconditioning.supported == PreconditioningSnapshot.FAIL;
@@ -803,6 +805,13 @@ public final class MainActivity extends Activity {
             Palette before = palette; applyAppearance();
             // Same palette: the page wasn't rebuilt, so show the new value here.
             if (before == palette) rebuildPage();
+        } });
+        list.addView(ui.divider(false));
+        LinearLayout unit = settingsRow(list, "Battery screen units", batteryUnit.symbol, false);
+        addTarget(unit, new Runnable() { @Override public void run() {
+            batteryUnit = batteryUnit.other();
+            prefs.edit().putString("battery_display_unit", batteryUnit.name()).apply();
+            rebuildPage();
         } });
         list.addView(sectionCaption("Tools", 18));
         LinearLayout wifi = settingsRow(list, "Wi-Fi & ADB", "Checking", true);
