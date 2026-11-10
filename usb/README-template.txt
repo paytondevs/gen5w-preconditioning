@@ -6,6 +6,19 @@ On an older NEMESIS, use Launchpad-manual-install-usb.zip instead. To remove Lau
 Packages -> Precondition -> Uninstall; NEMESIS stays installed. There is no
 uninstall drive.
 
+Optional stock star shortcut (draft): supported only on the exact NEEV KOR
+260902 head unit with HMG-API 1.0.2 and its already checked ButtonSettings map.
+After successful registration, reboot and select Open Precondition in the stock
+star settings. The checked map is never created by this installer. APK-only
+installation does not register the shortcut. If a button uses this action,
+choose a stock function for BOTH star buttons before uninstalling, even if no
+guard appears. Do not change button settings during installation/removal. The HMG-API
+module remains independently managed and may be removed in HMG-API afterwards.
+Do not use forced uninstall to bypass this check. Do not perform concurrent
+HMG-API install/remove/map operations. Full details, limits, and Korean
+translation are in HMG-STAR.md and HMG-STAR.ko.md in the source repository.
+The new automatic registration is not tested on a real vehicle.
+
 BEFORE YOU BEGIN
 Use a maintainer release whose notes explicitly support your head unit and
 software. EV6 support was tested on a US 2023 EV6 Wind RWD, Gen5W software

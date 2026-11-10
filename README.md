@@ -16,6 +16,8 @@ your car isn't listed? the chart also explains how to run the **vehicle porting 
 
 **EV6 owners:** start with the [EV6 installation and everyday-use guide](EV6-QUICK-START.md).
 
+For the optional, narrowly supported stock ★ shortcut, see [HMG-API integration](HMG-STAR.md) ([한국어](HMG-STAR.ko.md)).
+
 ## before you start
 
 > [!WARNING]
@@ -145,10 +147,11 @@ nothing extra to do: run the drive the same way. if Launchpad 1.x is on the car,
 ## uninstalling
 
 1. if preconditioning is running, press **Stop** and wait for it to end.
-2. open NEMESIS Manager (press NAV three times) → **Packages** → **Precondition** → **Uninstall**.
-3. reboot the headunit.
+2. choose a stock function for both ★ buttons first, even if no removal guard appears; do not change button settings during removal.
+3. open NEMESIS Manager (press NAV three times) → **Packages** → **Precondition** → **Uninstall**.
+4. reboot the headunit.
 
-this removes Launchpad and its TUNE shortcut. if you still have Launchpad 1.x and it isn't in the Packages list (for example, you installed it over ADB), install 2.0 first, which removes 1.x, then uninstall. NEMESIS stays installed. if you want that gone too, use **Wipe NEMESIS** in NEMESIS Manager. see the [NEMESIS docs](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe).
+this removes Launchpad and its TUNE shortcut. The optional HMG-API module is managed separately and remains until you remove it in HMG-API; see [star shortcut details](HMG-STAR.md) ([한국어](HMG-STAR.ko.md)). if you still have Launchpad 1.x and it isn't in the Packages list (for example, you installed it over ADB), install 2.0 first, which removes 1.x, then uninstall. NEMESIS stays installed. if you want that gone too, use **Wipe NEMESIS** in NEMESIS Manager. see the [NEMESIS docs](https://github.com/xwtk/hmg_nemesis/blob/main/03-Install-and-Uninstall.md#5-uninstall-wipe).
 
 ## troubleshooting
 

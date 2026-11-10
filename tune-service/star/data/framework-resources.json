@@ -1,0 +1,21 @@
+{
+  "framework.resources": {
+    "class": "android.content.res.Resources"
+  },
+  "framework.resources.get_drawable": {
+    "method": "getDrawable",
+    "params": [
+      "int"
+    ],
+    "ret": "android.graphics.drawable.Drawable",
+    "static": false
+  },
+  "framework.resources.get_text": {
+    "method": "getText",
+    "params": [
+      "int"
+    ],
+    "ret": "java.lang.CharSequence",
+    "static": false
+  }
+}

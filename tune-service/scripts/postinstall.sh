@@ -11,7 +11,7 @@ rm -rf "$WORK"    # leftovers from 1.x's /system staging
 
 if ! android_up; then
     # NEMESIS installs the APK on first launch when Android is not running yet.
-    log "postinstall: Android is not running; settings restore skipped"
+    log "postinstall: Android is not running; settings restore and star registration skipped"
     exit 0
 fi
 
@@ -32,4 +32,5 @@ case "$OUT" in
     *Error*) log "postinstall: WARN: could not start $SERVICE_COMPONENT: $OUT" ;;
     *) log "postinstall: started $SERVICE_COMPONENT" ;;
 esac
+sh "$HERE/scripts/hmg-star.sh" install || log "postinstall: star integration unavailable; app remains installed"
 exit 0

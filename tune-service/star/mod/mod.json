@@ -1,0 +1,25 @@
+{
+  "id": "precondition-star",
+  "name": "Precondition star shortcut",
+  "version": "1.0.0",
+  "hmgapi": ">=1.0.2",
+  "authors": ["HMG-API integration contributor"],
+  "description": "Open Precondition from the stock star button choices",
+  "system": {
+    "product": "NEEV.KOR.0000.V039.001.260902",
+    "platform": "tcc803x",
+    "android": "4.4.2"
+  },
+  "provides": {
+    "star_key": [
+      {
+        "id": "open",
+        "title": "Open Precondition",
+        "activity": {
+          "package": "com.paytondev.precondition",
+          "class": "com.paytondev.launchpad.MainActivity"
+        }
+      }
+    ]
+  }
+}
