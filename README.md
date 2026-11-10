@@ -1,4 +1,7 @@
 # gen5w-preconditioning
+
+[한국어 안내](README.ko.md)
+
 an app that gives you a manual preconditioning button in your IONIQ 5 or EV6.
 
 hold the TUNE knob, press **Start**, and Launchpad asks the car to start conditioning the battery. no navigation destination needed.
