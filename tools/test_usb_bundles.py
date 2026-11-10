@@ -55,7 +55,10 @@ class UsbBundleTest(unittest.TestCase):
                         for p in (self.root / "tune-service").rglob("*") if p.is_file()}
             self.assertEqual(set(package.namelist()), expected | {"app/Launchpad.apk"})
             for name in expected:
-                self.assertNotIn(b"\r", package.read(name), name)
+                if name.endswith(".sh"):
+                    self.assertNotIn(b"\r", package.read(name), name)
+                elif name.startswith("star/"):
+                    self.assertEqual(package.read(name), (self.root / "tune-service" / name).read_bytes(), name)
             descriptor = package.read("NEMESIS.data").decode()
             self.assertIn("\nversion=1.1\n", descriptor)
             self.assertIn("\npackage-version=4.5.6\n", descriptor)

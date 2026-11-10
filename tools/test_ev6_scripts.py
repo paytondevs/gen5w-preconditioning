@@ -295,6 +295,7 @@ class PackageHooksTest(unittest.TestCase):
             common = common.replace("\n" + line + "\n", "\n" + line.split("=")[0] + "=" + quote(value) + "\n")
         self.common = common + HOOK_STUBS
         (self.scripts / "common.sh").write_text(self.common, newline="\n")
+        (self.scripts / "hmg-star.sh").write_text("#!/bin/sh\nexit 0\n", newline="\n")
         source = ". /data/nemesis/apps/paytondev.launchpad/scripts/common.sh"
         for hook in ("preinstall", "postinstall", "preuninstall"):
             text = (ROOT / f"tune-service/scripts/{hook}.sh").read_text()
@@ -520,6 +521,12 @@ verify_installed
                 self.assertIn(command, self.lines("nemesis-calls"))
                 self.assertIn("ok: com.paytondev.precondition installed at /data/app/", log)
 
+
+# Include the standalone HMG lifecycle tests in the upstream CI command.
+try:
+    from .test_hmg_star import HmgStarScriptTest
+except ImportError:
+    from test_hmg_star import HmgStarScriptTest
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

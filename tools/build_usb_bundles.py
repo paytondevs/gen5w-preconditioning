@@ -55,7 +55,11 @@ def main():
         if path.is_file():
             target = package / path.relative_to(ROOT / "tune-service")
             target.parent.mkdir(parents=True, exist_ok=True)
-            copy_lf(path, target)
+            # Keep signed manifest and signature bytes exact; normalize only shell files.
+            if path.suffix == ".sh":
+                copy_lf(path, target)
+            else:
+                shutil.copy2(path, target)
     # The package version comes from /VERSION, like the APK's versionName.
     descriptor = package / "NEMESIS.data"
     text = descriptor.read_text(encoding="utf-8")
