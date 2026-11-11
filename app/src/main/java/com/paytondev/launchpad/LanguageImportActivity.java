@@ -9,13 +9,20 @@ import android.widget.Toast;
 /** Owns the picker while the no-history main screen is not visible. */
 public final class LanguageImportActivity extends Activity {
     private static final int PICK = 1;
+    private boolean restored;
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        if (state != null) return;
+        if (state != null) { restored = true; return; }
         try {
             Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json");
             startActivityForResult(pick, PICK);
         } catch (ActivityNotFoundException | SecurityException e) { finishWithMessage("language.no_picker", "No file picker available"); }
+    }
+    @Override protected void onResume() {
+        super.onResume();
+        // Android delivers a pending activity result before resuming this activity.
+        // If none arrives after restoration, leave the otherwise blank screen.
+        if (restored && !isFinishing()) returnToApp();
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);

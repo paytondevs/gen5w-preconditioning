@@ -135,7 +135,7 @@ final class LanguagePack implements MessagePatterns.Formatter {
         return MessagePatterns.display(value, this);
     }
     public String format(String key, String fallback, Object... args) {
-        try { return String.format(java.util.Locale.getDefault(), text(key, fallback), args); }
+        try { return String.format(java.util.Locale.US, text(key, fallback), args); }
         catch (java.util.IllegalFormatException e) { return String.format(java.util.Locale.US, fallback, args); }
     }
     /** Import only validated data from a user-selected document into app-private storage. */

@@ -905,7 +905,7 @@ public final class MainActivity extends Activity {
             startActivity(new Intent(MainActivity.this, LanguageImportActivity.class));
         } });
         list.addView(sectionCaption(languagePack.text("ui.text040", "Tools"), 18));
-        LinearLayout wifi = settingsRow(list, "Wi-Fi & ADB", languagePack.text("ui.text041", "Checking"), true);
+        LinearLayout wifi = settingsRow(list, languagePack.text("wifi.title", "Wi-Fi & ADB"), languagePack.text("ui.text041", "Checking"), true);
         wifiValue = (TextView) wifi.findViewWithTag("value");
         addTarget(wifi, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.WIFI); } });
         list.addView(ui.divider(false));

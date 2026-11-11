@@ -191,7 +191,7 @@
     "record.schedule_update": "전송 전에 예약을 갱신하지 못했습니다.",
     "record.start_pressed": "시작 버튼을 눌렀습니다",
     "record.force_pressed": "그래도 시작 버튼을 눌렀습니다",
-    "record.user": "사용자가 취소했습니다",
+    "record.user": "사용자 요청",
     "record.warm_prev": "배터리가 이미 따뜻했습니다",
     "notify.recover": "복구 중 · 대기 요청 취소",
     "notify.sending": "수동 요청 전송 중",

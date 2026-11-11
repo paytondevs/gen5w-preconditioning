@@ -7,7 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-+# 0,(<]*\d*(?:\.\d+)?[a-zA-Z%]")
-TAG = re.compile(r"[a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*")
+TAG = re.compile(r"[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*")
 KEY = re.compile(r"[a-z][a-z0-9_.-]*")
 
 
@@ -31,6 +31,10 @@ def main(paths):
     seen = set()
     for path in paths:
         pack = load(path)
+        bundled = {root / 'languages/en.json', root / 'languages/ko.json',
+                   root / 'app/src/main/assets/languages/en.json', root / 'app/src/main/assets/languages/ko.json'}
+        if pack['locale'] in {'en', 'ko'} and Path(path).resolve() not in bundled:
+            raise ValueError(f"{path}: reserved locale")
         if pack["locale"] in seen:
             raise ValueError(f"{path}: duplicate locale")
         seen.add(pack["locale"])

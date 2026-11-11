@@ -23,7 +23,11 @@ final class TemperatureChart extends View {
     private BatteryDisplayUnit displayUnit = BatteryDisplayUnit.FAHRENHEIT;
     private Palette palette = Palette.DARK;
     private LanguagePack languagePack;
-    void setLanguagePack(LanguagePack value) { languagePack = value; invalidate(); }
+    void setLanguagePack(LanguagePack value) {
+        languagePack = value;
+        setContentDescription(tr("chart.description", "Battery temperature this session"));
+        invalidate();
+    }
     private String tr(String key, String fallback) { return languagePack == null ? fallback : languagePack.text(key, fallback); }
 
     TemperatureChart(Context context) {
