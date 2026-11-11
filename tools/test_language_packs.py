@@ -31,13 +31,15 @@ class PackValidationTest(unittest.TestCase):
         with self.assertRaises(ValueError): validator.main([str(self.file)])
     def test_invalid_locale_rejected(self):
         self.write()
-        data = json.loads(self.file.read_text()); data["locale"] = "../bad"
-        self.file.write_text(json.dumps(data))
+        data = json.loads(self.file.read_text(encoding="utf-8"))
+        data["locale"] = "../bad"
+        self.file.write_text(json.dumps(data), encoding="utf-8")
         with self.assertRaises(ValueError): validator.main([str(self.file)])
     def test_uppercase_and_reserved_locales_rejected(self):
         for locale in ('FR', 'en', 'ko'):
             self.write()
-            data = json.loads(self.file.read_text()); data['locale'] = locale
-            self.file.write_text(json.dumps(data))
+            data = json.loads(self.file.read_text(encoding="utf-8"))
+            data['locale'] = locale
+            self.file.write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaises(ValueError): validator.main([str(self.file)])
 if __name__ == "__main__": unittest.main()
