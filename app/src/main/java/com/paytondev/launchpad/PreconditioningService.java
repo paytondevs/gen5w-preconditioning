@@ -61,6 +61,7 @@ public final class PreconditioningService extends Service {
     private Integer lastStartMinimumC;
     private boolean bound, foreground;
     private String lastNotification;
+    private String lastNotificationLanguage;
     final class LocalBinder extends Binder {
         PreconditioningSnapshot snapshot() { return snapshot; }
         BatteryTemperatureReading temperature() { return temperature; }
@@ -349,17 +350,27 @@ public final class PreconditioningService extends Service {
         alarms.setExact(AlarmManager.RTC_WAKEUP, at, fire);
     }
 
+    private LanguagePack notificationLanguage() {
+        String code = getSharedPreferences("launchpad", MODE_PRIVATE).getString("app_language", "en");
+        if ("KOREAN".equals(code)) code = "ko";
+        if ("ENGLISH".equals(code)) code = "en";
+        return LanguagePack.load(this, code);
+    }
     private void publish() {
         snapshot = controller.snapshot(SystemClock.elapsedRealtime());
         PreconditioningSchedule current = schedule;
         if (snapshot.requested) {
-            promote(snapshot.title() + " · " + snapshot.elapsed(), false);
+            promote(notificationLanguage().display(snapshot.title()) + " · " + snapshot.elapsed(), false);
         } else if (current != null) {
-            promote("Scheduled: " + current.title().toLowerCase(java.util.Locale.US) + " " + clock(current.targetAt), true);
+            LanguagePack pack = notificationLanguage();
+            String mode = current.mode == PreconditioningSchedule.Mode.ARRIVE_BY
+                ? pack.text("schedule.arrive_mode", "Arrive by") : pack.text("schedule.start_mode", "Start by");
+            promote(pack.format("notification.scheduled", "Scheduled: %1$s %2$s", mode, clock(current.targetAt)), true);
         } else if (foreground) { stopForeground(true); foreground = false; lastNotification = null; }
     }
     private void promote(String message, boolean armed) {
-        if (foreground && message.equals(lastNotification)) return;
+        String currentLanguage = getSharedPreferences("launchpad", MODE_PRIVATE).getString("app_language", "en");
+        if (foreground && message.equals(lastNotification) && currentLanguage.equals(lastNotificationLanguage)) return;
         Intent open = new Intent(this, MainActivity.class);
         PendingIntent content = PendingIntent.getActivity(this, NOTIFICATION, open, PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent action = armed
@@ -367,23 +378,25 @@ public final class PreconditioningService extends Service {
                 new Intent(this, PreconditioningService.class).setAction(SCHEDULE_CANCEL), PendingIntent.FLAG_UPDATE_CURRENT)
             : PendingIntent.getService(this, STOP_REQUEST,
                 new Intent(this, PreconditioningService.class).setAction(STOP), PendingIntent.FLAG_UPDATE_CURRENT);
+        LanguagePack pack = notificationLanguage();
         Notification notification = new Notification.Builder(this)
-            .setSmallIcon(R.drawable.ic_preconditioning).setContentTitle("Battery preconditioning")
-            .setContentText(message).setOngoing(true).setContentIntent(content)
-            .addAction(R.drawable.ic_preconditioning, armed ? "Cancel schedule" : "Stop", action).build();
-        startForeground(NOTIFICATION, notification); foreground = true; lastNotification = message;
+            .setSmallIcon(R.drawable.ic_preconditioning).setContentTitle(pack.text("notification.title", "Battery preconditioning"))
+            .setContentText(pack.display(message)).setOngoing(true).setContentIntent(content)
+            .addAction(R.drawable.ic_preconditioning, armed ? pack.text("notification.cancel", "Cancel schedule") : pack.text("notification.stop", "Stop"), action).build();
+        startForeground(NOTIFICATION, notification); foreground = true; lastNotification = message; lastNotificationLanguage = currentLanguage;
     }
     /** Best effort: the head unit may not show notifications; the in-app log is the record. */
     private void notifyOutcome(ScheduleLog.Kind kind, String text) {
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager == null) return;
         // Short: the head unit wraps notification titles past about 20 characters.
-        String title = kind == ScheduleLog.Kind.FIRED ? "Warming started"
-            : kind == ScheduleLog.Kind.SKIPPED ? "Warming skipped" : "Warming missed";
+        LanguagePack pack = notificationLanguage();
+        String title = kind == ScheduleLog.Kind.FIRED ? pack.text("notification.started", "Warming started")
+            : kind == ScheduleLog.Kind.SKIPPED ? pack.text("notification.skipped", "Warming skipped") : pack.text("notification.missed", "Warming missed");
         PendingIntent content = PendingIntent.getActivity(this, OUTCOME_NOTIFICATION,
             new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
         manager.notify(OUTCOME_NOTIFICATION, new Notification.Builder(this)
-            .setSmallIcon(R.drawable.ic_preconditioning).setContentTitle(title).setContentText(text)
+            .setSmallIcon(R.drawable.ic_preconditioning).setContentTitle(title).setContentText(pack.display(text))
             .setContentIntent(content).setAutoCancel(true).build());
     }
     @Override public void onDestroy() {

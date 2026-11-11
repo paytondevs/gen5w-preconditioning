@@ -89,6 +89,11 @@ public abstract class Service extends Context { public static final int START_NO
  public final void stopForeground(boolean b){fg=false;} }""",
  'com/paytondev/launchpad/R': 'final class R { static final class drawable { static final int ic_preconditioning=1; } }',
  'com/paytondev/launchpad/MainActivity': 'public class MainActivity {}',
+ 'com/paytondev/launchpad/LanguagePack': '''final class LanguagePack {
+ static LanguagePack load(android.content.Context context, String code){return new LanguagePack();}
+ String text(String key,String fallback){return fallback;}
+ String display(String value){return value;}
+ String format(String key,String fallback,Object... args){return String.format(fallback,args);} }''',
  'com/paytondev/launchpad/WallClock': """public final class WallClock { public static long offset=1793613600000L;
  static long now(){return offset+android.os.SystemClock.now;} }""",
  'com/paytondev/launchpad/VehicleClientFactory': """final class VehicleClientFactory { static FakeVehicle current;
@@ -236,7 +241,7 @@ public class ServiceRebindTest {
 production = ROOT/'app/src/main/java/com/paytondev/launchpad'
 names = ('PreconditioningService', 'PreconditioningController', 'PreconditioningSnapshot', 'VehiclePort',
          'BatteryTemperature', 'BatteryTemperatureReading', 'TemperatureHistory', 'PreconditioningSchedule',
-         'ArriveByPlanner', 'ScheduleLog', 'ScheduleFormat')
+         'ArriveByPlanner', 'ScheduleLog', 'ScheduleFormat', 'BatteryDisplayUnit')
 sources = [str(p) for p in (work/'src').rglob('*.java')] + [str(production/f'{n}.java') for n in names]
 classes = work/'classes'; classes.mkdir()
 subprocess.run([JAVAC, '-d', str(classes), *sources], check=True, timeout=60)

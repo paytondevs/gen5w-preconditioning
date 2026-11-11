@@ -18,6 +18,8 @@ your car isn't listed? the chart also explains how to run the **vehicle porting 
 
 For the optional, narrowly supported stock ★ shortcut, see [HMG-API integration](HMG-STAR.md) ([한국어](HMG-STAR.ko.md)).
 
+English and Korean are included in the app. See [language packs](languages/README.md) to contribute another translation; importing a pack requires a compatible Android document picker.
+
 ## before you start
 
 > [!WARNING]
