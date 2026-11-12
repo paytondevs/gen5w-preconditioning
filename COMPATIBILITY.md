@@ -60,13 +60,13 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Hyundai IONIQ 5 | 2021 | US | NEEV (`wp_daudioplus_neev_us`) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2021 | US | NEEV (`wp_daudioplus_neev_us`) | ⚠️ see below | ✅ | ✅ supported |
 
 </details>
 
 - **NEEV US on 260903: preconditioning ⚠️.** On the car this profile comes from, Launchpad recognizes the head unit and shows the battery temperature, but **Start** stays unavailable: the car reports battery conditioning as not enabled even with Winter Mode on, and its EV settings have no Battery conditioning item. Launchpad sends nothing to the car in that state. Holding TUNE opens Launchpad.
 - **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Precondition → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
-- **NEEV US on 240822: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this software, because its porting kit report didn't confirm a TUNE hold. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, as above.
+- **NEEV US on 240822: preconditioning ⚠️, TUNE shortcut ❌.** On a 2021 IONIQ 5 AWD with this software, Launchpad recognizes the head unit, but **Start** stays unavailable: the car reports battery conditioning as off in its EV settings (raw 0), and the owner found no battery conditioning item in the EV settings, only Winter Mode, which was already on. Launchpad sends no command to the car in that state. Holding TUNE doesn't open Launchpad on this software, because its porting kit reports didn't confirm a TUNE hold; open it from NEMESIS Manager instead, as above. Battery temperature works as listed.
 - **Other model years with the same head unit and software** will probably work, but haven't been tested.
 - **Other software versions aren't supported yet.**
 - **On an unsupported car, nothing bad happens.** Launchpad checks the car before it enables **Start**. If it doesn't match a row above, preconditioning shows **Unavailable** and Launchpad never sends anything to the car.
@@ -545,6 +545,13 @@ and BCM 109 `getBattCondIndSta`. No command or enum remapping was made. Status
 reads use the same `getHEVStatus` ID arguments as the other profiles (94
 enabled, 44 ready, 115 failure).
 
+A second read-only porting kit report (kit 1.6.0), collected on 2026-11-02 from
+a US 2021 Ioniq 5 AWD for [port request #44](../../issues/44), shows the same
+API, device, software and both fingerprints, and the build that ran the kit
+already accepted the car (`matches_existing_profile=yes`). Its HEV, BCM and
+cluster services, the five transactions above and the battery temperature
+contract are unchanged, so the profile is unchanged.
+
 **TUNE:** the TUNE shortcut isn't set up for this software, because the capture
 didn't confirm a TUNE hold. The owner's port request says TUNE was not held
 during the kit run; the key capture recorded one 5.5-second hold of key 23 on
@@ -555,7 +562,10 @@ and its default device `daudio_wp_daudioplus_neev23_us` isn't among this head
 unit's input devices (`daudio_wp_daudioplus_neev_us` and its `_can` and `_knob`
 devices), so holding TUNE doesn't open Launchpad. The TUNE service only waits
 for its device; it never starts conditioning. A report collected while holding
-TUNE would let a later change add an exact-identity `knob.conf` entry.
+TUNE would let a later change add an exact-identity `knob.conf` entry. The
+second report's port request says TUNE was held, but its key capture recorded
+only touchscreen events (`siw_touch_input`) and no hold, so it doesn't confirm
+a TUNE hold either.
 
 **Battery temperature:** the report shows `com.hkmc.micom.cluster` /
 `com.hkmc.cluster.IClusterService` present with an unchanged contract:
@@ -564,6 +574,17 @@ TUNE would let a later change add an exact-identity `knob.conf` entry.
 callback and array layout as the other profiles. As on the NEEV US device's
 260507 release, the warm notice uses 21°C / 70°F and the pending timeout is two
 minutes.
+
+**Preconditioning on this car:** with Launchpad installed, the owner of port
+request #44 reports that every vehicle check was green except **Battery
+conditioning**, which read **Off in EV settings (raw 0)**: the
+conditioning-enabled status (`getHEVStatus` 94) read 0. Launchpad enables
+**Start** only when that status reads 2, so Start stayed unavailable with
+"Enable battery conditioning in the vehicle’s EV settings first.", and no
+command was sent. Launchpad reads that status only after the firmware check
+passes, so the profile matched in the car. The owner found no battery
+conditioning option in the car's EV settings, only Winter Mode, which was
+already on. What 0 means is not established.
 
 No report, firmware, raw logs, or disassembly are included.
 
