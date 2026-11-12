@@ -7,12 +7,12 @@ It has no new signed release or public version bump. The
 
 ## Scope
 
-| Behavior | EV6 exact profile | EV6 251120 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV US 240822 exact profile | Ioniq 5 NEEV US 260903 exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 5 NEEV23 US 260903 exact profile | Ioniq 6 CEEV US exact profile | Ioniq 5 NEEV KR exact profile | EV6 KR exact profile |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation | Enabled after firmware validation; same contract per both porting kit reports | Enabled after firmware validation; same contract per the porting kit report; a live reading was shown in the car | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per both porting kit reports | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
-| Warm advisory and ten-second reset | At 20°C / 68°F | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F |
-| Cancellation of an unconfirmed request | After five minutes | After five minutes (shared EV6 deadline) | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) |
-| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (neither porting kit report confirmed a TUNE hold); Start stays unavailable on the port request #44 car, which reads conditioning Off in EV settings (raw 0) | Preserved (key 17 on `daudio_wp_daudioplus_neev_us`); Start stays unavailable on the reporting car, which reports conditioning not enabled (raw 0) | Preserved | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (the porting kit report recorded no TUNE press) | Preserved |
+| Behavior | EV6 exact profile | EV6 251120 exact profile | EV6 241120 exact profile | Ioniq 5 NEEV US exact profile | Ioniq 5 NEEV US 240822 exact profile | Ioniq 5 NEEV US 260903 exact profile | Ioniq 5 NEEV23 US profile | Ioniq 5 NEEV23 US 260206 exact profile | Ioniq 5 NEEV23 US 260903 exact profile | Ioniq 6 CEEV US exact profile | Ioniq 5 NEEV KR exact profile | EV6 KR exact profile |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Native minimum-temperature read/display | Enabled after firmware validation | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation | Enabled after firmware validation; same contract per both porting kit reports | Enabled after firmware validation; same contract per the porting kit report; a live reading was shown in the car | Enabled after firmware validation; same contract, confirmed from the hashed framework (not yet field-tested) | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per both porting kit reports | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report | Enabled after firmware validation; same contract per the porting kit report |
+| Warm advisory and ten-second reset | At 20°C / 68°F | At 20°C / 68°F | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 21°C / 70°F | At 20°C / 68°F | At 21°C / 70°F | At 21°C / 70°F |
+| Cancellation of an unconfirmed request | After five minutes | After five minutes (shared EV6 deadline) | After five minutes (shared EV6 deadline) | After two minutes (shared Ioniq 5 deadline; not yet exercised on this car) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (activation normally follows in about 60–70 seconds) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) | After two minutes (shared Ioniq 5 deadline) |
+| Existing Start/maintain/Stop command arguments and TUNE mapping | Preserved | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (neither porting kit report confirmed a TUNE hold); Start stays unavailable on the port request #44 car, which reads conditioning Off in EV settings (raw 0) | Preserved (key 17 on `daudio_wp_daudioplus_neev_us`); Start stays unavailable on the reporting car, which reports conditioning not enabled (raw 0) | Preserved | Preserved | Preserved | Preserved | Command arguments preserved; no TUNE mapping (the porting kit report recorded no TUNE press) | Preserved |
 
 The caller still requires the correct firmware, READY, enabled conditioning,
 and an Off indicator. The BMS remains responsible for actual activation. No OBD
@@ -96,7 +96,7 @@ preserves a manual request path; vehicle constraints still apply.
 On the Ioniq 5 NEEV23 US and NEEV US profiles the owner reports that the car
 stops heating at 70°F. Readings are whole degrees Celsius, so the threshold is
 21°C (69.8°F, shown as 70°F). The EV6 keeps 20°C / 68°F until its cutoff is
-confirmed. The EV6 251120 profile runs on the same EV6 head unit and uses its
+confirmed. The EV6 251120 and 241120 profiles run on the same EV6 head unit and use its
 20°C / 68°F. The Ioniq 6 uses the same 20°C / 68°F. The NEEV23 US 260206 and 260903 profiles run
 on the same NEEV23 US head unit and use its 21°C / 70°F.
 The NEEV US 240822 and 260903 profiles run on the same NEEV US head unit and use its 21°C / 70°F.
@@ -107,7 +107,7 @@ US EV6 one, so it uses the 21°C / 70°F every device outside the EV6 US and Ion
 ## Pending-request timeout
 
 At the first status refresh at or after the profile deadline (five minutes on the
-EV6, including the EV6 251120 profile on the same head unit, two on the Ioniq 5,
+EV6, including the EV6 251120 and 241120 profiles on the same head unit, two on the Ioniq 5,
 including the NEEV US 240822 profile, and Ioniq 6 and EV6 KR), a request with no observed
 Active indication sends the existing cancel sequence. A fresh Active indication
 at the deadline wins. Sessions that have already been observed Active have no

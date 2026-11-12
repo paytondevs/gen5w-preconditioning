@@ -180,7 +180,7 @@ grabbing the input device or injecting events. Its default profile expects the N
 NEEV23 US 260206 and 260903 porting kit reports showed the same device and key. On the exact
 EV6 US API 19 / 260507 identity, `knob.conf` selects
 `daudio_wp_daudioplus_cvev_us` with the same key and hold duration, as it does on
-the exact EV6 US API 19 / 251120 identity, and on the
+the exact EV6 US API 19 / 251120 and 241120 identities, and on the
 exact NEEV US (Ioniq 5) API 19 / 260507 identity it selects
 `daudio_wp_daudioplus_neev_us`. On the exact CEEV US (Ioniq 6) API 19 / 260507
 identity it selects `daudio_wp_daudioplus_ceev_us`. On the exact NEEV US (Ioniq 5)
