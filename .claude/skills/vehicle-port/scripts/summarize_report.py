@@ -69,23 +69,85 @@ def interfaces(lines):
     return tables
 
 
+PROFILE_JAVA = "app/src/main/java/com/paytondev/launchpad/PreconditioningProfile.java"
+SUFFIXES = {"_DEVICE": "device", "_SOFTWARE": "software",
+            "_FRAMEWORK_SHA256": "framework", "_SERVICE_SHA256": "service"}
+# One exact-match check in matchesFirmware(). The hash constants can belong to another
+# profile: NEEV US checks its own software against the NEEV23 US hashes.
+BRANCH = re.compile(r"(\w+)_SOFTWARE\.equals\(software\)"
+                    r"\s*&&\s*(\w+)_FRAMEWORK_SHA256\.equals\(frameworkHash\)"
+                    r"\s*&&\s*(\w+)_SERVICE_SHA256\.equals\(serviceHash\)")
+
+
+def braces(code, start):
+    """(open, end) of the {...} block whose "{" is the first one at or after start."""
+    open_at, depth = code.index("{", start), 0
+    for i in range(open_at, len(code)):
+        depth += {"{": 1, "}": -1}.get(code[i], 0)
+        if depth == 0:
+            return open_at, i + 1
+    raise ValueError("unbalanced braces in " + PROFILE_JAVA)
+
+
+def method_body(code, name):
+    match = re.search(r"static \w+ " + name + r"\([^)]*\)\s*\{", code)
+    if not match:
+        raise ValueError(f"{name}() not found in {PROFILE_JAVA}")
+    open_at, end = braces(code, match.end() - 1)
+    return code[open_at + 1:end - 1]
+
+
+def device_regions(code):
+    """(device prefix, code) for each "if (<X>_DEVICE.equals(device)) {...}" block in
+    matchesFirmware(), then the code outside those blocks. That code only runs for the
+    supportsDevice() device that has no block of its own (the EV6); None if that isn't
+    exactly one device."""
+    body = method_body(code, "matchesFirmware")
+    regions, outside, last = [], [], 0
+    for match in re.finditer(r"if\s*\(\s*(\w+)_DEVICE\.equals\(device\)\s*\)\s*\{", body):
+        if match.start() < last:
+            continue  # nested in the previous block
+        open_at, end = braces(body, match.end() - 1)
+        regions.append((match.group(1), body[open_at:end]))
+        outside.append(body[last:match.start()])
+        last = end
+    outside.append(body[last:])
+    blocked = {device for device, _ in regions}
+    supported = re.findall(r"(\w+)_DEVICE\.equals\(device\)", method_body(code, "supportsDevice"))
+    rest = [device for device in dict.fromkeys(supported) if device not in blocked]
+    regions.append((rest[0] if len(rest) == 1 else None, "".join(outside)))
+    return regions
+
+
 def repo_profiles(repo):
-    source = (repo / "app/src/main/java/com/paytondev/launchpad/PreconditioningProfile.java").read_text()
+    """Profile name -> device, software and the framework/service hashes it requires.
+
+    Every <NAME> with a _DEVICE, _SOFTWARE, _FRAMEWORK_SHA256 or _SERVICE_SHA256
+    constant is a profile. A sub-profile (another software version for an existing
+    device, like IONIQ5_NEEV_US_240822) has no _DEVICE, and a profile may reuse another
+    profile's hashes, so device and hashes come from the matchesFirmware() branch that
+    checks <NAME>_SOFTWARE: the device of the block it sits in, and the hash constants
+    it compares. Without such a branch, the profile's own constants are all there is.
+    """
+    source = (repo / PROFILE_JAVA).read_text(encoding="utf-8")
     constants = dict(re.findall(r'static final String (\w+) = "([^"]*)"', source))
+
+    def own(prefix):
+        return {key: constants.get(prefix + suffix) for suffix, key in SUFFIXES.items()}
+
     profiles = {}
-    for name, value in constants.items():
-        if name.endswith("_DEVICE"):
-            prefix = name[:-len("_DEVICE")]
-            profiles[prefix] = {"device": value,
-                                "software": constants.get(prefix + "_SOFTWARE"),
-                                "framework": constants.get(prefix + "_FRAMEWORK_SHA256"),
-                                "service": constants.get(prefix + "_SERVICE_SHA256")}
-    # Profiles may reuse another profile's hashes (NEEV US reuses NEEV23 US).
-    for prefix, p in profiles.items():
-        for other, q in profiles.items():
-            if p["framework"] is None and q["framework"] and re.search(
-                    prefix + r"_DEVICE\.equals\(device\)\)\s*\{[^}]*" + other + "_FRAMEWORK_SHA256", source):
-                p["framework"], p["service"] = q["framework"], q["service"]
+    for name in constants:
+        for suffix in SUFFIXES:
+            if name.endswith(suffix):
+                profiles.setdefault(name[:-len(suffix)], own(name[:-len(suffix)]))
+    code = re.sub(r"//[^\n]*|/\*.*?\*/", "", source, flags=re.S)  # ignore commented-out code
+    for device, region in device_regions(code):
+        for software, framework, service in BRANCH.findall(region):
+            profile = profiles.setdefault(software, own(software))
+            if device:
+                profile["device"] = constants.get(device + "_DEVICE")
+            profile["framework"] = constants.get(framework + "_FRAMEWORK_SHA256")
+            profile["service"] = constants.get(service + "_SERVICE_SHA256")
     return profiles
 
 

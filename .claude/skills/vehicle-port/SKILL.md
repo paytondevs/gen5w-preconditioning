@@ -210,6 +210,7 @@ and build-tools 36.0.0.
 python3 tools/test_ev6_scripts.py
 python3 tools/test_temperature_binder.py
 python3 tools/test_usb_bundles.py
+python3 tools/test_summarize_report.py
 ```
 
 Then re-read your diff for these problems:

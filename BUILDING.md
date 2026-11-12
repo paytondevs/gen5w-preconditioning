@@ -32,6 +32,7 @@ python3 tools/test_ev6_scripts.py
 python3 tools/test_temperature_binder.py
 python3 tools/test_service_rebind.py
 python3 tools/test_usb_bundles.py
+python3 tools/test_summarize_report.py
 ```
 
 Debug uses Android's local debug signing key. On a ranchu/goldfish emulator, the

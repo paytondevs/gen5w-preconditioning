@@ -61,6 +61,7 @@ python3 tools/test_ev6_scripts.py
 python3 tools/test_temperature_binder.py
 python3 tools/test_service_rebind.py
 python3 tools/test_usb_bundles.py
+python3 tools/test_summarize_report.py
 ```
 
 CI runs the Gradle checks on every PR too. you don't need a signing key, since CI signs releases itself.
