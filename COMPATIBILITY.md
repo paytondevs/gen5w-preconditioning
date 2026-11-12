@@ -50,6 +50,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Kia EV6 | 2023 | US | CVEV (`wp_daudioplus_cvev_us`) | ✅ | ✅ | ✅ supported |
+| Hyundai IONIQ 5 | 2024 | US | NEEV23 (`wp_daudioplus_neev23_us`) | ✅ | ✅ | ✅ supported |
 
 </details>
 
