@@ -15,7 +15,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".claude/skills/vehicle-port/scripts/summarize_report.py"
-spec = importlib.util.spec_from_file_location("summarize_report", SCRIPT)
+sys.dont_write_bytecode = True  # no __pycache__ in the skill folder
+spec =importlib.util.spec_from_file_location("summarize_report", SCRIPT)
 summarize_report = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(summarize_report)
 
