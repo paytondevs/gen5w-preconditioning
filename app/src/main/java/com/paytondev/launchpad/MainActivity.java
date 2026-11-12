@@ -106,6 +106,11 @@ public final class MainActivity extends Activity {
     private Integer outsideC;
     private Palette palette = Palette.DARK;
     private AppearanceMode appearance = AppearanceMode.FOLLOW_CAR;
+    private String language = "en";
+    private LanguagePack languagePack;
+    private BatteryDisplayPreference batteryUnitPreference = BatteryDisplayPreference.AUTO;
+    private String vehicleProduct = "";
+    private BatteryDisplayUnit batteryUnit = BatteryDisplayUnit.FAHRENHEIT;
     private boolean carNight, signalsReading, compact, splitObserved;
     private int rightPadding;
     private TextView signalsText;
@@ -197,6 +202,13 @@ public final class MainActivity extends Activity {
         favorites = new Favorites(this);
         adapter = new TileAdapter(getLayoutInflater(), favorites);
         appearance = AppearanceMode.fromPreference(prefs.getString("appearance", null));
+        language = prefs.getString("app_language", "en");
+        if ("KOREAN".equals(language)) language = "ko";
+        if ("ENGLISH".equals(language)) language = "en";
+        languagePack = LanguagePack.load(this, language);
+        vehicleProduct = BatteryDisplayPreference.vehicleProduct();
+        batteryUnitPreference = BatteryDisplayPreference.fromPreference(prefs.getString("battery_display_unit", null));
+        batteryUnit = batteryUnitPreference.resolve(vehicleProduct);
         carNight = DisplaySignals.night(this, getResources().getConfiguration());
         palette = Palette.of(appearance.dark(carNight));
         ui = new FocusUi(this, palette); adapter.setUi(ui); applyWindowColors();
@@ -336,6 +348,11 @@ public final class MainActivity extends Activity {
         restartConnectionTick();
     }
 
+    private String menuTitle(int index) {
+        String[] keys = {"menu.battery", "menu.schedule", "menu.settings"};
+        return languagePack.text(keys[index], MENU_TITLES[index]);
+    }
+
     /** Left menu like the car's Settings screens; icons only while split screen leaves less room. */
     private void buildMenu() {
         menu.removeAllViews(); batteryMeta = null; scheduleMeta = null;
@@ -346,7 +363,7 @@ public final class MainActivity extends Activity {
         FrameLayout back = new FrameLayout(this); ui.background(back, ui.quiet(0, 24));
         MenuGlyph backGlyph = new MenuGlyph(this, MenuGlyph.Kind.BACK); backGlyph.setColor(palette.muted);
         back.addView(backGlyph, new FrameLayout.LayoutParams(ui.dp(22), ui.dp(22), Gravity.CENTER));
-        back.setContentDescription(page == ScreenFlow.Page.BATTERY ? "Close" : "Back");
+        back.setContentDescription(page == ScreenFlow.Page.BATTERY ? languagePack.text("ui.text000", "Close") : languagePack.text("ui.text001", "Back"));
         title.addView(back, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
         Runnable backAction = new Runnable() { @Override public void run() { onBackPressed(); } };
         clickable(back, backAction); headerTargets.add(new Target(back, -1, backAction));
@@ -366,7 +383,7 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams glyphParams = new LinearLayout.LayoutParams(ui.dp(26), ui.dp(26));
             glyphParams.leftMargin = ui.dp(compact ? 23 : 18); row.addView(glyph, glyphParams);
             if (!compact) {
-                TextView label = ui.text(MENU_TITLES[i], 19, selected ? palette.ink : palette.muted, Fonts.Weight.REGULAR);
+                TextView label = ui.text(menuTitle(i), 19, selected ? palette.ink : palette.muted, Fonts.Weight.REGULAR);
                 LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, -2, 1); labelParams.leftMargin = ui.dp(14);
                 row.addView(label, labelParams);
                 TextView meta = ui.text("", 14, palette.accent, Fonts.Weight.MEDIUM); meta.setSingleLine(true);
@@ -375,7 +392,7 @@ public final class MainActivity extends Activity {
                 if (destination == ScreenFlow.Page.BATTERY) batteryMeta = meta;
                 else if (destination == ScreenFlow.Page.SCHEDULE) scheduleMeta = meta;
             }
-            row.setContentDescription(MENU_TITLES[i]);
+            row.setContentDescription(menuTitle(i));
             menu.addView(row, new LinearLayout.LayoutParams(-1, ui.dp(64)));
             Runnable action = new Runnable() { @Override public void run() { if (page != destination) showPage(destination); } };
             clickable(row, action); headerTargets.add(new Target(row, -1, action));
@@ -399,15 +416,15 @@ public final class MainActivity extends Activity {
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout left = ui.column();
         body.addView(left, compact ? new LinearLayout.LayoutParams(0, -1, 1) : new LinearLayout.LayoutParams(ui.dp(420), -1));
-        left.addView(ui.caption("Lowest pack temperature"));
+        left.addView(ui.caption(languagePack.text("ui.text002", "Lowest pack temperature")));
         LinearLayout reading = ui.row(); reading.setBaselineAligned(false);
         lowestValue = ui.text("—", 84, palette.ink, Fonts.Weight.BOLD); lowestValue.setSingleLine(true);
         reading.addView(lowestValue);
-        lowestUnit = ui.text("°F", 34, palette.ink, Fonts.Weight.MEDIUM);
+        lowestUnit = ui.text(batteryUnit.symbol, 34, palette.ink, Fonts.Weight.MEDIUM);
         LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(-2, -2);
         unitParams.leftMargin = ui.dp(4); unitParams.topMargin = ui.dp(12); reading.addView(lowestUnit, unitParams);
         left.addView(reading, below(8));
-        lowestSub = ui.text("Checking…", 16, palette.muted, false); lowestSub.setSingleLine(true);
+        lowestSub = ui.text(languagePack.text("ui.text003", "Checking…"), 16, palette.muted, false); lowestSub.setSingleLine(true);
         lowestSub.setEllipsize(TextUtils.TruncateAt.END);
         left.addView(lowestSub, below(4));
         statusPill = ui.pill();
@@ -419,11 +436,11 @@ public final class MainActivity extends Activity {
         preconditionDetail.setEllipsize(TextUtils.TruncateAt.END);
         left.addView(preconditionDetail, margins(new LinearLayout.LayoutParams(-1, -2), 0, 8));
         left.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
-        gauge = new TemperatureGauge(this); gauge.setPalette(palette);
+        gauge = new TemperatureGauge(this); gauge.setPalette(palette); gauge.setDisplayUnit(batteryUnit); gauge.setLanguagePack(languagePack);
         left.addView(gauge, new LinearLayout.LayoutParams(-1, ui.dp(40)));
         LinearLayout actions = ui.row(); actions.setGravity(Gravity.CENTER_VERTICAL);
         left.addView(actions, margins(new LinearLayout.LayoutParams(-1, ui.dp(64)), 0, 12));
-        preconditionButton = ui.primaryButton("Start");
+        preconditionButton = ui.primaryButton(languagePack.text("ui.text016", "Start"));
         addTarget(preconditionButton, new Runnable() { @Override public void run() { preconditioningAction(); } });
         preconditionButton.setEnabled(false); preconditionButton.setAlpha(0.4f);
         actions.addView(preconditionButton, compact ? new LinearLayout.LayoutParams(0, -1, 1)
@@ -431,7 +448,7 @@ public final class MainActivity extends Activity {
         FrameLayout scheduleButton = new FrameLayout(this); ui.background(scheduleButton, ui.secondary(12));
         MenuGlyph clock = new MenuGlyph(this, MenuGlyph.Kind.SCHEDULE); clock.setColor(palette.ink);
         scheduleButton.addView(clock, new FrameLayout.LayoutParams(ui.dp(30), ui.dp(30), Gravity.CENTER));
-        scheduleButton.setContentDescription("Schedule preconditioning");
+        scheduleButton.setContentDescription(languagePack.text("ui.text004", "Schedule preconditioning"));
         actions.addView(scheduleButton, margins(new LinearLayout.LayoutParams(ui.dp(64), -1), 14, 0));
         addTarget(scheduleButton, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SCHEDULE); } });
         if (compact) return;
@@ -441,10 +458,10 @@ public final class MainActivity extends Activity {
         LinearLayout chartCard = ui.card();
         right.addView(chartCard, new LinearLayout.LayoutParams(-1, 0, 1));
         LinearLayout chartHeader = ui.row(); chartHeader.setGravity(Gravity.CENTER_VERTICAL);
-        chartHeader.addView(ui.caption("Last 30 minutes"), new LinearLayout.LayoutParams(0, -2, 1));
+        chartHeader.addView(ui.caption(languagePack.text("ui.text005", "Last 30 minutes")), new LinearLayout.LayoutParams(0, -2, 1));
         highestText = ui.text("", 14, palette.muted, false); chartHeader.addView(highestText);
         chartCard.addView(chartHeader);
-        chart = new TemperatureChart(this); chart.setPalette(palette);
+        chart = new TemperatureChart(this); chart.setPalette(palette); chart.setDisplayUnit(batteryUnit); chart.setLanguagePack(languagePack);
         chartCard.addView(chart, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 10));
 
         LinearLayout summary = ui.row(); summary.setGravity(Gravity.CENTER_VERTICAL);
@@ -453,14 +470,14 @@ public final class MainActivity extends Activity {
         right.addView(summary, margins(new LinearLayout.LayoutParams(-1, ui.dp(60)), 0, 14));
         summaryMark = new CheckMark(this); summaryMark.setPalette(palette);
         summary.addView(summaryMark, new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
-        summaryTitle = ui.text("Checking car", 17, palette.ink, false); summaryTitle.setSingleLine(true);
+        summaryTitle = ui.text(languagePack.text("ui.text006", "Checking car"), 17, palette.ink, false); summaryTitle.setSingleLine(true);
         summary.addView(summaryTitle, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
         summaryText = ui.text("", 15, palette.muted, false); summaryText.setSingleLine(true);
         summaryText.setEllipsize(TextUtils.TruncateAt.END);
         summary.addView(summaryText, margins(new LinearLayout.LayoutParams(0, -2, 1), 12, 0));
         MenuGlyph more = new MenuGlyph(this, MenuGlyph.Kind.MORE); more.setColor(palette.faint);
         summary.addView(more, new LinearLayout.LayoutParams(ui.dp(18), ui.dp(18)));
-        summary.setContentDescription("Vehicle checks");
+        summary.setContentDescription(languagePack.text("ui.text007", "Vehicle checks"));
         addTarget(summary, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SETTINGS); } });
     }
     private LinearLayout.LayoutParams below(int margin) {
@@ -498,7 +515,7 @@ public final class MainActivity extends Activity {
             requestStartedAt = now - preconditioning.elapsedMs;
         boolean waiting = preconditioning.state == PreconditioningSnapshot.State.WAITING;
         if (batteryMeta != null) {
-            batteryMeta.setText(waiting ? "Starting" : heating() && preconditioning.requested ? preconditioning.elapsed() : "");
+            batteryMeta.setText(waiting ? languagePack.text("status.starting", "Starting") : heating() && preconditioning.requested ? preconditioning.elapsed() : "");
             batteryMeta.setTextColor(waiting ? palette.accent : palette.warm);
         }
         if (scheduleMeta != null) scheduleMeta.setText(armed ? ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone) : "");
@@ -506,35 +523,97 @@ public final class MainActivity extends Activity {
         if (hourWheel != null) renderSchedule();
         if (checkMarks[0] != null) updateChecks();
     }
+    private String localizedSendLine(PreconditioningSchedule value, long now) {
+        if (value.plannedSendAt == PreconditioningSchedule.NONE) return languagePack.display("Battery already warm");
+        if (now >= value.plannedSendAt) return languagePack.display("Waiting for the car");
+        return languagePack.format("schedule.starts_in", "Starting in %1$s", ScheduleFormat.countdown(value.plannedSendAt - now));
+    }
+    private String localizedDay(String day) {
+        String[] days = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+        String[] keys = {"day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"};
+        for (int i = 0; i < days.length; i++) if (days[i].equalsIgnoreCase(day)) return languagePack.text(keys[i], days[i]);
+        return day;
+    }
+    private String localizedScheduleTitle(PreconditioningSchedule value) {
+        return value.mode == PreconditioningSchedule.Mode.ARRIVE_BY
+            ? languagePack.text("schedule.arrive_mode", "Arrive by")
+            : languagePack.text("schedule.start_mode", "Start by");
+    }
+    private String localizedValue(String value) {
+        if (value == null) return "";
+        String enabled = "Off in EV settings (raw ";
+        String unknown = "Unknown (raw ";
+        if (value.startsWith(enabled) && value.endsWith(")"))
+            return languagePack.format("check.enabled_raw", "Off in EV settings (raw %1$s)", value.substring(enabled.length(), value.length() - 1));
+        if (value.startsWith(unknown) && value.endsWith(")"))
+            return languagePack.format("check.unknown_raw", "Unknown (raw %1$s)", value.substring(unknown.length(), value.length() - 1));
+        return languagePack.display(value);
+    }
+    private String localizedTemperatureAge(long now) {
+        if (batteryTemperature.minimumC == null)
+            return batteryTemperature.attempted ? languagePack.text("age.unavailable", "Unavailable") : languagePack.text("age.checking", "Checking…");
+        long seconds = Math.max(0, now - batteryTemperature.receivedAt) / 1000;
+        String age = languagePack.format("age.seconds", "%1$s s", seconds);
+        return batteryTemperature.stale(now)
+            ? languagePack.format("age.stale", "Stale · last received %1$s ago", age)
+            : languagePack.format("age.received", "Received %1$s ago", age);
+    }
+    private String localizedStatus() {
+        switch (preconditioning.state) {
+            case CHECKING: return languagePack.text("status.checking", "Checking");
+            case UNAVAILABLE: return languagePack.text("status.unavailable", "Unavailable");
+            case IDLE: return preconditioning.indicator == 1 ? languagePack.text("status.active_car", "Active · car controlled") : languagePack.text("status.ready", "Ready");
+            case WARM: return languagePack.format("status.warm", "Battery warm · resets in %1$s", preconditioning.resetSeconds + "s");
+            case WAITING: return languagePack.text("status.waiting", "Request sent");
+            case ACTIVE: return languagePack.text("status.active", "Active");
+            case STOPPING: return languagePack.text("status.stopping", "Stop requested");
+            case ENDED: return languagePack.text("status.ended", "Session ended");
+            case TIMED_OUT: return languagePack.text("status.timeout", "No activation");
+            case UNKNOWN: return languagePack.text("status.unknown", "Status unknown");
+            default: return languagePack.text("status.error", "Request error");
+        }
+    }
+    private String checkLabel(int index) {
+        String[] keys = {"check.ready", "check.enabled", "check.indicator", "check.firmware", "check.source", "check.failure"};
+        return languagePack.text(keys[index], CHECK_LABELS[index]);
+    }
     private void updateBatteryViews(long now, long wall, boolean twentyFourHour, TimeZone zone, boolean armed, boolean waiting) {
         PreconditioningSnapshot.State state = preconditioning.state;
-        String detail = preconditioning.detail;
+        String detail = batteryUnit.displayCurrentDetail(preconditioning.detail);
         if (waiting) {
             int left = (int) Math.ceil(CountdownBar.remaining(requestStartedAt, now) * CountdownBar.DURATION_MS / 1000f);
-            ui.setPill(statusPill, String.format(Locale.US, "Starting · %d:%02d left", left / 60, left % 60),
+            ui.setPill(statusPill, languagePack.format("status.countdown", "Starting · %1$s left", String.format(Locale.US, "%d:%02d", left / 60, left % 60)),
                 palette.accent, palette.accentSoft);
-            detail = "Sent to the car. It usually starts within a minute.";
+            detail = languagePack.text("ui.text008", "Sent to the car. It usually starts within a minute.");
         } else if (heating()) {
-            ui.setPill(statusPill, preconditioning.requested ? "Conditioning · " + preconditioning.elapsed()
-                : "Conditioning · started by the car", palette.warm, palette.warmSoft);
+            ui.setPill(statusPill, preconditioning.requested ? languagePack.text("status.conditioning", "Conditioning") + " · " + preconditioning.elapsed()
+                : languagePack.text("ui.text009", "Conditioning · started by the car"), palette.warm, palette.warmSoft);
         } else if (armed) {
-            ui.setPill(statusPill, "Scheduled · " + schedule.title() + " " + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone),
+            ui.setPill(statusPill, languagePack.text("schedule.scheduled", "Scheduled") + " · " + localizedScheduleTitle(schedule) + " " + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone),
                 palette.accent, palette.accentSoft);
             ScheduleLog.Event last = scheduleLog.latest();
             // Past the send time the newest "car not ready" line explains the wait better than the plan.
             boolean deferred = schedule.plannedSendAt != PreconditioningSchedule.NONE && wall >= schedule.plannedSendAt
                 && last != null && last.kind == ScheduleLog.Kind.DEFERRED;
-            detail = deferred ? last.text : ScheduleFormat.sendLine(schedule, wall) + ". " + schedule.reason;
+            detail = deferred ? languagePack.display(last.text) : localizedSendLine(schedule, wall) + ". "
+                + languagePack.display(ScheduleFormat.displayPlanReason(schedule.reason, batteryUnit));
         } else if (state == PreconditioningSnapshot.State.WARM) {
-            ui.setPill(statusPill, preconditioning.title(), palette.warm, palette.warmSoft);
+            ui.setPill(statusPill, localizedStatus(), palette.warm, palette.warmSoft);
         } else if (state == PreconditioningSnapshot.State.ERROR || state == PreconditioningSnapshot.State.UNAVAILABLE
             || state == PreconditioningSnapshot.State.UNKNOWN || state == PreconditioningSnapshot.State.TIMED_OUT) {
-            ui.setPill(statusPill, preconditioning.title(), palette.danger, palette.raised);
+            ui.setPill(statusPill, localizedStatus(), palette.danger, palette.raised);
         } else {
-            String title = preconditioning.title();
+            String title = localizedStatus();
             if (state == PreconditioningSnapshot.State.ENDED) title += " · " + preconditioning.elapsed();
             ui.setPill(statusPill, title, palette.ink, palette.raised);
         }
+        if (state == PreconditioningSnapshot.State.WARM) {
+            java.util.regex.Matcher warning = java.util.regex.Pattern.compile(
+                "^Battery minimum (-?[0-9]{1,3})°C is at or above the expected heating threshold \\((-?[0-9]{1,3})°C / -?[0-9]{1,3}°F\\).*$", java.util.regex.Pattern.DOTALL).matcher(preconditioning.detail);
+            if (warning.matches()) detail = languagePack.format("warning.warm", "Battery minimum %1$s is at or above the expected heating threshold (%2$s). No request sent. Button resets in %3$s seconds. Start anyway sends a manual request; the car decides whether to heat.",
+                batteryUnit.format(Integer.parseInt(warning.group(1))), batteryUnit.format(Integer.parseInt(warning.group(2))), preconditioning.resetSeconds);
+            else detail = languagePack.display(detail);
+        } else detail = languagePack.display(detail);
         preconditionDetail.setText(detail);
         preconditionDetail.setVisibility(TextUtils.isEmpty(detail) ? View.GONE : View.VISIBLE);
         countdown.setVisibility(waiting ? View.VISIBLE : View.GONE);
@@ -542,33 +621,32 @@ public final class MainActivity extends Activity {
 
         Integer minimum = batteryTemperature.minimumC;
         boolean stale = batteryTemperature.stale(now);
-        lowestValue.setText(minimum == null ? "—" : String.valueOf(BatteryTemperatureReading.fahrenheit(minimum)));
+        lowestValue.setText(minimum == null ? "—" : String.valueOf(batteryUnit.value(minimum)));
         lowestValue.setTextColor(stale ? palette.muted : palette.ink);
         lowestUnit.setVisibility(minimum == null ? View.GONE : View.VISIBLE);
-        lowestSub.setText(minimum == null ? batteryTemperature.age(now) : minimum + "°C · " + batteryTemperature.age(now));
+        lowestSub.setText(localizedTemperatureAge(now));
         int threshold = warmThreshold();
         gauge.setValue(minimum, threshold, heating());
         if (chart != null) {
             chart.setTrace(history, now, threshold, heating());
             TemperatureHistory.Sample latest = history.latest();
             Integer maximum = latest == null || stale || latest.at != batteryTemperature.receivedAt ? null : latest.maximumC;
-            highestText.setText(maximum == null ? "" : "Highest " + BatteryTemperatureReading.fahrenheit(maximum) + "°F");
+            highestText.setText(maximum == null ? "" : languagePack.text("ui.text010", "Highest ") + batteryUnit.format(maximum));
         }
         if (summaryMark != null) {
             boolean unsupported = preconditioning.supported == PreconditioningSnapshot.FAIL;
             int ready = unsupported ? PreconditioningSnapshot.FAIL : preconditioning.readyCheck();
             summaryMark.setState(ready);
-            summaryTitle.setText(unsupported ? "Firmware not supported" : ready == PreconditioningSnapshot.PASS ? "Car ready"
-                : ready == PreconditioningSnapshot.FAIL ? "Car not ready" : "Checking car");
+            summaryTitle.setText(unsupported ? languagePack.text("ui.text011", "Firmware not supported") : ready == PreconditioningSnapshot.PASS ? languagePack.text("ui.text012", "Car ready")
+                : ready == PreconditioningSnapshot.FAIL ? languagePack.text("ui.text013", "Car not ready") : languagePack.text("ui.text006", "Checking car"));
             String enabled = preconditioning.enabledValue();
-            summaryText.setText(unsupported ? preconditioning.supportedValue() : preconditioning.readyValue()
-                + " · Conditioning " + Character.toLowerCase(enabled.charAt(0)) + enabled.substring(1));
+            summaryText.setText(unsupported ? localizedValue(preconditioning.supportedValue()) : languagePack.format("check.summary", "%1$s · Conditioning %2$s", localizedValue(preconditioning.readyValue()), localizedValue(enabled)));
         }
 
         boolean warm = preconditioning.state == PreconditioningSnapshot.State.WARM;
-        preconditionButton.setText(warm ? "Start anyway" : preconditioning.requested ? "Stop" : "Start");
-        preconditionButton.setContentDescription(warm ? "Start preconditioning anyway"
-            : preconditioning.requested ? "Stop preconditioning" : "Start preconditioning");
+        preconditionButton.setText(warm ? languagePack.text("ui.text014", "Start anyway") : preconditioning.requested ? languagePack.text("ui.text015", "Stop") : languagePack.text("ui.text016", "Start"));
+        preconditionButton.setContentDescription(warm ? languagePack.text("ui.text017", "Start preconditioning anyway")
+            : preconditioning.requested ? languagePack.text("ui.text018", "Stop preconditioning") : languagePack.text("ui.text019", "Start preconditioning"));
         int style = preconditioning.requested ? 2 : 1;
         if (style != buttonStyle) {
             buttonStyle = style;
@@ -587,9 +665,6 @@ public final class MainActivity extends Activity {
     private Integer freshMinimumC() {
         return batteryTemperature.stale(SystemClock.elapsedRealtime()) ? null : batteryTemperature.minimumC;
     }
-    private static String fahrenheit(Integer celsius) {
-        return celsius == null ? "—" : BatteryTemperatureReading.fahrenheit(celsius) + "°F";
-    }
 
     /** The draft starts from the armed schedule, or half an hour from now. */
     private void resetScheduleDraft() {
@@ -606,7 +681,7 @@ public final class MainActivity extends Activity {
         LinearLayout modes = ui.row(); modes.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
         ui.background(modes, ui.rounded(palette.raised, 12, palette.line));
         header.addView(modes);
-        String[] labels = {"Start by", "Arrive by"};
+        String[] labels = {languagePack.text("ui.text020", "Start by"), languagePack.text("ui.text021", "Arrive by")};
         for (int i = 0; i < modeChips.length; i++) {
             final PreconditioningSchedule.Mode mode = PreconditioningSchedule.Mode.values()[i];
             modeChips[i] = ui.text(labels[i], 17, palette.muted, Fonts.Weight.MEDIUM); modeChips[i].setGravity(Gravity.CENTER);
@@ -620,22 +695,22 @@ public final class MainActivity extends Activity {
         body.addView(middle, margins(new LinearLayout.LayoutParams(-1, -2), 0, 10));
         boolean twelveHour = !DateFormat.is24HourFormat(this);
         int wheelWidth = compact ? 112 : 150;
-        hourWheel = wheel(hourDigits, EDIT_HOUR, "Hour");
+        hourWheel = wheel(hourDigits, EDIT_HOUR, languagePack.text("ui.text022", "Hour"));
         middle.addView(hourWheel, new LinearLayout.LayoutParams(ui.dp(wheelWidth), -2));
         TextView colon = ui.text(":", compact ? 60 : 72, palette.muted, Fonts.Weight.LIGHT);
         middle.addView(colon, margins(new LinearLayout.LayoutParams(-2, -2), 2, 0));
         minuteTarget = targets.size();
-        minuteWheel = wheel(minuteDigits, EDIT_MINUTE, "Minutes");
+        minuteWheel = wheel(minuteDigits, EDIT_MINUTE, languagePack.text("ui.text023", "Minutes"));
         middle.addView(minuteWheel, margins(new LinearLayout.LayoutParams(ui.dp(wheelWidth), -2), 2, 0));
         if (twelveHour) {
             LinearLayout halves = ui.column();
             middle.addView(halves, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
-            morningChip = halfChip(halves, "AM", false); afternoonChip = halfChip(halves, "PM", true);
+            morningChip = halfChip(halves, languagePack.text("clock.am", "AM"), false); afternoonChip = halfChip(halves, languagePack.text("clock.pm", "PM"), true);
         }
 
         LinearLayout plan = ui.card();
         middle.addView(plan, margins(new LinearLayout.LayoutParams(0, -2, 1), compact ? 16 : 28, 0));
-        plan.addView(ui.caption("Plan"));
+        plan.addView(ui.caption(languagePack.text("ui.text024", "Plan")));
         schedulePreview = ui.text("", 18, palette.ink, false);
         schedulePreview.setLineSpacing(0, 1.1f); schedulePreview.setMaxLines(3); schedulePreview.setEllipsize(TextUtils.TruncateAt.END);
         plan.addView(schedulePreview, margins(new LinearLayout.LayoutParams(-1, -2), 0, 8));
@@ -654,12 +729,12 @@ public final class MainActivity extends Activity {
         body.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
         LinearLayout actions = ui.row();
         body.addView(actions, new LinearLayout.LayoutParams(-1, ui.dp(64)));
-        scheduleConfirm = ui.primaryButton("Schedule"); scheduleConfirm.setPadding(ui.dp(28), 0, ui.dp(28), 0);
+        scheduleConfirm = ui.primaryButton(languagePack.text("ui.text025", "Schedule")); scheduleConfirm.setPadding(ui.dp(28), 0, ui.dp(28), 0);
         scheduleConfirm.setMinWidth(ui.dp(220));
         actions.addView(scheduleConfirm, new LinearLayout.LayoutParams(-2, -1));
         confirmTarget = targets.size();
         addTarget(scheduleConfirm, new Runnable() { @Override public void run() { confirmSchedule(); } });
-        scheduleCancel = ui.secondaryButton("Cancel schedule", palette.warm);
+        scheduleCancel = ui.secondaryButton(languagePack.text("ui.text026", "Cancel schedule"), palette.warm);
         actions.addView(scheduleCancel, margins(new LinearLayout.LayoutParams(-2, -1), 14, 0));
         addTarget(scheduleCancel, new Runnable() { @Override public void run() {
             startService(new Intent(MainActivity.this, PreconditioningService.class).setAction(PreconditioningService.SCHEDULE_CANCEL));
@@ -682,7 +757,7 @@ public final class MainActivity extends Activity {
         }
         clickable(digits[0], new Runnable() { @Override public void run() { stepWheel(field, -1); } });
         clickable(digits[2], new Runnable() { @Override public void run() { stepWheel(field, 1); } });
-        digits[0].setContentDescription("Earlier"); digits[2].setContentDescription("Later");
+        digits[0].setContentDescription(languagePack.text("ui.text027", "Earlier")); digits[2].setContentDescription(languagePack.text("ui.text028", "Later"));
         // A knob-only target: touch uses the neighbours, so the wheel itself isn't clickable.
         wheel.setFocusable(false);
         targets.add(new Target(wheel, -1, new Runnable() { @Override public void run() { pressWheel(field); } }));
@@ -721,7 +796,7 @@ public final class MainActivity extends Activity {
         }
         boolean armed = scheduleArmed();
         schedulePill.setVisibility(armed ? View.VISIBLE : View.GONE);
-        if (armed) ui.setPill(schedulePill, "Scheduled · " + schedule.title() + " "
+        if (armed) ui.setPill(schedulePill, languagePack.text("schedule.scheduled", "Scheduled") + " · " + localizedScheduleTitle(schedule) + " "
             + ScheduleFormat.time(schedule.targetAt, twentyFourHour, zone), palette.accent, palette.accentSoft);
         long target = ScheduleFormat.nextOccurrence(scheduleMinute, wall, zone);
         for (int i = 0; i < 3; i++) {
@@ -736,20 +811,21 @@ public final class MainActivity extends Activity {
         }
         boolean onWheel = knobIndex >= 0 && knobIndex < targets.size()
             && (targets.get(knobIndex).view == hourWheel || targets.get(knobIndex).view == minuteWheel);
-        scheduleHint.setText(editField == EDIT_HOUR ? "Turn to change the hour · press for minutes"
-            : editField == EDIT_MINUTE ? "Turn to change minutes · press to finish" : onWheel ? "Press to change" : "");
+        scheduleHint.setText(editField == EDIT_HOUR ? languagePack.text("ui.text029", "Turn to change the hour · press for minutes")
+            : editField == EDIT_MINUTE ? languagePack.text("ui.text030", "Turn to change minutes · press to finish") : onWheel ? languagePack.text("ui.text031", "Press to change") : "");
         String day = ScheduleFormat.dayHint(target, wall, zone).trim();
-        scheduleDay.setText(day.isEmpty() ? "Today" : Character.toUpperCase(day.charAt(0)) + day.substring(1));
+        scheduleDay.setText(day.isEmpty() ? languagePack.text("ui.text032", "Today") : "tomorrow".equals(day) ? languagePack.text("schedule.tomorrow", "Tomorrow") : localizedDay(day));
         boolean acceptable = PreconditioningSchedule.acceptable(target, wall);
         // Scheduling for later is fine while the car isn't READY; not during a request.
         boolean allowed = acceptable && vehicleService != null && !preconditioning.requested;
-        scheduleConfirm.setText(schedule != null ? "Update schedule" : "Schedule");
+        scheduleConfirm.setText(schedule != null ? languagePack.text("ui.text033", "Update schedule") : languagePack.text("ui.text025", "Schedule"));
         scheduleConfirm.setEnabled(allowed); scheduleConfirm.setAlpha(allowed ? 1f : 0.4f);
-        schedulePreview.setText(preconditioning.requested ? "Stop the current session to schedule another."
+        schedulePreview.setText(preconditioning.requested ? languagePack.text("ui.text034", "Stop the current session to schedule another.")
             : planText(target, wall, twentyFourHour, zone, acceptable));
         // Temperatures only matter to an arrive-by plan.
         boolean inputs = scheduleMode == PreconditioningSchedule.Mode.ARRIVE_BY;
-        scheduleInputs.setText("Battery " + fahrenheit(freshMinimumC()) + " · Outside " + fahrenheit(outsideC));
+        scheduleInputs.setText(languagePack.text("ui.text035", "Battery ") + batteryUnit.formatNullable(freshMinimumC())
+            + languagePack.text("schedule.outside", " · Outside ") + batteryUnit.formatNullable(outsideC));
         scheduleInputs.setVisibility(inputs ? View.VISIBLE : View.GONE);
         if (!armed) cancelSent = false;
         scheduleCancel.setVisibility(armed ? View.VISIBLE : View.GONE);
@@ -766,16 +842,17 @@ public final class MainActivity extends Activity {
         ui.background(chip, selected ? ui.quiet(palette.accentSoft, 10) : ui.secondary(10));
     }
     private String planText(long target, long wall, boolean twentyFourHour, TimeZone zone, boolean acceptable) {
-        if (!acceptable) return "Pick a time at least 2 minutes away.";
+        if (!acceptable) return languagePack.text("ui.text036", "Pick a time at least 2 minutes away.");
         String text;
         if (scheduleMode == PreconditioningSchedule.Mode.START_BY) {
-            text = "Preconditioning will be running by " + ScheduleFormat.time(target, twentyFourHour, zone) + ".";
+            text = languagePack.format("schedule.will_run", "Preconditioning will be running by %1$s.", ScheduleFormat.time(target, twentyFourHour, zone));
         } else {
             ArriveByPlanner.Plan plan = ArriveByPlanner.plan(target, freshMinimumC(), outsideC, warmThreshold(), wall);
-            text = plan.alreadyWarm || plan.lateStart ? plan.reason
-                : "Starts at " + ScheduleFormat.time(plan.sendAt, twentyFourHour, zone) + ". " + plan.reason;
+            String reason = languagePack.display(ScheduleFormat.displayPlanReason(plan.reason, batteryUnit));
+            text = plan.alreadyWarm || plan.lateStart ? reason
+                : languagePack.format("schedule.starts", "Starts at %1$s. ", ScheduleFormat.time(plan.sendAt, twentyFourHour, zone)) + reason;
         }
-        if (!preconditioning.canStart) text += " The car needs to be on then.";
+        if (!preconditioning.canStart) text += languagePack.text("schedule.needs_car", " The car needs to be on then.");
         return text;
     }
     private void confirmSchedule() {
@@ -794,8 +871,8 @@ public final class MainActivity extends Activity {
         scroller = new ScrollView(this); scroller.setFillViewport(true); scroller.setVerticalScrollBarEnabled(false);
         body.addView(scroller, new LinearLayout.LayoutParams(0, -1, 1));
         LinearLayout list = ui.column(); scroller.addView(list, new ScrollView.LayoutParams(-1, -2));
-        list.addView(sectionCaption("Display", 0));
-        LinearLayout look = settingsRow(list, "Appearance", appearance.title, false);
+        list.addView(sectionCaption(languagePack.text("ui.text037", "Display"), 0));
+        LinearLayout look = settingsRow(list, languagePack.text("ui.text038", "Appearance"), languagePack.text("appearance." + (appearance == AppearanceMode.FOLLOW_CAR ? "follow" : appearance == AppearanceMode.LIGHT ? "light" : "dark"), appearance.title), false);
         addTarget(look, new Runnable() { @Override public void run() {
             AppearanceMode[] modes = AppearanceMode.values();
             appearance = modes[(appearance.ordinal() + 1) % modes.length];
@@ -804,32 +881,55 @@ public final class MainActivity extends Activity {
             // Same palette: the page wasn't rebuilt, so show the new value here.
             if (before == palette) rebuildPage();
         } });
-        list.addView(sectionCaption("Tools", 18));
-        LinearLayout wifi = settingsRow(list, "Wi-Fi & ADB", "Checking", true);
+        list.addView(ui.divider(false));
+        LinearLayout unit = settingsRow(list, languagePack.text("ui.text039", "Temperature units"), (batteryUnitPreference == BatteryDisplayPreference.AUTO ? languagePack.text("units.auto", "Auto") + " (" + batteryUnit.symbol + ")" : batteryUnit.symbol), false);
+        addTarget(unit, new Runnable() { @Override public void run() {
+            batteryUnitPreference = batteryUnitPreference.next();
+            batteryUnit = batteryUnitPreference.resolve(vehicleProduct);
+            prefs.edit().putString("battery_display_unit", batteryUnitPreference.name()).apply();
+            rebuildPage();
+        } });
+        list.addView(ui.divider(false));
+        LinearLayout languageRow = settingsRow(list, languagePack.text("language.title", "Language"),
+                languagePack.name, false);
+        addTarget(languageRow, new Runnable() { @Override public void run() {
+            java.util.List<String> languages = LanguagePack.available(MainActivity.this);
+            language = languages.get((languages.indexOf(language) + 1) % languages.size());
+            languagePack = LanguagePack.load(MainActivity.this, language);
+            prefs.edit().putString("app_language", language).apply();
+            rebuildPage();
+        } });
+        list.addView(ui.divider(false));
+        LinearLayout importLanguage = settingsRow(list, languagePack.text("language.import", "Import language pack"), "", true);
+        addTarget(importLanguage, new Runnable() { @Override public void run() {
+            startActivity(new Intent(MainActivity.this, LanguageImportActivity.class));
+        } });
+        list.addView(sectionCaption(languagePack.text("ui.text040", "Tools"), 18));
+        LinearLayout wifi = settingsRow(list, languagePack.text("wifi.title", "Wi-Fi & ADB"), languagePack.text("ui.text041", "Checking"), true);
         wifiValue = (TextView) wifi.findViewWithTag("value");
         addTarget(wifi, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.WIFI); } });
         list.addView(ui.divider(false));
-        LinearLayout screens = settingsRow(list, "All screens", "", true);
+        LinearLayout screens = settingsRow(list, languagePack.text("ui.text042", "All screens"), "", true);
         addTarget(screens, new Runnable() { @Override public void run() { tab = TAB_ALL; showPage(ScreenFlow.Page.BROWSER); } });
         list.addView(ui.divider(false));
         LinearLayout nemesis = settingsRow(list, "NEMESIS Manager", "", true);
         ui.available(nemesis, available(ShortcutSpec.NEMESIS)); addTarget(nemesis, shortcutAction(ShortcutSpec.NEMESIS));
         list.addView(ui.divider(false));
-        LinearLayout probe = settingsRow(list, "Appearance signals", "", true);
+        LinearLayout probe = settingsRow(list, languagePack.text("ui.text043", "Appearance signals"), "", true);
         addTarget(probe, new Runnable() { @Override public void run() { showPage(ScreenFlow.Page.SIGNALS); } });
 
         LinearLayout vehicle = ui.column();
         body.addView(vehicle, margins(new LinearLayout.LayoutParams(0, -1, 1), 28, 0));
-        vehicle.addView(sectionCaption("Vehicle", 0));
+        vehicle.addView(sectionCaption(languagePack.text("ui.text044", "Vehicle"), 0));
         for (int i = 0; i < CHECK_LABELS.length; i++) {
             LinearLayout row = ui.row(); row.setGravity(Gravity.CENTER_VERTICAL);
             View divider = ui.divider(false);
             if (i > 0) vehicle.addView(divider);
             checkMarks[i] = new CheckMark(this); checkMarks[i].setPalette(palette);
             row.addView(checkMarks[i], new LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)));
-            TextView label = ui.text(CHECK_LABELS[i], 17, palette.ink, false); label.setSingleLine(true);
+            TextView label = ui.text(checkLabel(i), 17, palette.ink, false); label.setSingleLine(true);
             row.addView(label, margins(new LinearLayout.LayoutParams(-2, -2), 12, 0));
-            checkValues[i] = ui.text("Unknown", 15, palette.muted, false); checkValues[i].setSingleLine(true);
+            checkValues[i] = ui.text(languagePack.text("ui.text045", "Unknown"), 15, palette.muted, false); checkValues[i].setSingleLine(true);
             checkValues[i].setEllipsize(TextUtils.TruncateAt.END); checkValues[i].setGravity(Gravity.RIGHT);
             row.addView(checkValues[i], margins(new LinearLayout.LayoutParams(0, -2, 1), 12, 0));
             vehicle.addView(row, new LinearLayout.LayoutParams(-1, ui.dp(50)));
@@ -862,28 +962,28 @@ public final class MainActivity extends Activity {
         setCheck(3, preconditioning.supported, preconditioning.supportedValue());
         setCheck(4, minimum != null ? PreconditioningSnapshot.PASS : batteryTemperature.attempted
             ? PreconditioningSnapshot.FAIL : PreconditioningSnapshot.UNKNOWN,
-            minimum != null ? "Native" : batteryTemperature.attempted ? "Not available on this firmware" : "Checking");
+            minimum != null ? languagePack.text("ui.text046", "Native") : batteryTemperature.attempted ? languagePack.text("ui.text047", "Not available on this firmware") : languagePack.text("ui.text041", "Checking"));
         int failure = preconditioning.failureRaw >= 0 ? View.VISIBLE : View.GONE;
         failureRow.setVisibility(failure); failureDivider.setVisibility(failure);
-        setCheck(5, PreconditioningSnapshot.UNKNOWN, "Raw " + preconditioning.failureRaw + " · meaning unknown");
+        setCheck(5, PreconditioningSnapshot.UNKNOWN, languagePack.format("check.raw", "Raw %1$s · meaning unknown", preconditioning.failureRaw));
     }
     private void setCheck(int index, int state, String value) {
-        checkMarks[index].setState(state); checkValues[index].setText(value);
+        checkMarks[index].setState(state); checkValues[index].setText(localizedValue(value));
     }
 
     private void buildWifi() {
         LinearLayout list = ui.column();
         content.addView(list, new FrameLayout.LayoutParams(compact ? -1 : ui.dp(620), -2));
-        list.addView(sectionCaption("Wi-Fi & ADB", 0));
-        statusText = (TextView) settingsRow(list, "Status", "Checking", false).findViewWithTag("value");
+        list.addView(sectionCaption(languagePack.text("wifi.title", "Wi-Fi & ADB"), 0));
+        statusText = (TextView) settingsRow(list, languagePack.text("ui.text048", "Status"), languagePack.text("ui.text041", "Checking"), false).findViewWithTag("value");
         list.addView(ui.divider(false));
-        networkText = (TextView) settingsRow(list, "Network", "—", false).findViewWithTag("value");
+        networkText = (TextView) settingsRow(list, languagePack.text("ui.text049", "Network"), "—", false).findViewWithTag("value");
         list.addView(ui.divider(false));
-        ipText = (TextView) settingsRow(list, "IP address", "—", false).findViewWithTag("value");
+        ipText = (TextView) settingsRow(list, languagePack.text("ui.text050", "IP address"), "—", false).findViewWithTag("value");
         list.addView(ui.divider(false));
-        LinearLayout adb = settingsRow(list, "ADB address", "—", false);
+        LinearLayout adb = settingsRow(list, languagePack.text("wifi.adb", "ADB address"), "—", false);
         adbText = (TextView) adb.findViewWithTag("value"); copyRow = adb;
-        adb.setContentDescription("Copy ADB address");
+        adb.setContentDescription(languagePack.text("ui.text051", "Copy ADB address"));
         addTarget(adb, new Runnable() { @Override public void run() { copyAddress(); } });
         list.addView(ui.divider(false));
         LinearLayout settings = settingsRow(list, ShortcutSpec.WIFI.title, "", true);
@@ -894,13 +994,12 @@ public final class MainActivity extends Activity {
     private void buildSignals() {
         LinearLayout body = ui.column();
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
-        body.addView(sectionCaption("Appearance signals", 0));
-        TextView hint = ui.text("Read-only. Switch the Hyundai display between Day and Night (and Auto with the "
-            + "headlights on and off), then report which lines changed.", 16, palette.muted, false);
+        body.addView(sectionCaption(languagePack.text("ui.text043", "Appearance signals"), 0));
+        TextView hint = ui.text(languagePack.text("signals.hint", "Read-only. Switch the Hyundai display between Day and Night (and Auto with the headlights on and off), then report which lines changed."), 16, palette.muted, false);
         hint.setLineSpacing(0, 1.1f); body.addView(hint);
         scroller = new ScrollView(this);
         body.addView(scroller, margins(new LinearLayout.LayoutParams(-1, 0, 1), 0, 14));
-        signalsText = ui.text("Reading…", 14, palette.ink, false);
+        signalsText = ui.text(languagePack.text("ui.text052", "Reading…"), 14, palette.ink, false);
         signalsText.setTypeface(android.graphics.Typeface.MONOSPACE); signalsText.setLineSpacing(0, 1.15f);
         scroller.addView(signalsText);
     }
@@ -912,7 +1011,7 @@ public final class MainActivity extends Activity {
         LinearLayout tabs = ui.row(); tabs.setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4));
         ui.background(tabs, ui.rounded(palette.raised, 12, palette.line));
         browserToolbar.addView(tabs);
-        String[] names = {"Favorites", "Apps", "All screens"};
+        String[] names = {languagePack.text("ui.text053", "Favorites"), languagePack.text("ui.text054", "Apps"), languagePack.text("ui.text042", "All screens")};
         for (int i = 0; i < names.length; i++) {
             final int selection = i;
             TextView button = ui.text(names[i], 17, tab == i ? palette.accent : palette.muted, Fonts.Weight.MEDIUM);
@@ -923,7 +1022,7 @@ public final class MainActivity extends Activity {
                 tab = selection; prefs.edit().putInt("tab", tab).apply(); showPage(ScreenFlow.Page.BROWSER);
             } });
         }
-        TextView hint = ui.text("Hold an app to favorite", 14, palette.muted, false);
+        TextView hint = ui.text(languagePack.text("ui.text055", "Hold an app to favorite"), 14, palette.muted, false);
         hint.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         browserToolbar.addView(hint, new LinearLayout.LayoutParams(0, -2, 1));
         FrameLayout list = new FrameLayout(this);
@@ -933,7 +1032,7 @@ public final class MainActivity extends Activity {
         grid.setHorizontalSpacing(ui.dp(12)); grid.setVerticalSpacing(ui.dp(12));
         grid.setSelector(android.R.color.transparent); grid.setClipToPadding(false); grid.setAdapter(adapter);
         list.addView(grid, new FrameLayout.LayoutParams(-1, -1));
-        empty = ui.text("Loading screens…", 20, palette.muted, false);
+        empty = ui.text(languagePack.text("ui.text056", "Loading screens…"), 20, palette.muted, false);
         empty.setGravity(Gravity.CENTER); list.addView(empty, new FrameLayout.LayoutParams(-1, -1));
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -962,8 +1061,8 @@ public final class MainActivity extends Activity {
             } else entries.addAll(tab == TAB_APPS ? catalog.apps : catalog.all);
         }
         adapter.setItems(entries);
-        empty.setText(catalog == null ? "Loading screens…" : tab == TAB_FAVORITES
-            ? "No favorites yet\nHold an app to add it here" : "No available screens");
+        empty.setText(catalog == null ? languagePack.text("ui.text056", "Loading screens…") : tab == TAB_FAVORITES
+            ? languagePack.text("browser.empty_favorites", "No favorites yet\nHold an app to add it here") : languagePack.text("ui.text057", "No available screens"));
         empty.setVisibility(entries.isEmpty() ? View.VISIBLE : View.GONE);
         // Keep the three tab controls; rebuild item targets when the catalog or favorites change.
         while (targets.size() > 3) targets.remove(targets.size() - 1);
@@ -1088,9 +1187,9 @@ public final class MainActivity extends Activity {
         } catch (Exception error) { return ""; }
     }
     private String connectionStatus() {
-        return connection.state == ConnectionSnapshot.State.CONNECTED ? "Connected"
-            : connection.state == ConnectionSnapshot.State.OFF ? "Wi-Fi off"
-            : connection.state == ConnectionSnapshot.State.DISCONNECTED ? "Disconnected" : "Unavailable";
+        return connection.state == ConnectionSnapshot.State.CONNECTED ? languagePack.text("ui.text058", "Connected")
+            : connection.state == ConnectionSnapshot.State.OFF ? languagePack.text("ui.text059", "Wi-Fi off")
+            : connection.state == ConnectionSnapshot.State.DISCONNECTED ? languagePack.text("ui.text060", "Disconnected") : languagePack.text("ui.text061", "Unavailable");
     }
     private void updateConnectionViews() {
         if (wifiValue != null) wifiValue.setText(connection.canCopy ? connection.adb : connectionStatus());
@@ -1098,14 +1197,14 @@ public final class MainActivity extends Activity {
         statusText.setText(connectionStatus());
         statusText.setTextColor(connection.state == ConnectionSnapshot.State.CONNECTED ? palette.ok : palette.muted);
         networkText.setText(connection.network); ipText.setText(connection.ip);
-        adbText.setText(connection.canCopy ? connection.adb + " · Copy" : connection.adb);
+        adbText.setText(connection.canCopy ? connection.adb + languagePack.text("wifi.copy", " · Copy") : connection.adb);
         copyRow.setEnabled(connection.canCopy);
         if (knobIndex >= 0 && knobIndex < targets.size() && !targets.get(knobIndex).enabled()) moveKnob(1);
     }
     private void copyAddress() {
         if (!connection.canCopy) return;
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null) { clipboard.setPrimaryClip(ClipData.newPlainText("ADB address", connection.adb)); toast("ADB address copied"); }
+        if (clipboard != null) { clipboard.setPrimaryClip(ClipData.newPlainText("ADB address", connection.adb)); toast(languagePack.text("ui.text062", "ADB address copied")); }
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -1115,7 +1214,7 @@ public final class MainActivity extends Activity {
                 int steps = code == KEY_TUNE_UP || code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1;
                 if (editField != EDIT_NONE) { stepWheel(editField, steps); return true; }
                 moveKnob(steps);
-                if (hourWheel != null) renderSchedule();   // "Press to change" follows the knob onto a wheel.
+                if (hourWheel != null) renderSchedule();   // languagePack.text("ui.text031", "Press to change") follows the knob onto a wheel.
                 knobOnToggle = page == ScreenFlow.Page.BATTERY && knobIndex == 0;
             }
             return true;

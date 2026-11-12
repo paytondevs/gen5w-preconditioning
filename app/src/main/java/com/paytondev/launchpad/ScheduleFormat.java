@@ -8,6 +8,8 @@ import java.util.TimeZone;
 
 /** Wall-clock text for the scheduler. The zone and 12/24-hour choice are passed in. */
 final class ScheduleFormat {
+    private static final java.util.regex.Pattern CURRENT_PLAN = java.util.regex.Pattern.compile(
+        "^About ([0-9]+) min to warm the battery from (-?[0-9]{1,3})°F to (-?[0-9]{1,3})°F(\\.(?: It may not be fully warm in time\\.)?)$");
     private ScheduleFormat() { }
 
     static String time(long epochMs, boolean twentyFourHour, TimeZone zone) {
@@ -94,5 +96,15 @@ final class ScheduleFormat {
     /** "48°F (9°C)" or "—". */
     static String temperature(Integer celsius) {
         return celsius == null ? "—" : BatteryTemperatureReading.fahrenheit(celsius) + "°F (" + celsius + "°C)";
+    }
+
+    /** Display a current plan in the selected unit without changing persisted plan or log text. */
+    static String displayPlanReason(String reason, BatteryDisplayUnit unit) {
+        if (reason == null || unit != BatteryDisplayUnit.CELSIUS) return reason;
+        java.util.regex.Matcher m = CURRENT_PLAN.matcher(reason);
+        if (!m.matches()) return reason;
+        int fromF = Integer.parseInt(m.group(2)), toF = Integer.parseInt(m.group(3));
+        int fromC = Math.round((fromF - 32) * 5f / 9f), toC = Math.round((toF - 32) * 5f / 9f);
+        return "About " + m.group(1) + " min to warm the battery from " + fromC + "°C to " + toC + "°C" + m.group(4);
     }
 }

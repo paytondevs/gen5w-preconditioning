@@ -1,0 +1,181 @@
+{
+  "buttonsettings.adapter": {
+    "class": "com.android.buttonsettings.util.IconTextListAdapter"
+  },
+  "buttonsettings.adapter.set_boolean_list": {
+    "method": "setBooleanList",
+    "params": [
+      "boolean[]"
+    ],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.adapter.set_list_items": {
+    "method": "setListItems",
+    "params": [
+      "java.util.List"
+    ],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.head_screen": {
+    "class": "com.android.buttonsettings.CustomButtonSetting"
+  },
+  "buttonsettings.head_screen.adapter": {
+    "field": "adapter",
+    "type": "com.android.buttonsettings.util.IconTextListAdapter",
+    "static": false
+  },
+  "buttonsettings.head_screen.checked_list": {
+    "field": "mCheckedList",
+    "type": "boolean[]",
+    "static": false
+  },
+  "buttonsettings.head_screen.cur_list": {
+    "field": "mCurList",
+    "type": "java.util.List",
+    "static": false
+  },
+  "buttonsettings.head_screen.init_custom_key": {
+    "method": "initCustomKey",
+    "params": [],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.head_screen.init_list": {
+    "method": "initList",
+    "params": [],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.head_screen.keycode": {
+    "field": "mKeycode",
+    "type": "java.lang.String",
+    "static": true
+  },
+  "buttonsettings.head_screen.list_item": {
+    "method": "getListItem",
+    "params": [
+      "int",
+      "java.lang.String",
+      "int"
+    ],
+    "ret": "com.android.buttonsettings.util.IconTextItem",
+    "static": false
+  },
+  "buttonsettings.head_screen.menu_list": {
+    "field": "mMenuList",
+    "type": "java.util.ArrayList",
+    "static": false
+  },
+  "buttonsettings.head_screen.set_selected": {
+    "method": "setSelectedIdem",
+    "params": [
+      "int"
+    ],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.head_screen.title_list": {
+    "field": "mCustomKeyTitleList",
+    "type": "int[]",
+    "static": false
+  },
+  "buttonsettings.item": {
+    "class": "com.android.buttonsettings.customviews.CustomItem"
+  },
+  "buttonsettings.item.get_shortcut": {
+    "method": "getShortCut",
+    "params": [],
+    "ret": "java.lang.String",
+    "static": false
+  },
+  "buttonsettings.item.new": {
+    "ctor": [
+      "int",
+      "int",
+      "int",
+      "java.lang.String"
+    ]
+  },
+  "buttonsettings.row": {
+    "class": "com.android.buttonsettings.util.IconTextItem"
+  },
+  "buttonsettings.row.is_check": {
+    "method": "isCheck",
+    "params": [],
+    "ret": "boolean",
+    "static": false
+  },
+  "buttonsettings.row.set_check": {
+    "method": "setCheck",
+    "params": [
+      "boolean"
+    ],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.wheel_screen": {
+    "class": "com.android.buttonsettings.CustomButtonSettingSWRC"
+  },
+  "buttonsettings.wheel_screen.adapter": {
+    "field": "adapter",
+    "type": "com.android.buttonsettings.util.IconTextListAdapter",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.checked_list": {
+    "field": "mCheckedList",
+    "type": "boolean[]",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.cur_list": {
+    "field": "mCurList",
+    "type": "java.util.List",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.init_custom_key": {
+    "method": "initCustomKey",
+    "params": [],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.init_list": {
+    "method": "initList",
+    "params": [],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.keycode": {
+    "field": "mKeycode",
+    "type": "java.lang.String",
+    "static": true
+  },
+  "buttonsettings.wheel_screen.list_item": {
+    "method": "getListItem",
+    "params": [
+      "int",
+      "java.lang.String",
+      "int"
+    ],
+    "ret": "com.android.buttonsettings.util.IconTextItem",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.menu_list": {
+    "field": "mMenuList",
+    "type": "java.util.ArrayList",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.set_selected": {
+    "method": "setSelectedIdem",
+    "params": [
+      "int"
+    ],
+    "ret": "void",
+    "static": false
+  },
+  "buttonsettings.wheel_screen.title_list": {
+    "field": "mCustomKeyTitleList",
+    "type": "int[]",
+    "static": false
+  }
+}

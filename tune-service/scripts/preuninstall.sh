@@ -16,6 +16,8 @@ if [ -f "$STAGE/NEMESIS.data" ]; then
     exit 0
 fi
 
+sh "$HERE/scripts/hmg-star.sh" remove || { log "preuninstall: star removal blocked"; exit 1; }
+
 force_stop_app
 # Only if a 1.x copy is somehow still there (2.x never writes /system).
 remove_legacy_sysapk || exit 1

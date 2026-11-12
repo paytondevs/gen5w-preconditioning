@@ -15,7 +15,11 @@ final class TemperatureGauge extends View {
     private Integer valueC;
     private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
     private boolean heating;
+    private BatteryDisplayUnit displayUnit = BatteryDisplayUnit.FAHRENHEIT;
     private Palette palette = Palette.DARK;
+    private LanguagePack languagePack;
+    void setLanguagePack(LanguagePack value) { languagePack = value; invalidate(); }
+    private String tr(String key, String fallback) { return languagePack == null ? fallback : languagePack.text(key, fallback); }
 
     TemperatureGauge(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
@@ -27,6 +31,7 @@ final class TemperatureGauge extends View {
             && heating == this.heating) return;
         valueC = celsius; this.thresholdC = thresholdC; this.heating = heating; invalidate();
     }
+    void setDisplayUnit(BatteryDisplayUnit value) { if (value != displayUnit) { displayUnit = value; invalidate(); } }
     void setPalette(Palette value) { if (value != palette) { palette = value; invalidate(); } }
     static float fraction(float celsius) { return Math.max(0f, Math.min(1f, (celsius - MIN_C) / (MAX_C - MIN_C))); }
 
@@ -45,10 +50,10 @@ final class TemperatureGauge extends View {
         float labels = bottom + 24 * dp;
         paint.setColor(palette.muted);
         paint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText(BatteryTemperatureReading.fahrenheit(MIN_C) + "°F", left, labels, paint);
+        canvas.drawText(displayUnit.format(MIN_C), left, labels, paint);
         paint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText(BatteryTemperatureReading.fahrenheit(MAX_C) + "°F", right, labels, paint);
-        String warmAt = "Warm at " + BatteryTemperatureReading.fahrenheit(thresholdC) + "°F";
+        canvas.drawText(displayUnit.format(MAX_C), right, labels, paint);
+        String warmAt = tr("chart.warm", "Warm at ") + displayUnit.format(thresholdC);
         float half = paint.measureText(warmAt) / 2, edge = 48 * dp;
         paint.setTextAlign(Paint.Align.CENTER);
         canvas.drawText(warmAt, Math.max(left + edge + half, Math.min(right - edge - half, threshold)), labels, paint);

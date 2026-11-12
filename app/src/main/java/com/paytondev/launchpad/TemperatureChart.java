@@ -20,7 +20,15 @@ final class TemperatureChart extends View {
     private long now;
     private int thresholdC = BatteryTemperature.EXPECTED_HEATING_THRESHOLD_C;
     private boolean heating;
+    private BatteryDisplayUnit displayUnit = BatteryDisplayUnit.FAHRENHEIT;
     private Palette palette = Palette.DARK;
+    private LanguagePack languagePack;
+    void setLanguagePack(LanguagePack value) {
+        languagePack = value;
+        setContentDescription(tr("chart.description", "Battery temperature this session"));
+        invalidate();
+    }
+    private String tr(String key, String fallback) { return languagePack == null ? fallback : languagePack.text(key, fallback); }
 
     TemperatureChart(Context context) {
         super(context); dp = context.getResources().getDisplayMetrics().density;
@@ -30,6 +38,7 @@ final class TemperatureChart extends View {
         label.setTextSize(13 * dp); label.setTypeface(Fonts.get(context, Fonts.Weight.REGULAR));
         setContentDescription("Battery temperature this session");
     }
+    void setDisplayUnit(BatteryDisplayUnit value) { if (value != displayUnit) { displayUnit = value; invalidate(); } }
     void setPalette(Palette value) {
         if (value == palette) return;
         palette = value; label.setColor(palette.muted); invalidate();
@@ -66,7 +75,7 @@ final class TemperatureChart extends View {
         List<TemperatureHistory.Sample> samples = trace.samples;
         if (samples.isEmpty()) {
             label.setTextAlign(Paint.Align.CENTER); label.setTextSize(17 * dp);
-            canvas.drawText("Waiting for readings", getWidth() / 2f, getHeight() / 2f + 6 * dp, label);
+            canvas.drawText(tr("chart.wait", "Waiting for readings"), getWidth() / 2f, getHeight() / 2f + 6 * dp, label);
             label.setTextSize(13 * dp); return;
         }
         float left = 44 * dp, top = 8 * dp, width = getWidth() - left, height = getHeight() - top - 26 * dp;
@@ -77,13 +86,13 @@ final class TemperatureChart extends View {
         for (float c : range) {
             float yy = y(c, range[0], range[1], top, height);
             canvas.drawLine(left, yy, left + width, yy, line);
-            canvas.drawText(BatteryTemperatureReading.fahrenheit(c) + "°F", left - 8 * dp, yy + 5 * dp, label);
+            canvas.drawText(displayUnit.format(c), left - 8 * dp, yy + 5 * dp, label);
         }
         float threshold = y(thresholdC, range[0], range[1], top, height);
         path.reset(); path.moveTo(left, threshold); path.lineTo(left + width, threshold);
         canvas.drawPath(path, dashed);
         label.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("Warm at " + BatteryTemperatureReading.fahrenheit(thresholdC) + "°F", left + width, threshold - 6 * dp, label);
+        canvas.drawText(tr("chart.warm", "Warm at ") + displayUnit.format(thresholdC), left + width, threshold - 6 * dp, label);
         // The session marker's label sits in the time axis row, replacing an end label it would hit.
         float axis = top + height + 20 * dp, sx = -1;
         if (trace.sessionStart >= 0 && trace.sessionStart >= start) {
@@ -91,16 +100,16 @@ final class TemperatureChart extends View {
             line.setColor(palette.muted); line.setStrokeWidth(1.5f * dp);
             canvas.drawLine(sx, top, sx, top + height + 6 * dp, line);
             label.setTextAlign(Paint.Align.CENTER); label.setColor(palette.ink);
-            canvas.drawText("Start", Math.max(left + 18 * dp, Math.min(left + width - 18 * dp, sx)), axis, label);
+            canvas.drawText(tr("chart.start", "Start"), Math.max(left + 18 * dp, Math.min(left + width - 18 * dp, sx)), axis, label);
             label.setColor(palette.muted);
         }
         trace(canvas, samples, true, range, start, left, top, width, height);
         trace(canvas, samples, false, range, start, left, top, width, height);
         label.setTextAlign(Paint.Align.LEFT);
         if (sx < 0 || sx > left + 90 * dp)
-            canvas.drawText("−" + Math.round((now - start) / 60000f) + " min", left, axis, label);
+            canvas.drawText("−" + Math.round((now - start) / 60000f) + tr("chart.minutes", " min"), left, axis, label);
         label.setTextAlign(Paint.Align.RIGHT);
-        if (sx < 0 || sx < left + width - 70 * dp) canvas.drawText("Now", left + width, axis, label);
+        if (sx < 0 || sx < left + width - 70 * dp) canvas.drawText(tr("chart.now", "Now"), left + width, axis, label);
     }
     private void trace(Canvas canvas, List<TemperatureHistory.Sample> samples, boolean maximum, float[] range,
                        long start, float left, float top, float width, float height) {

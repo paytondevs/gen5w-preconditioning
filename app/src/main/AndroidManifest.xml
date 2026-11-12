@@ -17,6 +17,7 @@
             </intent-filter>
         </receiver>
         <!-- MAIN/LAUNCHER only (no HOME category): Hyundai's launcher remains the home screen. -->
+        <activity android:name=".LanguageImportActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation|locale|uiMode|fontScale|layoutDirection"
