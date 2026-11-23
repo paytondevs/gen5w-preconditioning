@@ -72,7 +72,7 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | Hyundai IONIQ 5 | 2021 | US | NEEV (`wp_daudioplus_neev_us`) | ⚠️ see below | ✅ | ✅ supported |
 
 </details>
-<summary><b>260226</b></summary>
+<summary><b>260902</b></summary>
 
 | vehicle | model years | market | head unit | preconditioning | battery temperature | status |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -69,7 +69,7 @@ final class PreconditioningProfile {
     static final String EV6_CVEV_KR_SOFTWARE = "CVEV.KOR.0000.V039.001.260902";
     static final String EV6_CVEV_KR_FRAMEWORK_SHA256 = "e9ff63f7b456327b9a1c683dc2bacf4b30679bb8ff08279799918233ad1de25d";
     static final String EV6_CVEV_KR_SERVICE_SHA256 = "f830984e0401d24156a7101bb6ec03896ce1a70ff7ec732ad9e65072d8b717eb";
-   // NEEV CAN 260902 (CAN 2022-24 Ioniq 5 Long Range RWD): own firmware files, captured on 026-11-17;
+   // NEEV CAN 260206 (CAN 2022-24 Ioniq 5 Long Range RWD): own firmware files, captured on 2026-11-17;
     // the five HEV/BCM transactions and the cluster contract match the other profiles.
     static final String IONIQ5_NEEV_CA_DEVICE = "wp_daudioplus_neev_ca";
     static final String IONIQ5_NEEV_CA_SOFTWARE = "NEEV.CAN.0000.V015.011.260206";
