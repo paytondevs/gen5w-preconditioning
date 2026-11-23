@@ -72,6 +72,15 @@ Launchpad only works on the exact cars and head-unit software versions below. Yo
 | Hyundai IONIQ 5 | 2021 | US | NEEV (`wp_daudioplus_neev_us`) | ⚠️ see below | ✅ | ✅ supported |
 
 </details>
+<summary><b>260226</b></summary>
+
+| vehicle | model years | market | head unit | preconditioning | battery temperature | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Hyundai IONIQ 5 | 2023 | CAN | NEEV (`wp_daudioplus_neev_ca`) | to be tested | ✅ | ✅ supported |
+
+</details>
+
+<details>
 
 - **NEEV US on 260903: preconditioning ⚠️.** On the car this profile comes from, Launchpad recognizes the head unit and shows the battery temperature, but **Start** stays unavailable: the car reports battery conditioning as not enabled even with Winter Mode on, and its EV settings have no Battery conditioning item. Launchpad sends nothing to the car in that state. Holding TUNE opens Launchpad.
 - **NEEV KR on 260902: TUNE shortcut ❌.** Holding TUNE doesn't open Launchpad on this head unit, because its porting kit report recorded no TUNE press. Preconditioning and battery temperature work as listed; open it from NEMESIS Manager instead, where it's on the home screen as **Precondition** (NEMESIS 1.16 or newer) or under **Packages → Precondition → Launch**. A porting kit report taken while holding TUNE would let us add the shortcut.
